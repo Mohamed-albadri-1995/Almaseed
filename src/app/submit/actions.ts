@@ -13,11 +13,43 @@ export interface SubmitState {
   error?: string;
 }
 
+const UNKNOWN = 'غير معروف';
+
+// Normalize a text field: empty or the "لا أعلم" marker becomes null.
+function clean(value?: string | null): string | null {
+  if (!value) return null;
+  const t = value.trim();
+  return t === '' || t === UNKNOWN ? null : t;
+}
+
 // Parse a date input safely — "لا أعلم"/invalid values become null.
 function parseDate(value?: string | null): Date | null {
-  if (!value) return null;
-  const d = new Date(value);
+  const c = clean(value);
+  if (!c) return null;
+  const d = new Date(c);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Build the cleaned text fields shared by create/resubmit.
+function cleanFields(d: Record<string, unknown>) {
+  const s = (k: string) => clean(d[k] as string | null | undefined);
+  return {
+    title: (d.title as string).trim(),
+    description: s('description'),
+    lyrics: s('lyrics'),
+    summary: s('summary'),
+    performer: s('performer'),
+    narrator: s('narrator'),
+    speaker: s('speaker'),
+    host: s('host'),
+    participants: s('participants'),
+    occasion: s('occasion'),
+    topic: s('topic'),
+    place: s('place'),
+    city: s('city'),
+    organizer: s('organizer'),
+    keywords: s('keywords'),
+  };
 }
 
 export async function submitMaterialAction(
@@ -39,27 +71,14 @@ export async function submitMaterialAction(
   });
   if (!category) return { error: 'التصنيف غير موجود' };
 
+  const f = cleanFields(d);
   const material = await prisma.material.create({
     data: {
-      title: d.title,
+      ...f,
       status: MATERIAL_STATUS.PENDING,
       categoryId: category.id,
-      description: d.description || null,
-      lyrics: d.lyrics || null,
-      summary: d.summary || null,
-      performer: d.performer || null,
-      narrator: d.narrator || null,
-      speaker: d.speaker || null,
-      host: d.host || null,
-      participants: d.participants || null,
-      occasion: d.occasion || null,
-      topic: d.topic || null,
-      place: d.place || null,
-      city: d.city || null,
-      organizer: d.organizer || null,
-      language: d.language || 'العربية',
+      language: clean(d.language) || 'العربية',
       recordDate: parseDate(d.recordDate),
-      keywords: d.keywords || null,
       fileUrl: d.fileUrl || null,
       fileKind: d.fileKind || 'AUDIO',
       fileType: d.fileType || null,
@@ -68,7 +87,7 @@ export async function submitMaterialAction(
       coverImage: d.coverImage || null,
       source: user.name,
       submittedById: user.id,
-      searchText: buildSearchText(d),
+      searchText: buildSearchText(f),
     },
   });
 
@@ -116,27 +135,14 @@ export async function resubmitMaterialAction(
   // Snapshot the current data before overwriting (edit history).
   await snapshotMaterial(id, user.id, user.name, 'resubmit');
 
+  const f = cleanFields(d);
   await prisma.material.update({
     where: { id },
     data: {
-      title: d.title,
+      ...f,
       status: MATERIAL_STATUS.PENDING,
-      description: d.description || null,
-      lyrics: d.lyrics || null,
-      summary: d.summary || null,
-      performer: d.performer || null,
-      narrator: d.narrator || null,
-      speaker: d.speaker || null,
-      host: d.host || null,
-      participants: d.participants || null,
-      occasion: d.occasion || null,
-      topic: d.topic || null,
-      place: d.place || null,
-      city: d.city || null,
-      organizer: d.organizer || null,
       recordDate: parseDate(d.recordDate),
-      keywords: d.keywords || null,
-      searchText: buildSearchText(d),
+      searchText: buildSearchText(f),
       ...(d.fileUrl
         ? {
             fileUrl: d.fileUrl,
