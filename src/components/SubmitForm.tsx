@@ -166,18 +166,24 @@ function FileUpload({
     fd.append('file', file);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) {
+      const text = await res.text();
+      let data: { url?: string; fileKind?: string; fileType?: string; fileSize?: number; error?: string } = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text.slice(0, 200) || `خطأ ${res.status}` };
+      }
+      if (!res.ok || !data.url) {
         setState('error');
-        setError(data.error || 'فشل الرفع');
+        setError(data.error || `فشل الرفع (${res.status})`);
         onUploaded(null);
         return;
       }
       setState('done');
-      onUploaded(data);
-    } catch {
+      onUploaded(data as { url: string; fileKind: string; fileType: string; fileSize: number });
+    } catch (err) {
       setState('error');
-      setError('تعذّر رفع الملف');
+      setError(err instanceof Error ? err.message : 'تعذّر رفع الملف');
       onUploaded(null);
     }
   };

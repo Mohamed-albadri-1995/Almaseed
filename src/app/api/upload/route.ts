@@ -46,12 +46,21 @@ export async function POST(req: Request) {
 
   const name = `${randomBytes(8).toString('hex')}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
-  const url = await saveUpload(name, bytes, file.type || 'application/octet-stream');
 
-  return NextResponse.json({
-    url,
-    fileKind: kind,
-    fileType: ext.toUpperCase(),
-    fileSize: file.size,
-  });
+  try {
+    const url = await saveUpload(name, bytes, file.type || 'application/octet-stream');
+    return NextResponse.json({
+      url,
+      fileKind: kind,
+      fileType: ext.toUpperCase(),
+      fileSize: file.size,
+    });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error('Upload failed:', detail);
+    return NextResponse.json(
+      { error: `تعذّر حفظ الملف: ${detail}` },
+      { status: 500 },
+    );
+  }
 }
