@@ -4,6 +4,7 @@ import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { getCurrentUser } from '@/lib/session';
 import { FILE_KINDS } from '@/lib/constants';
+import { uploadsDir } from '@/lib/uploads';
 
 const MAX_SIZE = 200 * 1024 * 1024; // 200MB
 
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'نوع الملف غير مدعوم' }, { status: 400 });
   }
 
-  const dir = join(process.cwd(), 'public', 'uploads');
+  const dir = uploadsDir();
   await mkdir(dir, { recursive: true });
   const name = `${randomBytes(8).toString('hex')}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
