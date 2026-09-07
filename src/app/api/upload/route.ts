@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { getCurrentUser } from '@/lib/session';
 import { FILE_KINDS } from '@/lib/constants';
-import { uploadsDir } from '@/lib/uploads';
+import { saveUpload } from '@/lib/storage';
 
 const MAX_SIZE = 200 * 1024 * 1024; // 200MB
 
@@ -46,14 +44,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'نوع الملف غير مدعوم' }, { status: 400 });
   }
 
-  const dir = uploadsDir();
-  await mkdir(dir, { recursive: true });
   const name = `${randomBytes(8).toString('hex')}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
-  await writeFile(join(dir, name), bytes);
+  const url = await saveUpload(name, bytes, file.type || 'application/octet-stream');
 
   return NextResponse.json({
-    url: `/uploads/${name}`,
+    url,
     fileKind: kind,
     fileType: ext.toUpperCase(),
     fileSize: file.size,
