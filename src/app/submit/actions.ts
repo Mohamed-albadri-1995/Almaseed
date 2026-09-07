@@ -13,6 +13,13 @@ export interface SubmitState {
   error?: string;
 }
 
+// Parse a date input safely — "لا أعلم"/invalid values become null.
+function parseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export async function submitMaterialAction(
   _prev: SubmitState,
   formData: FormData,
@@ -51,7 +58,7 @@ export async function submitMaterialAction(
       city: d.city || null,
       organizer: d.organizer || null,
       language: d.language || 'العربية',
-      recordDate: d.recordDate ? new Date(d.recordDate) : null,
+      recordDate: parseDate(d.recordDate),
       keywords: d.keywords || null,
       fileUrl: d.fileUrl || null,
       fileKind: d.fileKind || 'AUDIO',
@@ -127,7 +134,7 @@ export async function resubmitMaterialAction(
       place: d.place || null,
       city: d.city || null,
       organizer: d.organizer || null,
-      recordDate: d.recordDate ? new Date(d.recordDate) : null,
+      recordDate: parseDate(d.recordDate),
       keywords: d.keywords || null,
       searchText: buildSearchText(d),
       ...(d.fileUrl
