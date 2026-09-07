@@ -143,8 +143,16 @@ function Field({ field }: { field: FieldDef }) {
 
 function FileUpload({
   onUploaded,
+  label = 'رفع الملف (صوت / فيديو / مستند / صورة)',
+  accept = '.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp',
+  hint = 'أرفق ملف المادة (صوت أو فيديو). يمكن رفعه لاحقاً إن لم يكن جاهزاً الآن.',
+  idle = 'اضغط لاختيار ملف (حتى 200 ميجابايت)',
 }: {
   onUploaded: (data: { url: string; fileKind: string; fileType: string; fileSize: number } | null) => void;
+  label?: string;
+  accept?: string;
+  hint?: string;
+  idle?: string;
 }) {
   const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
@@ -176,12 +184,12 @@ function FileUpload({
 
   return (
     <div>
-      <label className="label">رفع الملف (صوت / فيديو / مستند / صورة)</label>
+      <label className="label">{label}</label>
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8 text-center hover:bg-brand-50">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600">
           <Icon.download width={24} height={24} className="rotate-180" />
         </span>
-        {state === 'idle' && <span className="text-sm text-muted">اضغط لاختيار ملف (حتى 200 ميجابايت)</span>}
+        {state === 'idle' && <span className="text-sm text-muted">{idle}</span>}
         {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
         {state === 'done' && (
           <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600">
@@ -192,14 +200,14 @@ function FileUpload({
         <input
           type="file"
           className="hidden"
-          accept=".mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+          accept={accept}
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) upload(f);
           }}
         />
       </label>
-      <p className="field-hint">أرفق ملف المادة (صوت أو فيديو). يمكن رفعه لاحقاً إن لم يكن جاهزاً الآن.</p>
+      <p className="field-hint">{hint}</p>
     </div>
   );
 }
@@ -209,6 +217,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
   const [step, setStep] = useState(1);
   const [slug, setSlug] = useState('');
   const [file, setFile] = useState<{ url: string; fileKind: string; fileType: string; fileSize: number } | null>(null);
+  const [cover, setCover] = useState<{ url: string } | null>(null);
 
   const config = slug ? FIELDS[slug] : null;
   const activeCat = categories.find((c) => c.slug === slug);
@@ -275,6 +284,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
               <input type="hidden" name="fileSize" value={file.fileSize} />
             </>
           )}
+          {cover && <input type="hidden" name="coverImage" value={cover.url} />}
 
           {/* Step 2: data */}
           <div className={step === 2 ? 'block' : 'hidden'}>
@@ -309,7 +319,16 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
           {/* Step 3: file + confirmation */}
           <div className={step === 3 ? 'block' : 'hidden'}>
             <h2 className="mb-6 text-xl font-bold text-brand-800">الملف والإقرار</h2>
-            <FileUpload onUploaded={setFile} />
+            <div className="space-y-5">
+              <FileUpload onUploaded={setFile} />
+              <FileUpload
+                onUploaded={(d) => setCover(d)}
+                label="صورة الغلاف (اختياري)"
+                accept=".jpg,.jpeg,.png,.webp"
+                idle="اضغط لاختيار صورة"
+                hint="صورة تظهر كغلاف للمادة — اختيارية."
+              />
+            </div>
 
             {state.error && (
               <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">

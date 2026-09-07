@@ -109,6 +109,15 @@ export default async function MaterialPage({
             </p>
           )}
 
+          {material.coverImage && material.fileKind !== 'VIDEO' && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={material.coverImage}
+              alt={material.title}
+              className="mt-6 max-h-80 w-full rounded-2xl object-cover"
+            />
+          )}
+
           <div className="mt-6">
             <MediaPlayer
               src={material.fileUrl}

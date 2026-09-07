@@ -3,6 +3,7 @@ import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { getCurrentUser } from '@/lib/session';
+import { prisma } from '@/lib/prisma';
 
 export const metadata: Metadata = {
   title: {
@@ -19,6 +20,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const unread = user
+    ? await prisma.notification.count({ where: { userId: user.id, read: false } })
+    : 0;
 
   return (
     <html lang="ar" dir="rtl">
@@ -34,7 +38,7 @@ export default async function RootLayout({
         <Navbar
           user={
             user
-              ? { name: user.name, role: user.role, email: user.email }
+              ? { name: user.name, role: user.role, email: user.email, unread }
               : null
           }
         />

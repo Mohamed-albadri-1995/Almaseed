@@ -22,6 +22,7 @@ interface NavUser {
   name: string;
   role: string;
   email: string;
+  unread: number;
 }
 
 export function Navbar({ user }: { user: NavUser | null }) {
@@ -73,6 +74,18 @@ export function Navbar({ user }: { user: NavUser | null }) {
           </Link>
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">
+              <Link
+                href="/account/notifications"
+                aria-label="الإشعارات"
+                className="relative flex h-10 w-10 items-center justify-center rounded-xl text-brand-700 hover:bg-brand-50"
+              >
+                <Icon.bell width={20} height={20} />
+                {user.unread > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white">
+                    {user.unread > 9 ? '9+' : user.unread}
+                  </span>
+                )}
+              </Link>
               {isStaff(user.role) && (
                 <Link href="/admin" className="btn-outline">
                   لوحة الإشراف

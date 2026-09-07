@@ -168,6 +168,27 @@ export const CATEGORIES_SEED = [
   },
 ] as const;
 
+// Icon keys available for categories (must exist in components/icons.tsx).
+export const CATEGORY_ICON_OPTIONS = [
+  { value: 'headphones', label: 'سماعات' },
+  { value: 'mic', label: 'ميكروفون' },
+  { value: 'book-open', label: 'كتاب' },
+  { value: 'users', label: 'مجموعة' },
+  { value: 'calendar', label: 'تقويم' },
+  { value: 'archive', label: 'أرشيف' },
+  { value: 'sparkle', label: 'نجمة' },
+  { value: 'quote', label: 'اقتباس' },
+] as const;
+
+// Color themes available for category cards.
+export const CATEGORY_COLOR_OPTIONS = [
+  { value: 'gold', label: 'ذهبي' },
+  { value: 'brand', label: 'أخضر' },
+  { value: 'rose', label: 'وردي' },
+  { value: 'sky', label: 'سماوي' },
+  { value: 'violet', label: 'بنفسجي' },
+] as const;
+
 // Sort options for the archive listing.
 export const SORT_OPTIONS = [
   { value: 'newest', label: 'الأحدث' },

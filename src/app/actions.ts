@@ -58,3 +58,24 @@ export async function registerPlay(materialId: string) {
   });
   return { ok: true };
 }
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await prisma.notification.updateMany({
+    where: { userId: user.id, read: false },
+    data: { read: true },
+  });
+  revalidatePath('/account/notifications');
+  revalidatePath('/account');
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await prisma.notification.updateMany({
+    where: { id, userId: user.id },
+    data: { read: true },
+  });
+  revalidatePath('/account/notifications');
+}
