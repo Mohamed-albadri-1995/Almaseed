@@ -6,6 +6,8 @@ import { getCurrentUser } from '@/lib/session';
 import { submissionSchema } from '@/lib/validation';
 import { MATERIAL_STATUS } from '@/lib/constants';
 import { logActivity } from '@/lib/activity';
+import { buildSearchText } from '@/lib/search';
+import { snapshotMaterial } from '@/lib/history';
 
 export interface SubmitState {
   error?: string;
@@ -59,6 +61,7 @@ export async function submitMaterialAction(
       coverImage: d.coverImage || null,
       source: user.name,
       submittedById: user.id,
+      searchText: buildSearchText(d),
     },
   });
 
@@ -103,6 +106,9 @@ export async function resubmitMaterialAction(
   }
   const d = parsed.data;
 
+  // Snapshot the current data before overwriting (edit history).
+  await snapshotMaterial(id, user.id, user.name, 'resubmit');
+
   await prisma.material.update({
     where: { id },
     data: {
@@ -123,6 +129,7 @@ export async function resubmitMaterialAction(
       organizer: d.organizer || null,
       recordDate: d.recordDate ? new Date(d.recordDate) : null,
       keywords: d.keywords || null,
+      searchText: buildSearchText(d),
       ...(d.fileUrl
         ? {
             fileUrl: d.fileUrl,

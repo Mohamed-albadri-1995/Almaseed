@@ -68,10 +68,6 @@ export function RegisterForm() {
         <input id="password" name="password" type="password" required className="input" />
         <p className="field-hint">6 أحرف على الأقل.</p>
       </div>
-      <div>
-        <label className="label" htmlFor="city">المدينة أو المنطقة (اختياري)</label>
-        <input id="city" name="city" className="input" />
-      </div>
       <label className="flex items-start gap-2 text-sm text-muted">
         <input type="checkbox" required className="mt-1 rounded" />
         <span>أوافق على شروط الاستخدام وسياسة النشر.</span>

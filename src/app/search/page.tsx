@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { MaterialCard } from '@/components/MaterialCard';
 import { Pagination } from '@/components/Pagination';
 import { Icon } from '@/components/icons';
+import { SearchBox } from '@/components/SearchBox';
 import { searchMaterials, getCategoriesWithCounts } from '@/lib/queries';
 import { formatCount } from '@/lib/format';
 
@@ -33,22 +34,9 @@ export default async function SearchPage({
           <h1 className="mt-2 text-center font-display text-3xl sm:text-4xl">
             كل ما قيل… محفوظ هنا
           </h1>
-          <form action="/search" className="mx-auto mt-6 max-w-2xl">
-            <div className="flex items-center gap-2 rounded-2xl bg-ivory-50 p-2 shadow-lg">
-              <span className="pr-2 text-muted">
-                <Icon.search width={20} height={20} />
-              </span>
-              <input
-                name="q"
-                type="search"
-                defaultValue={q}
-                placeholder="ابحث باسم المدحة، المادح، المحاضر، المناسبة أو الموضوع…"
-                className="flex-1 bg-transparent px-1 py-2 text-sm text-ink outline-none placeholder:text-muted/70"
-                autoFocus
-              />
-              <button type="submit" className="btn-primary shrink-0">بحث</button>
-            </div>
-          </form>
+          <div className="mx-auto mt-6 max-w-2xl">
+            <SearchBox defaultValue={q} autoFocus />
+          </div>
           {!q && (
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               {SUGGESTIONS.map((s) => (

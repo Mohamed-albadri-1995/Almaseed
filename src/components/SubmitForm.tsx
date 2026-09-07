@@ -17,68 +17,73 @@ interface FieldDef {
   label: string;
   type?: 'text' | 'textarea' | 'date';
   hint?: string;
+  canBeUnknown?: boolean; // show a "لا أعلم" toggle
 }
 
-// Fields shown per category (title is always first, handled separately).
+const UNKNOWN = 'غير معروف';
+
+// Fields shown per category. Every field is required; the ones that a
+// contributor might genuinely not know carry a "لا أعلم" toggle. Location is a
+// single field (المكان/المدينة) to avoid the earlier duplication.
 const FIELDS: Record<string, { titleLabel: string; fields: FieldDef[] }> = {
   madeeh: {
     titleLabel: 'اسم المدحة',
     fields: [
-      { name: 'performer', label: 'اسم المادح' },
-      { name: 'narrator', label: 'اسم الراوي' },
-      { name: 'occasion', label: 'المناسبة' },
-      { name: 'place', label: 'المكان' },
-      { name: 'recordDate', label: 'تاريخ التسجيل', type: 'date' },
-      { name: 'description', label: 'وصف مختصر', type: 'textarea' },
-      { name: 'lyrics', label: 'كلمات المدحة (إن توفرت)', type: 'textarea' },
+      { name: 'performer', label: 'اسم المادح', canBeUnknown: true },
+      { name: 'narrator', label: 'اسم الراوي', canBeUnknown: true },
+      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
+      { name: 'city', label: 'المكان أو المدينة', hint: 'المسيد أو المسجد أو المدينة', canBeUnknown: true },
+      { name: 'recordDate', label: 'تاريخ التسجيل', type: 'date', canBeUnknown: true },
+      { name: 'description', label: 'وصف مختصر', type: 'textarea', canBeUnknown: true },
+      { name: 'lyrics', label: 'كلمات المدحة', type: 'textarea', canBeUnknown: true },
     ],
   },
   lectures: {
     titleLabel: 'عنوان المحاضرة',
     fields: [
-      { name: 'speaker', label: 'اسم المحاضر' },
-      { name: 'host', label: 'مقدم البرنامج (اختياري)' },
-      { name: 'topic', label: 'الموضوع' },
-      { name: 'occasion', label: 'المناسبة' },
-      { name: 'place', label: 'المكان' },
-      { name: 'recordDate', label: 'التاريخ', type: 'date' },
-      { name: 'summary', label: 'ملخص المحاضرة', type: 'textarea' },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة' },
+      { name: 'speaker', label: 'اسم المحاضر', canBeUnknown: true },
+      { name: 'host', label: 'مقدم البرنامج', canBeUnknown: true },
+      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
+      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
+      { name: 'city', label: 'المكان أو المدينة', hint: 'القاعة أو المدينة', canBeUnknown: true },
+      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
+      { name: 'summary', label: 'ملخص المحاضرة', type: 'textarea', canBeUnknown: true },
+      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
     ],
   },
   sermons: {
     titleLabel: 'عنوان الموعظة',
     fields: [
-      { name: 'speaker', label: 'اسم الواعظ' },
-      { name: 'topic', label: 'الموضوع' },
-      { name: 'occasion', label: 'المناسبة' },
-      { name: 'place', label: 'المكان' },
-      { name: 'recordDate', label: 'التاريخ', type: 'date' },
-      { name: 'summary', label: 'ملخص الموعظة', type: 'textarea' },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة' },
+      { name: 'speaker', label: 'اسم الواعظ', canBeUnknown: true },
+      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
+      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
+      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
+      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
+      { name: 'summary', label: 'ملخص الموعظة', type: 'textarea', canBeUnknown: true },
+      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
     ],
   },
   seminars: {
     titleLabel: 'عنوان الندوة',
     fields: [
-      { name: 'topic', label: 'موضوع الندوة' },
-      { name: 'occasion', label: 'اسم الندوة أو المناسبة' },
-      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة' },
-      { name: 'host', label: 'مدير الندوة' },
-      { name: 'place', label: 'المكان' },
-      { name: 'recordDate', label: 'التاريخ', type: 'date' },
-      { name: 'description', label: 'وصف الندوة', type: 'textarea' },
+      { name: 'topic', label: 'موضوع الندوة', canBeUnknown: true },
+      { name: 'occasion', label: 'اسم الندوة أو المناسبة', canBeUnknown: true },
+      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
+      { name: 'host', label: 'مدير الندوة', canBeUnknown: true },
+      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
+      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
+      { name: 'description', label: 'وصف الندوة', type: 'textarea', canBeUnknown: true },
     ],
   },
   occasions: {
     titleLabel: 'اسم المناسبة',
     fields: [
-      { name: 'occasion', label: 'نوع المناسبة' },
-      { name: 'organizer', label: 'الجهة المنظمة' },
-      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة' },
-      { name: 'place', label: 'المكان' },
-      { name: 'recordDate', label: 'التاريخ', type: 'date' },
-      { name: 'description', label: 'وصف المناسبة', type: 'textarea' },
+      { name: 'occasion', label: 'نوع المناسبة', canBeUnknown: true },
+      { name: 'organizer', label: 'الجهة المنظمة', canBeUnknown: true },
+      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
+      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
+      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
+      { name: 'description', label: 'وصف المناسبة', type: 'textarea', canBeUnknown: true },
     ],
   },
 };
@@ -91,6 +96,48 @@ function SubmitButton() {
     <button type="submit" disabled={pending} className="btn-primary btn-lg">
       {pending ? 'جارٍ الإرسال…' : 'إرسال للمراجعة'}
     </button>
+  );
+}
+
+// One field with an optional "لا أعلم" toggle.
+function Field({ field }: { field: FieldDef }) {
+  const [unknown, setUnknown] = useState(false);
+  const commonProps = {
+    id: field.name,
+    name: field.name,
+    required: true,
+    className: 'input',
+  };
+
+  return (
+    <div className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
+      <div className="mb-1.5 flex items-center justify-between">
+        <label className="text-sm font-medium text-brand-800" htmlFor={field.name}>
+          {field.label}
+        </label>
+        {field.canBeUnknown && (
+          <label className="flex cursor-pointer items-center gap-1 text-xs text-muted">
+            <input
+              type="checkbox"
+              className="rounded"
+              checked={unknown}
+              onChange={(e) => setUnknown(e.target.checked)}
+            />
+            لا أعلم
+          </label>
+        )}
+      </div>
+
+      {unknown ? (
+        // readOnly (not disabled) so the value is still submitted & passes required
+        <input {...commonProps} readOnly value={UNKNOWN} className="input bg-ivory-100 text-muted" />
+      ) : field.type === 'textarea' ? (
+        <textarea {...commonProps} rows={3} />
+      ) : (
+        <input {...commonProps} type={field.type === 'date' ? 'date' : 'text'} />
+      )}
+      {field.hint && !unknown && <p className="field-hint">{field.hint}</p>}
+    </div>
   );
 }
 
@@ -152,7 +199,7 @@ function FileUpload({
           }}
         />
       </label>
-      <p className="field-hint">الملف اختياري في العرض التجريبي؛ يمكن إرسال البيانات فقط ثم رفع الملف لاحقاً.</p>
+      <p className="field-hint">أرفق ملف المادة (صوت أو فيديو). يمكن رفعه لاحقاً إن لم يكن جاهزاً الآن.</p>
     </div>
   );
 }
@@ -234,7 +281,9 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-brand-800">بيانات {activeCat?.name}</h2>
-                <p className="text-sm text-muted">املأ الحقول المتاحة — كلما اكتملت البيانات كانت المراجعة أسرع.</p>
+                <p className="text-sm text-muted">
+                  كل الحقول مطلوبة. إن كنت لا تعرف قيمة حقل، فعّل خيار «لا أعلم» بجانبه.
+                </p>
               </div>
               <button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">
                 تغيير النوع
@@ -247,20 +296,8 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
                 <input id="title" name="title" required className="input" />
               </div>
               {config.fields.map((f) => (
-                <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}>
-                  <label className="label" htmlFor={f.name}>{f.label}</label>
-                  {f.type === 'textarea' ? (
-                    <textarea id={f.name} name={f.name} rows={3} className="input" />
-                  ) : (
-                    <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} className="input" />
-                  )}
-                  {f.hint && <p className="field-hint">{f.hint}</p>}
-                </div>
+                <Field key={f.name} field={f} />
               ))}
-              <div>
-                <label className="label" htmlFor="city">المدينة أو المنطقة</label>
-                <input id="city" name="city" className="input" />
-              </div>
             </div>
 
             <div className="mt-8 flex justify-between">

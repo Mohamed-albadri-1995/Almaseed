@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
 import { logActivity } from '@/lib/activity';
+import { buildSearchText } from '@/lib/search';
+import { snapshotMaterial } from '@/lib/history';
 import {
   MATERIAL_STATUS,
   REVIEW_ACTIONS,
@@ -114,25 +116,33 @@ export async function editMaterialAction(formData: FormData) {
     ? await prisma.category.findUnique({ where: { slug: categorySlug } })
     : null;
 
+  // Snapshot current state before overwriting (edit history).
+  await snapshotMaterial(id, user.id, user.name, 'edit');
+
+  const fields = {
+    title: get('title') ?? undefined,
+    performer: get('performer'),
+    narrator: get('narrator'),
+    speaker: get('speaker'),
+    host: get('host'),
+    participants: get('participants'),
+    occasion: get('occasion'),
+    topic: get('topic'),
+    place: get('place'),
+    city: get('city'),
+    organizer: get('organizer'),
+    description: get('description'),
+    summary: get('summary'),
+    lyrics: get('lyrics'),
+    keywords: get('keywords'),
+  };
+
   await prisma.material.update({
     where: { id },
     data: {
-      title: get('title') ?? undefined,
+      ...fields,
       ...(category ? { categoryId: category.id } : {}),
-      performer: get('performer'),
-      narrator: get('narrator'),
-      speaker: get('speaker'),
-      host: get('host'),
-      participants: get('participants'),
-      occasion: get('occasion'),
-      topic: get('topic'),
-      place: get('place'),
-      city: get('city'),
-      organizer: get('organizer'),
-      description: get('description'),
-      summary: get('summary'),
-      lyrics: get('lyrics'),
-      keywords: get('keywords'),
+      searchText: buildSearchText({ ...fields, title: fields.title ?? '' }),
     },
   });
 
@@ -145,6 +155,68 @@ export async function editMaterialAction(formData: FormData) {
 
   revalidatePath(`/admin/review/${id}`);
   redirect(`/admin/review/${id}?saved=1`);
+}
+
+// ---- Merge duplicate materials --------------------------------------------
+// Merges `sourceId` into `targetId`: favorites & reports move to the target,
+// metrics are summed, the source is marked HIDDEN + mergedInto, and a version
+// snapshot records the merge.
+export async function mergeMaterialsAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.manageContent(user.role as Role)) throw new Error('غير مصرّح');
+
+  const sourceId = formData.get('sourceId') as string;
+  const targetId = formData.get('targetId') as string;
+  if (!sourceId || !targetId || sourceId === targetId) {
+    redirect('/admin/materials?merge=invalid');
+  }
+
+  const [source, target] = await Promise.all([
+    prisma.material.findUnique({ where: { id: sourceId } }),
+    prisma.material.findUnique({ where: { id: targetId } }),
+  ]);
+  if (!source || !target) redirect('/admin/materials?merge=notfound');
+
+  await snapshotMaterial(targetId, user.id, user.name, 'merge');
+
+  // Move favorites (skip ones that would duplicate), reassign reports.
+  const favs = await prisma.favorite.findMany({ where: { materialId: sourceId } });
+  for (const f of favs) {
+    await prisma.favorite
+      .update({ where: { id: f.id }, data: { materialId: targetId } })
+      .catch(async () => {
+        // target already favorited by this user → drop the duplicate
+        await prisma.favorite.delete({ where: { id: f.id } });
+      });
+  }
+  await prisma.contentReport.updateMany({
+    where: { materialId: sourceId },
+    data: { materialId: targetId },
+  });
+
+  await prisma.material.update({
+    where: { id: targetId },
+    data: {
+      downloads: { increment: source!.downloads },
+      plays: { increment: source!.plays },
+    },
+  });
+
+  await prisma.material.update({
+    where: { id: sourceId },
+    data: { status: MATERIAL_STATUS.HIDDEN, mergedIntoId: targetId },
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: 'merge',
+    entity: 'material',
+    entityId: sourceId,
+    meta: { into: targetId, title: source!.title },
+  });
+
+  revalidatePath('/admin/materials');
+  redirect('/admin/materials?merged=1');
 }
 
 // ---- Toggle hide/publish (content managers) --------------------------------

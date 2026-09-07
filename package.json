@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "start:prod": "prisma db push --skip-generate --accept-data-loss && (tsx prisma/seed.ts || echo 'seed skipped') && next start -p ${PORT:-3000}",
+    "start:prod": "prisma db push --skip-generate --accept-data-loss && (tsx prisma/seed.ts || echo 'seed skipped') && (tsx prisma/backfill.ts || echo 'backfill skipped') && next start -p ${PORT:-3000}",
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",

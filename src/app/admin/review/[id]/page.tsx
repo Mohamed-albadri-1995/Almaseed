@@ -38,6 +38,7 @@ export default async function ReviewPage({
         orderBy: { createdAt: 'desc' },
         include: { reviewer: { select: { name: true } } },
       },
+      versions: { orderBy: { createdAt: 'desc' }, take: 10 },
     },
   });
   if (!material) notFound();
@@ -166,6 +167,33 @@ export default async function ReviewPage({
                     <p className="mt-0.5 text-xs text-muted">{formatDateTime(n.createdAt)}</p>
                   </li>
                 ))}
+              </ol>
+            )}
+          </div>
+
+          {/* Edit history */}
+          <div className="card p-5">
+            <h2 className="mb-3 text-lg font-bold text-brand-800">سجل التعديلات</h2>
+            {material.versions.length === 0 ? (
+              <p className="text-sm text-muted">لا توجد تعديلات سابقة.</p>
+            ) : (
+              <ol className="space-y-2">
+                {material.versions.map((v) => {
+                  const REASON: Record<string, string> = {
+                    edit: 'تعديل بيانات',
+                    merge: 'دمج مادة',
+                    resubmit: 'إعادة إرسال',
+                  };
+                  return (
+                    <li key={v.id} className="flex items-center justify-between gap-3 border-b border-ivory-200 pb-1.5 text-sm">
+                      <span className="text-brand-800">
+                        {REASON[v.reason ?? ''] ?? v.reason}
+                        {v.editorName ? ` — ${v.editorName}` : ''}
+                      </span>
+                      <span className="text-xs text-muted">{formatDateTime(v.createdAt)}</span>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </div>

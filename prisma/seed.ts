@@ -7,6 +7,7 @@ import {
   FILE_KINDS,
   ROLES,
 } from '../src/lib/constants';
+import { buildSearchText } from '../src/lib/search';
 
 const prisma = new PrismaClient();
 
@@ -330,6 +331,7 @@ async function main() {
         downloads: m.downloads ?? 0,
         plays: m.plays ?? 0,
         source: 'أرشيف المسيد',
+        searchText: buildSearchText(m),
         submittedById: m.submittedBy ?? null,
         reviewedById: status === MATERIAL_STATUS.PUBLISHED ? reviewerId : null,
         publishedAt: status === MATERIAL_STATUS.PUBLISHED ? m.createdAt ?? new Date() : null,

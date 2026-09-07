@@ -96,6 +96,15 @@ model Material {
   keywords   String? // الكلمات المفتاحية (comma separated)
   source     String? // المصدر / اسم المساهم النصي
 
+  // Normalized concatenation of searchable text (diacritics stripped, letters
+  // unified) — kept in sync on create/edit for fast, forgiving search.
+  searchText String?
+
+  // Duplicate merge: when set, this material was merged into another.
+  mergedIntoId String?
+  mergedInto   Material?  @relation("merge", fields: [mergedIntoId], references: [id])
+  mergedFrom   Material[] @relation("merge")
+
   // File
   fileUrl     String?
   fileKind    String?  @default("AUDIO")
@@ -120,9 +129,24 @@ model Material {
   reviewNotes ReviewNote[]
   favorites   Favorite[]
   reports     ContentReport[]
+  versions    MaterialVersion[]
 
   @@index([status])
   @@index([categoryId])
+}
+
+// Snapshot of a material's data before an edit — the edit history / audit trail.
+model MaterialVersion {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  editorId   String?
+  editorName String?
+  reason     String? // e.g. "edit", "merge", "resubmit"
+  snapshot   String // JSON of the material fields at that time
+  createdAt  DateTime @default(now())
+
+  @@index([materialId])
 }
 
 // ---------------------------------------------------------------------------

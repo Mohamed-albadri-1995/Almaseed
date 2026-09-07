@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { CategoryCard } from '@/components/CategoryCard';
 import { MaterialCard } from '@/components/MaterialCard';
+import { SearchBox } from '@/components/SearchBox';
 import {
   getCategoriesWithCounts,
   getHomeStats,
@@ -49,23 +50,9 @@ export default async function HomePage() {
             </p>
 
             {/* Search */}
-            <form action="/search" className="mx-auto mt-8 max-w-xl">
-              <div className="flex items-center gap-2 rounded-2xl bg-ivory-50 p-2 shadow-lg">
-                <span className="pr-2 text-muted">
-                  <Icon.search width={20} height={20} />
-                </span>
-                <input
-                  name="q"
-                  type="search"
-                  placeholder="ابحث عن مدحة، مادح، محاضر، موضوع أو مناسبة…"
-                  className="flex-1 bg-transparent px-1 py-2 text-sm text-ink outline-none placeholder:text-muted/70"
-                  aria-label="بحث"
-                />
-                <button type="submit" className="btn-primary shrink-0">
-                  بحث
-                </button>
-              </div>
-            </form>
+            <div className="mx-auto mt-8 max-w-xl">
+              <SearchBox />
+            </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link href="/archive" className="btn-gold btn-lg">

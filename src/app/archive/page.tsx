@@ -18,6 +18,8 @@ interface SearchParams {
   kind?: string;
   city?: string;
   person?: string;
+  year?: string;
+  language?: string;
   sort?: string;
   page?: string;
 }
@@ -47,6 +49,8 @@ export default async function ArchivePage({
       fileKind: searchParams.kind,
       city: searchParams.city,
       person: searchParams.person,
+      year: searchParams.year,
+      language: searchParams.language,
       sort: searchParams.sort,
       page,
     }),
@@ -138,11 +142,35 @@ export default async function ArchivePage({
 
             {facets.cities.length > 0 && (
               <div>
-                <label className="label" htmlFor="city">المدينة</label>
+                <label className="label" htmlFor="city">المدينة أو المنطقة</label>
                 <select id="city" name="city" defaultValue={searchParams.city ?? ''} className="input">
                   <option value="">الكل</option>
                   {facets.cities.map((c) => (
                     <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {facets.years.length > 0 && (
+              <div>
+                <label className="label" htmlFor="year">السنة</label>
+                <select id="year" name="year" defaultValue={searchParams.year ?? ''} className="input">
+                  <option value="">الكل</option>
+                  {facets.years.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {facets.languages.length > 1 && (
+              <div>
+                <label className="label" htmlFor="language">اللغة</label>
+                <select id="language" name="language" defaultValue={searchParams.language ?? ''} className="input">
+                  <option value="">الكل</option>
+                  {facets.languages.map((l) => (
+                    <option key={l} value={l}>{l}</option>
                   ))}
                 </select>
               </div>

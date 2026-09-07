@@ -1,14 +1,20 @@
 import { prisma } from './prisma';
 import { MATERIAL_STATUS } from './constants';
+import { normalizeArabic, expandSynonyms } from './search';
 import type { Prisma } from '@prisma/client';
 
 const PUBLISHED = MATERIAL_STATUS.PUBLISHED;
+// Public listings only ever show published items that were not merged away.
+const PUBLIC_WHERE: Prisma.MaterialWhereInput = {
+  status: PUBLISHED,
+  mergedIntoId: null,
+};
 
 export async function getCategoriesWithCounts() {
   const categories = await prisma.category.findMany({ orderBy: { order: 'asc' } });
   const counts = await prisma.material.groupBy({
     by: ['categoryId'],
-    where: { status: PUBLISHED },
+    where: PUBLIC_WHERE,
     _count: { _all: true },
   });
   const map = new Map(counts.map((c) => [c.categoryId, c._count._all]));
@@ -48,7 +54,7 @@ const cardSelect = {
 
 export async function getLatestPublished(take = 8) {
   return prisma.material.findMany({
-    where: { status: PUBLISHED },
+    where: PUBLIC_WHERE,
     orderBy: { publishedAt: 'desc' },
     take,
     select: cardSelect,
@@ -57,7 +63,7 @@ export async function getLatestPublished(take = 8) {
 
 export async function getMostPlayed(take = 4) {
   return prisma.material.findMany({
-    where: { status: PUBLISHED },
+    where: PUBLIC_WHERE,
     orderBy: { plays: 'desc' },
     take,
     select: cardSelect,
@@ -70,6 +76,8 @@ export interface ArchiveFilters {
   fileKind?: string;
   city?: string;
   person?: string;
+  year?: string;
+  language?: string;
   sort?: string;
   page?: number;
   perPage?: number;
@@ -82,33 +90,37 @@ export async function searchMaterials(filters: ArchiveFilters) {
     fileKind,
     city,
     person,
+    year,
+    language,
     sort = 'newest',
     page = 1,
     perPage = 12,
   } = filters;
 
-  const where: Prisma.MaterialWhereInput = { status: PUBLISHED };
+  const where: Prisma.MaterialWhereInput = { ...PUBLIC_WHERE };
 
   if (categorySlug) where.category = { slug: categorySlug };
   if (fileKind) where.fileKind = fileKind;
   if (city) where.city = { contains: city };
+  if (language) where.language = language;
+  if (year && /^\d{4}$/.test(year)) {
+    const y = Number(year);
+    where.recordDate = {
+      gte: new Date(`${y}-01-01T00:00:00`),
+      lt: new Date(`${y + 1}-01-01T00:00:00`),
+    };
+  }
 
   const and: Prisma.MaterialWhereInput[] = [];
   if (q) {
-    and.push({
-      OR: [
-        { title: { contains: q } },
-        { performer: { contains: q } },
-        { speaker: { contains: q } },
-        { narrator: { contains: q } },
-        { host: { contains: q } },
-        { occasion: { contains: q } },
-        { topic: { contains: q } },
-        { place: { contains: q } },
-        { keywords: { contains: q } },
-        { description: { contains: q } },
-      ],
-    });
+    // Match normalized query terms (and synonyms) against searchText, and
+    // also fall back to the raw query for exact/partial matches.
+    const terms = expandSynonyms(normalizeArabic(q));
+    const or: Prisma.MaterialWhereInput[] = terms.map((t) => ({
+      searchText: { contains: t },
+    }));
+    or.push({ title: { contains: q } });
+    and.push({ OR: or });
   }
   if (person) {
     and.push({
@@ -159,7 +171,7 @@ export async function getRelatedMaterials(
 ) {
   return prisma.material.findMany({
     where: {
-      status: PUBLISHED,
+      ...PUBLIC_WHERE,
       categoryId,
       NOT: { id: materialId },
     },
@@ -169,14 +181,41 @@ export async function getRelatedMaterials(
   });
 }
 
-// Distinct city/person values for filter dropdowns.
+// Distinct city / year / language values for filter dropdowns.
 export async function getFilterFacets() {
   const rows = await prisma.material.findMany({
-    where: { status: PUBLISHED },
-    select: { city: true },
+    where: PUBLIC_WHERE,
+    select: { city: true, language: true, recordDate: true },
   });
   const cities = Array.from(
     new Set(rows.map((r) => r.city).filter(Boolean) as string[]),
   ).sort();
-  return { cities };
+  const languages = Array.from(
+    new Set(rows.map((r) => r.language).filter(Boolean) as string[]),
+  ).sort();
+  const years = Array.from(
+    new Set(
+      rows
+        .map((r) => (r.recordDate ? r.recordDate.getFullYear() : null))
+        .filter(Boolean) as number[],
+    ),
+  ).sort((a, b) => b - a);
+  return { cities, languages, years };
+}
+
+// Lightweight autocomplete suggestions for the search box.
+export async function getSuggestions(q: string, take = 6) {
+  const norm = normalizeArabic(q);
+  if (norm.length < 2) return [];
+  const rows = await prisma.material.findMany({
+    where: { ...PUBLIC_WHERE, searchText: { contains: norm } },
+    orderBy: { plays: 'desc' },
+    take,
+    select: { id: true, title: true, performer: true, speaker: true, category: { select: { name: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    subtitle: r.performer || r.speaker || r.category?.name || '',
+  }));
 }
