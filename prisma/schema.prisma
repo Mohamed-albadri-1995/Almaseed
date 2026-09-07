@@ -1,0 +1,194 @@
+// أرشيف المسيد — Prisma schema
+// SQLite for local development. To deploy on PostgreSQL, change the
+// provider below to "postgresql" and update DATABASE_URL.
+//
+// NOTE: SQLite does not support Prisma enums, so enum-like fields are stored
+// as String and the allowed values are enforced in application code via the
+// constants in src/lib/constants.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & roles
+// ---------------------------------------------------------------------------
+// role values (see src/lib/constants.ts -> ROLES):
+//  CONTRIBUTOR     المساهم       submit material, track submissions
+//  REVIEWER        مراجع         review & publish material
+//  EDITOR          محرر          edit materials & categories
+//  CONTENT_MANAGER مدير محتوى    manage all content & contributors
+//  ADMIN           مدير النظام   manage users, admins, settings
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         String   @default("CONTRIBUTOR")
+  city         String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submissions   Material[]     @relation("submittedBy")
+  reviewed      Material[]     @relation("reviewedBy")
+  reviewNotes   ReviewNote[]
+  favorites     Favorite[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+}
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String     @id @default(cuid())
+  slug        String     @unique // madeeh, lectures, seminars, sermons, occasions
+  name        String // المدائح
+  description String? // أصوات المادحين وذاكرة الإنشاد
+  icon        String? // icon key
+  color       String? // tailwind accent hint
+  order       Int        @default(0)
+  materials   Material[]
+}
+
+// ---------------------------------------------------------------------------
+// Materials (the archived items)
+// ---------------------------------------------------------------------------
+// status values (MATERIAL_STATUS): DRAFT, PENDING, PUBLISHED, NEEDS_EDIT, REJECTED, HIDDEN
+// fileKind values (FILE_KINDS): AUDIO, VIDEO, DOCUMENT, IMAGE
+
+model Material {
+  id     String @id @default(cuid())
+  title  String
+  status String @default("PENDING")
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  description String?
+  lyrics      String? // كلمات المدحة
+  summary     String? // ملخص المحاضرة
+
+  // People — semantics vary by category (madeeh / speaker / narrator / host)
+  performer    String? // المادح
+  narrator     String? // الراوي
+  speaker      String? // المحاضر / المتحدث
+  host         String? // مدير الندوة / مقدم البرنامج
+  participants String? // أسماء المشاركين (comma separated)
+
+  // Context
+  occasion   String? // المناسبة
+  topic      String? // الموضوع
+  place      String? // المكان / المسيد / الجهة
+  city       String? // المدينة أو المنطقة
+  organizer  String? // الجهة المنظمة
+  language   String?   @default("العربية")
+  recordDate DateTime? // تاريخ التسجيل
+  keywords   String? // الكلمات المفتاحية (comma separated)
+  source     String? // المصدر / اسم المساهم النصي
+
+  // File
+  fileUrl     String?
+  fileKind    String?  @default("AUDIO")
+  fileType    String? // MP3, MP4, PDF ...
+  fileSize    Int? // bytes
+  durationSec Int? // مدة التسجيل بالثواني
+  coverImage  String?
+
+  // Metrics
+  downloads Int @default(0)
+  plays     Int @default(0)
+
+  submittedById String?
+  submittedBy   User?   @relation("submittedBy", fields: [submittedById], references: [id])
+  reviewedById  String?
+  reviewedBy    User?   @relation("reviewedBy", fields: [reviewedById], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+
+  reviewNotes ReviewNote[]
+  favorites   Favorite[]
+  reports     ContentReport[]
+
+  @@index([status])
+  @@index([categoryId])
+}
+
+// ---------------------------------------------------------------------------
+// Review workflow
+// ---------------------------------------------------------------------------
+// action values (REVIEW_ACTIONS): APPROVE, REQUEST_EDIT, REJECT, DRAFT, RESUBMIT
+
+model ReviewNote {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  reviewerId String?
+  reviewer   User?    @relation(fields: [reviewerId], references: [id])
+  action     String
+  reason     String? // بيانات ناقصة / جودة ضعيفة / تكرار / مخالفة / حقوق
+  note       String?
+  createdAt  DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Favorites, notifications, reports, activity log
+// ---------------------------------------------------------------------------
+
+model Favorite {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, materialId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model ContentReport {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  reason     String
+  contact    String?
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  meta      String? // json string
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

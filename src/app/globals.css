@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-arabic: 'Cairo', 'Tajawal', system-ui, sans-serif;
+  --font-display: 'Aref Ruqaa', 'Amiri', 'Cairo', serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-ivory-100 text-ink;
+    font-family: var(--font-arabic);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply text-brand-800;
+  }
+  ::selection {
+    @apply bg-gold-200 text-brand-900;
+  }
+  /* Better focus ring for keyboard users */
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-400 ring-offset-2 ring-offset-ivory-100;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-brand-700 text-ivory-50 hover:bg-brand-800;
+  }
+  .btn-gold {
+    @apply btn bg-gold-400 text-brand-900 hover:bg-gold-500;
+  }
+  .btn-outline {
+    @apply btn border border-brand-300 bg-transparent text-brand-700 hover:bg-brand-50;
+  }
+  .btn-ghost {
+    @apply btn text-brand-700 hover:bg-brand-50;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:opacity-90;
+  }
+  .btn-lg {
+    @apply px-7 py-3.5 text-base;
+  }
+
+  .card {
+    @apply rounded-2xl bg-white shadow-card ring-1 ring-black/5;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-ivory-300 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:border-brand-400 focus:ring-0;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-brand-800;
+  }
+  .field-hint {
+    @apply mt-1 text-xs text-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-ivory-200 px-3 py-1 text-xs font-medium text-brand-700;
+  }
+
+  .section-title {
+    @apply text-2xl font-bold text-brand-800 sm:text-3xl;
+  }
+  .eyebrow {
+    @apply text-sm font-bold tracking-wide text-gold-600;
+  }
+}
+
+/* Arabic display heading style used on hero */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Range input (audio scrub) small polish */
+input[type='range'] {
+  accent-color: #cd9b44;
+}
