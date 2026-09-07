@@ -1,12 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { editMaterialAction } from '@/app/admin/actions';
+import { Icon } from './icons';
 
 interface MaterialData {
   id: string;
   categorySlug: string;
   title: string;
+  coverImage?: string | null;
   performer?: string | null;
   narrator?: string | null;
   speaker?: string | null;
@@ -46,6 +49,62 @@ function SaveButton() {
     <button type="submit" disabled={pending} className="btn-primary">
       {pending ? 'جارٍ الحفظ…' : 'حفظ البيانات'}
     </button>
+  );
+}
+
+// Cover image field: shows current image, lets an editor replace or remove it.
+function CoverField({ initial }: { initial?: string | null }) {
+  const [url, setUrl] = useState<string>(initial ?? '');
+  const [busy, setBusy] = useState(false);
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) setUrl(data.url);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="sm:col-span-2">
+      <label className="label">صورة الغلاف</label>
+      {/* Always present so an empty value clears the cover on save. */}
+      <input type="hidden" name="coverImage" value={url} />
+      <div className="flex items-center gap-4">
+        {url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="غلاف" className="h-20 w-28 rounded-xl object-cover ring-1 ring-black/5" />
+        ) : (
+          <span className="flex h-20 w-28 items-center justify-center rounded-xl bg-ivory-100 text-muted">
+            <Icon.image width={22} height={22} />
+          </span>
+        )}
+        <div className="flex flex-col gap-2">
+          <label className="btn-outline cursor-pointer text-sm">
+            {busy ? 'جارٍ الرفع…' : url ? 'استبدال الصورة' : 'رفع صورة'}
+            <input
+              type="file"
+              className="hidden"
+              accept=".jpg,.jpeg,.png,.webp"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) upload(f);
+              }}
+            />
+          </label>
+          {url && (
+            <button type="button" onClick={() => setUrl('')} className="text-xs text-muted hover:text-danger">
+              إزالة الصورة
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -93,6 +152,7 @@ export function MaterialEditForm({
             </div>
           );
         })}
+        <CoverField initial={material.coverImage} />
       </div>
 
       <div className="mt-5">

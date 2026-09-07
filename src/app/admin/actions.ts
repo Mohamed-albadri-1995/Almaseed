@@ -137,11 +137,16 @@ export async function editMaterialAction(formData: FormData) {
     keywords: get('keywords'),
   };
 
+  // Cover image: hidden field is always present; empty string clears it.
+  const coverRaw = formData.get('coverImage');
+  const coverImage = coverRaw == null ? undefined : String(coverRaw) || null;
+
   await prisma.material.update({
     where: { id },
     data: {
       ...fields,
       ...(category ? { categoryId: category.id } : {}),
+      ...(coverImage !== undefined ? { coverImage } : {}),
       searchText: buildSearchText({ ...fields, title: fields.title ?? '' }),
     },
   });
@@ -270,6 +275,78 @@ export async function toggleUserActiveAction(formData: FormData) {
   if (!target) throw new Error('غير موجود');
   await prisma.user.update({ where: { id }, data: { active: !target.active } });
   revalidatePath('/admin/users');
+}
+
+// ---- Restore a rejected/hidden material to published -----------------------
+export async function restoreMaterialAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.reviewContent(user.role as Role)) throw new Error('غير مصرّح');
+  const id = formData.get('id') as string;
+  const material = await prisma.material.findUnique({ where: { id } });
+  if (!material) throw new Error('غير موجودة');
+
+  await prisma.material.update({
+    where: { id },
+    data: {
+      status: MATERIAL_STATUS.PUBLISHED,
+      reviewedById: user.id,
+      publishedAt: material.publishedAt ?? new Date(),
+      mergedIntoId: null,
+    },
+  });
+  await prisma.reviewNote.create({
+    data: { materialId: id, reviewerId: user.id, action: REVIEW_ACTIONS.APPROVE, reason: 'استعادة ونشر' },
+  });
+  if (material.submittedById) {
+    await prisma.notification.create({
+      data: {
+        userId: material.submittedById,
+        title: 'تمت استعادة مادتك ونشرها',
+        body: `«${material.title}» أصبحت منشورة من جديد.`,
+        link: '/account',
+      },
+    });
+  }
+  await logActivity({ userId: user.id, action: 'restore', entity: 'material', entityId: id });
+  revalidatePath('/admin/materials');
+  revalidatePath(`/admin/review/${id}`);
+  redirect(`/admin/review/${id}?restored=1`);
+}
+
+// ---- Roll a material back to a previous version snapshot --------------------
+const ROLLBACK_FIELDS = [
+  'title', 'description', 'lyrics', 'summary', 'performer', 'narrator',
+  'speaker', 'host', 'participants', 'occasion', 'topic', 'place', 'city',
+  'organizer', 'language', 'keywords', 'fileUrl', 'fileKind', 'fileType',
+  'fileSize', 'durationSec', 'coverImage',
+] as const;
+
+export async function rollbackVersionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.editContent(user.role as Role)) throw new Error('غير مصرّح');
+  const versionId = formData.get('versionId') as string;
+
+  const version = await prisma.materialVersion.findUnique({ where: { id: versionId } });
+  if (!version) throw new Error('النسخة غير موجودة');
+  const materialId = version.materialId;
+
+  // Save the current state before rolling back.
+  await snapshotMaterial(materialId, user.id, user.name, 'rollback');
+
+  const snap = JSON.parse(version.snapshot) as Record<string, unknown>;
+  const data: Record<string, unknown> = {};
+  for (const key of ROLLBACK_FIELDS) {
+    if (key in snap) data[key] = snap[key] ?? null;
+  }
+  if ('recordDate' in snap) {
+    data.recordDate = snap.recordDate ? new Date(snap.recordDate as string) : null;
+  }
+  data.searchText = buildSearchText(data as Parameters<typeof buildSearchText>[0]);
+
+  await prisma.material.update({ where: { id: materialId }, data });
+  await logActivity({ userId: user.id, action: 'rollback', entity: 'material', entityId: materialId });
+  revalidatePath(`/admin/review/${materialId}`);
+  redirect(`/admin/review/${materialId}?rolledback=1`);
 }
 
 export async function resolveReportAction(formData: FormData) {

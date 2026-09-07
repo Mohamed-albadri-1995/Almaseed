@@ -5,6 +5,7 @@ import { MediaPlayer } from '@/components/MediaPlayer';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReviewPanel } from '@/components/ReviewPanel';
 import { MaterialEditForm } from '@/components/MaterialEditForm';
+import { restoreMaterialAction, rollbackVersionAction } from '@/app/admin/actions';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
@@ -24,7 +25,7 @@ export default async function ReviewPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams: { error?: string; saved?: string };
+  searchParams: { error?: string; saved?: string; restored?: string; rolledback?: string };
 }) {
   const user = await getCurrentUser();
   if (!user || !can.reviewContent(user.role as Role)) redirect('/admin');
@@ -49,6 +50,8 @@ export default async function ReviewPage({
   });
 
   const canEdit = can.editContent(user.role as Role);
+  const canRestore =
+    material.status === 'REJECTED' || material.status === 'HIDDEN';
 
   return (
     <div>
@@ -57,6 +60,17 @@ export default async function ReviewPage({
         <Icon.chevronLeft width={14} height={14} />
         <span className="line-clamp-1 text-brand-700">{material.title}</span>
       </nav>
+
+      {searchParams.restored && (
+        <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          تمت استعادة المادة ونشرها.
+        </div>
+      )}
+      {searchParams.rolledback && (
+        <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          تمت استعادة النسخة السابقة من البيانات.
+        </div>
+      )}
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -68,6 +82,12 @@ export default async function ReviewPage({
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={material.status} />
+          {canRestore && (
+            <form action={restoreMaterialAction}>
+              <input type="hidden" name="id" value={material.id} />
+              <button className="btn-gold text-sm">استعادة ونشر</button>
+            </form>
+          )}
           <Link href={`/material/${material.id}`} className="btn-outline text-sm">
             معاينة عامة
           </Link>
@@ -101,6 +121,7 @@ export default async function ReviewPage({
                 id: material.id,
                 categorySlug: material.category.slug,
                 title: material.title,
+                coverImage: material.coverImage,
                 performer: material.performer,
                 narrator: material.narrator,
                 speaker: material.speaker,
@@ -189,8 +210,14 @@ export default async function ReviewPage({
                       <span className="text-brand-800">
                         {REASON[v.reason ?? ''] ?? v.reason}
                         {v.editorName ? ` — ${v.editorName}` : ''}
+                        <span className="mr-2 block text-xs text-muted">{formatDateTime(v.createdAt)}</span>
                       </span>
-                      <span className="text-xs text-muted">{formatDateTime(v.createdAt)}</span>
+                      {canEdit && (
+                        <form action={rollbackVersionAction}>
+                          <input type="hidden" name="versionId" value={v.id} />
+                          <button className="text-xs font-semibold text-brand-700 hover:underline">استرجاع</button>
+                        </form>
+                      )}
                     </li>
                   );
                 })}
