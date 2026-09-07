@@ -43,6 +43,8 @@ model User {
   favorites     Favorite[]
   notifications Notification[]
   activityLogs  ActivityLog[]
+  ratings       Rating[]
+  comments      Comment[]
 }
 
 // ---------------------------------------------------------------------------
@@ -130,9 +132,40 @@ model Material {
   favorites   Favorite[]
   reports     ContentReport[]
   versions    MaterialVersion[]
+  ratings     Rating[]
+  comments    Comment[]
 
   @@index([status])
   @@index([categoryId])
+}
+
+// A 1–5 star rating, one per user per material.
+model Rating {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  value      Int // 1..5
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, materialId])
+  @@index([materialId])
+}
+
+// A public comment on a material. Visible unless hidden by a moderator.
+model Comment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  body       String
+  hidden     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([materialId])
 }
 
 // Snapshot of a material's data before an edit — the edit history / audit trail.

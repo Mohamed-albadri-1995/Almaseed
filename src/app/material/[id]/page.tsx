@@ -8,6 +8,8 @@ import {
   FavoriteButton,
   ReportButton,
 } from '@/components/MaterialActions';
+import { StarRating } from '@/components/StarRating';
+import { Comments } from '@/components/Comments';
 import { Icon } from '@/components/icons';
 import { getMaterial, getRelatedMaterials } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
@@ -47,7 +49,7 @@ export default async function MaterialPage({
     notFound();
   }
 
-  const [related, favorited] = await Promise.all([
+  const [related, favorited, ratingAgg, userRating, commentRows] = await Promise.all([
     getRelatedMaterials(material.id, material.categoryId),
     user
       ? prisma.favorite
@@ -56,7 +58,31 @@ export default async function MaterialPage({
           })
           .then(Boolean)
       : Promise.resolve(false),
+    prisma.rating.aggregate({
+      where: { materialId: material.id },
+      _avg: { value: true },
+      _count: { _all: true },
+    }),
+    user
+      ? prisma.rating.findUnique({
+          where: { userId_materialId: { userId: user.id, materialId: material.id } },
+        })
+      : Promise.resolve(null),
+    prisma.comment.findMany({
+      where: { materialId: material.id, hidden: false },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, name: true } } },
+    }),
   ]);
+
+  const canModerate = !!user && user.role !== 'CONTRIBUTOR';
+  const comments = commentRows.map((c) => ({
+    id: c.id,
+    body: c.body,
+    createdAt: c.createdAt,
+    authorName: c.user.name,
+    authorId: c.user.id,
+  }));
 
   const info: { label: string; value?: string | null }[] = [
     { label: 'التصنيف', value: material.category?.name },
@@ -149,6 +175,17 @@ export default async function MaterialPage({
             />
           </div>
 
+          {/* Rating */}
+          <div className="mt-6">
+            <StarRating
+              materialId={material.id}
+              average={ratingAgg._avg.value ?? 0}
+              count={ratingAgg._count._all}
+              initialUserRating={userRating?.value ?? 0}
+              loggedIn={!!user}
+            />
+          </div>
+
           {/* Description */}
           {material.description && (
             <section className="mt-8">
@@ -188,6 +225,14 @@ export default async function MaterialPage({
           <div className="mt-8 border-t border-ivory-300 pt-4">
             <ReportButton materialId={material.id} />
           </div>
+
+          <Comments
+            materialId={material.id}
+            comments={comments}
+            loggedIn={!!user}
+            currentUserId={user?.id}
+            canModerate={canModerate}
+          />
         </div>
 
         {/* Sidebar: info table */}
