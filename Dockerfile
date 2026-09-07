@@ -5,8 +5,10 @@ WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies (uses the committed lockfile).
+# Install dependencies (uses the committed lockfile). The prisma schema is
+# copied first because the postinstall hook runs `prisma generate`.
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
 RUN npm ci
 
 # Build the app.
