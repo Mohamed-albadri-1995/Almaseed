@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Icon } from './icons';
 import { isStaff } from '@/lib/rbac';
 import { ROLE_LABELS, type Role } from '@/lib/constants';
+import { logoutAction } from '@/app/auth-actions';
 
 const NAV_LINKS = [
   { href: '/', label: 'الرئيسية' },
@@ -100,6 +101,14 @@ export function Navbar({ user }: { user: NavUser | null }) {
                 </span>
                 <span className="max-w-[7rem] truncate">{user.name}</span>
               </Link>
+              <form action={logoutAction}>
+                <button
+                  className="flex h-10 items-center rounded-xl px-3 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                  title="تسجيل الخروج"
+                >
+                  خروج
+                </button>
+              </form>
             </div>
           ) : (
             <Link href="/login" className="btn-outline hidden sm:inline-flex">
@@ -146,6 +155,12 @@ export function Navbar({ user }: { user: NavUser | null }) {
                   <Link href="/account" onClick={() => setOpen(false)} className="btn-ghost">
                     حسابي — {ROLE_LABELS[user.role as Role] ?? ''}
                   </Link>
+                  <Link href="/account/notifications" onClick={() => setOpen(false)} className="btn-ghost">
+                    الإشعارات {user.unread > 0 ? `(${user.unread})` : ''}
+                  </Link>
+                  <form action={logoutAction} className="w-full">
+                    <button className="btn-outline w-full text-danger">تسجيل الخروج</button>
+                  </form>
                 </>
               ) : (
                 <Link href="/login" onClick={() => setOpen(false)} className="btn-outline">

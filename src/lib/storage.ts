@@ -54,3 +54,29 @@ export async function saveUpload(
   await writeFile(join(dir, name), bytes);
   return `/uploads/${name}`;
 }
+
+// Deletes a previously stored file by its public URL. Best-effort: never throws.
+export async function deleteUpload(url?: string | null): Promise<void> {
+  if (!url) return;
+  try {
+    if (storageConfigured() && S3.publicUrl && url.startsWith(S3.publicUrl)) {
+      const key = url.slice(S3.publicUrl.replace(/\/$/, '').length + 1);
+      const { S3Client, DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+      const client = new S3Client({
+        region: S3.region,
+        endpoint: S3.endpoint,
+        credentials: {
+          accessKeyId: S3.accessKeyId!,
+          secretAccessKey: S3.secretAccessKey!,
+        },
+      });
+      await client.send(new DeleteObjectCommand({ Bucket: S3.bucket!, Key: key }));
+    } else if (url.startsWith('/uploads/')) {
+      const { unlink } = await import('fs/promises');
+      const { basename } = await import('path');
+      await unlink(join(uploadsDir(), basename(url)));
+    }
+  } catch (e) {
+    console.error('deleteUpload failed for', url, e);
+  }
+}

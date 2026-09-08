@@ -4,7 +4,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
-import { toggleHideAction, mergeMaterialsAction } from '@/app/admin/actions';
+import { toggleHideAction, mergeMaterialsAction, deleteMaterialAction } from '@/app/admin/actions';
 import { MATERIAL_STATUS, type Role } from '@/lib/constants';
 import { formatCount, timeAgo } from '@/lib/format';
 import type { Prisma } from '@prisma/client';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export default async function MaterialsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; merged?: string; merge?: string };
+  searchParams: { q?: string; merged?: string; merge?: string; deleted?: string };
 }) {
   const user = await getCurrentUser();
   const q = (searchParams.q ?? '').trim();
@@ -47,6 +47,11 @@ export default async function MaterialsPage({
         </form>
       </div>
 
+      {searchParams.deleted && (
+        <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          تم حذف المادة وملفاتها نهائياً.
+        </div>
+      )}
       {searchParams.merged && (
         <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           تم دمج المادتين، ونُقلت المفضلة والإحصاءات إلى المادة الهدف.
@@ -108,6 +113,16 @@ export default async function MaterialsPage({
                                 ))}
                             </select>
                             <button className="btn-outline px-2 py-1 text-xs">دمج</button>
+                          </form>
+                        </details>
+                      )}
+                      {canManage && (
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-muted hover:text-danger">حذف نهائي</summary>
+                          <form action={deleteMaterialAction} className="mt-2 flex items-center gap-2 rounded-lg bg-red-50 p-2">
+                            <input type="hidden" name="id" value={m.id} />
+                            <span className="text-red-700">يُحذف نهائياً مع الملف — لا يمكن التراجع.</span>
+                            <button className="btn-danger px-2 py-1 text-xs">تأكيد الحذف</button>
                           </form>
                         </details>
                       )}

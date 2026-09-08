@@ -8,6 +8,8 @@ import { can } from '@/lib/rbac';
 import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
+import { deleteUpload } from '@/lib/storage';
+import { hashPassword } from '@/lib/auth';
 import {
   MATERIAL_STATUS,
   REVIEW_ACTIONS,
@@ -347,6 +349,59 @@ export async function rollbackVersionAction(formData: FormData) {
   await logActivity({ userId: user.id, action: 'rollback', entity: 'material', entityId: materialId });
   revalidatePath(`/admin/review/${materialId}`);
   redirect(`/admin/review/${materialId}?rolledback=1`);
+}
+
+// ---- Permanently delete a material (DB rows + stored files) ----------------
+export async function deleteMaterialAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.manageContent(user.role as Role)) throw new Error('غير مصرّح');
+  const id = formData.get('id') as string;
+  const material = await prisma.material.findUnique({ where: { id } });
+  if (!material) throw new Error('غير موجودة');
+
+  // Remove stored files (R2/local) first, then the DB row (cascades children).
+  await deleteUpload(material.fileUrl);
+  await deleteUpload(material.coverImage);
+  await prisma.material.delete({ where: { id } });
+
+  await logActivity({
+    userId: user.id,
+    action: 'delete',
+    entity: 'material',
+    entityId: id,
+    meta: { title: material.title },
+  });
+  revalidatePath('/admin/materials');
+  redirect('/admin/materials?deleted=1');
+}
+
+// ---- Delete a user (admin only) --------------------------------------------
+export async function deleteUserAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.manageUsers(user.role as Role)) throw new Error('غير مصرّح');
+  const id = formData.get('id') as string;
+  if (id === user.id) throw new Error('لا يمكنك حذف حسابك');
+  // Their submitted/reviewed materials remain (author becomes null).
+  await prisma.user.delete({ where: { id } });
+  await logActivity({ userId: user.id, action: 'delete', entity: 'user', entityId: id });
+  revalidatePath('/admin/users');
+  redirect('/admin/users?userdeleted=1');
+}
+
+// ---- Reset a user's password (admin only) — helps a locked-out user --------
+export async function resetUserPasswordAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || !can.manageUsers(user.role as Role)) throw new Error('غير مصرّح');
+  const id = formData.get('id') as string;
+  // A short random temporary password the admin can hand to the user.
+  const temp = Math.random().toString(36).slice(-8);
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash: await hashPassword(temp), active: true },
+  });
+  await logActivity({ userId: user.id, action: 'reset_password', entity: 'user', entityId: id });
+  revalidatePath('/admin/users');
+  redirect(`/admin/users?tempuser=${id}&temppass=${encodeURIComponent(temp)}`);
 }
 
 export async function resolveReportAction(formData: FormData) {
