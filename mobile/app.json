@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "أرشيف المسيد",
+    "slug": "almaseed",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#1f3d33",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.almaseed.archive"
+    },
+    "android": {
+      "package": "app.almaseed.archive"
+    }
+  }
+}
