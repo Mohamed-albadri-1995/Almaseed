@@ -1,6 +1,6 @@
-// Base URL of the أرشيف المسيد backend. Change this one line if the site moves
-// to a custom domain (e.g. https://almaseed.org).
-export const API_BASE = 'https://almaseed-production.up.railway.app';
+// Base URL of the الطريقة السمّانية backend. Change this one line if the site
+// moves to a different domain.
+export const API_BASE = 'https://almaseeed.com';
 
 // Web pages opened inside the app for the admin/contributor options.
 export const ADMIN_URL = `${API_BASE}/admin`;

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "أرشيف المسيد",
+    "name": "الطريقة السمّانية",
     "slug": "almaseed",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,10 +16,14 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.almaseed.archive"
+      "bundleIdentifier": "app.almaseed.archive",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
-      "package": "app.almaseed.archive"
+      "package": "app.almaseed.archive",
+      "permissions": ["FOREGROUND_SERVICE", "WAKE_LOCK"]
     }
   }
 }
