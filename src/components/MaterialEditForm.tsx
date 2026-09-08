@@ -145,7 +145,7 @@ export function MaterialEditForm({
           </div>
         )}
 
-        <CoverField initial={material.coverImage} />
+        {form?.cover !== false && <CoverField initial={material.coverImage} />}
       </div>
 
       <div className="mt-5">

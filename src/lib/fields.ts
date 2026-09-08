@@ -17,6 +17,8 @@ export interface CategoryForm {
   file: 'required' | 'optional'; // whether an uploaded file is required
   accept: string; // <input accept> for the file
   article: boolean; // supports a typed article body (bodyText)
+  cover?: boolean; // offer a separate cover image; defaults to true. Set false
+                   // when the uploaded file IS an image (e.g. الصور).
 }
 
 const MEDIA = '.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm';
@@ -110,6 +112,7 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     file: 'required',
     accept: IMAGES,
     article: false,
+    cover: false, // the uploaded file is itself the image — no separate cover
     fields: [
       { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
       { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },

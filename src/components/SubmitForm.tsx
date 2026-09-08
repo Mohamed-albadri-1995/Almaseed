@@ -253,9 +253,11 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
               ))}
             </div>
 
-            <div className="mt-6">
-              <CoverUpload onUploaded={setCover} cover={cover} />
-            </div>
+            {config.cover !== false && (
+              <div className="mt-6">
+                <CoverUpload onUploaded={setCover} cover={cover} />
+              </div>
+            )}
 
             <div className="mt-8 flex justify-between">
               <button type="button" onClick={() => setStep(2)} className="btn-outline">السابق</button>
