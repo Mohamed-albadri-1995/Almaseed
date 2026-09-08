@@ -36,6 +36,17 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --non-interactive
 
+      - name: Ensure splash color resource exists
+        run: |
+          COLORS=android/app/src/main/res/values/colors.xml
+          mkdir -p android/app/src/main/res/values
+          if [ ! -f "$COLORS" ]; then
+            printf '%s\n' '<resources>' '    <color name="splashscreen_background">#1f3d33</color>' '</resources>' > "$COLORS"
+          elif ! grep -q splashscreen_background "$COLORS"; then
+            sed -i 's@</resources>@    <color name="splashscreen_background">#1f3d33</color>\n</resources>@' "$COLORS"
+          fi
+          echo "----- colors.xml -----"; cat "$COLORS"
+
       - name: Build debug APK
         run: |
           cd android

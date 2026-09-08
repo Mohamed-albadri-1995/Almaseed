@@ -6,6 +6,13 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#1f3d33",
+    "splash": {
+      "backgroundColor": "#1f3d33",
+      "resizeMode": "contain"
+    },
+    "plugins": [
+      ["expo-splash-screen", { "backgroundColor": "#1f3d33", "resizeMode": "contain" }]
+    ],
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
