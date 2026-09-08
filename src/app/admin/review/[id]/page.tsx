@@ -121,6 +121,8 @@ export default async function ReviewPage({
                 id: material.id,
                 categorySlug: material.category.slug,
                 title: material.title,
+                subtitle: material.subtitle,
+                bodyText: material.bodyText,
                 coverImage: material.coverImage,
                 performer: material.performer,
                 narrator: material.narrator,

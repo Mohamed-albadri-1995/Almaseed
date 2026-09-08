@@ -21,6 +21,8 @@ export function normalizeArabic(input?: string | null): string {
 // Build the normalized haystack stored on each material.
 export function buildSearchText(m: {
   title?: string | null;
+  subtitle?: string | null;
+  bodyText?: string | null;
   performer?: string | null;
   narrator?: string | null;
   speaker?: string | null;
@@ -38,6 +40,8 @@ export function buildSearchText(m: {
   return normalizeArabic(
     [
       m.title,
+      m.subtitle,
+      m.bodyText,
       m.performer,
       m.narrator,
       m.speaker,

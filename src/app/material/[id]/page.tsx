@@ -129,29 +129,59 @@ export default async function MaterialPage({
           <h1 className="text-3xl font-extrabold leading-snug text-brand-800">
             {material.title}
           </h1>
+          {material.subtitle && (
+            <p className="mt-1 text-lg text-brand-600">{material.subtitle}</p>
+          )}
           {(material.performer || material.speaker || material.host) && (
             <p className="mt-2 text-lg text-muted">
               {material.performer || material.speaker || material.host}
             </p>
           )}
 
-          {material.coverImage && material.fileKind !== 'VIDEO' && (
+          {material.fileKind === 'IMAGE' && material.fileUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={material.coverImage}
-              alt={material.title}
-              className="mt-6 max-h-80 w-full rounded-2xl object-cover"
-            />
-          )}
-
-          <div className="mt-6">
-            <MediaPlayer
               src={material.fileUrl}
-              kind={material.fileKind}
-              title={material.title}
-              poster={material.coverImage}
+              alt={material.title}
+              className="mt-6 w-full rounded-2xl object-contain"
             />
-          </div>
+          ) : material.fileKind === 'DOCUMENT' && material.fileUrl ? (
+            <div className="mt-6">
+              {material.coverImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={material.coverImage} alt={material.title} className="mb-4 max-h-80 w-full rounded-2xl object-cover" />
+              )}
+              <a
+                href={material.fileUrl}
+                target="_blank"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-brand-200 bg-brand-50/50 p-6 text-brand-700 hover:bg-brand-50"
+              >
+                <Icon.file width={22} height={22} />
+                فتح المستند {material.fileType ? `(${material.fileType})` : ''}
+              </a>
+            </div>
+          ) : (
+            <>
+              {material.coverImage && material.fileKind !== 'VIDEO' && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={material.coverImage}
+                  alt={material.title}
+                  className="mt-6 max-h-80 w-full rounded-2xl object-cover"
+                />
+              )}
+              {!material.bodyText && (
+                <div className="mt-6">
+                  <MediaPlayer
+                    src={material.fileUrl}
+                    kind={material.fileKind}
+                    title={material.title}
+                    poster={material.coverImage}
+                  />
+                </div>
+              )}
+            </>
+          )}
 
           {/* Actions */}
           <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -185,6 +215,16 @@ export default async function MaterialPage({
               loggedIn={!!user}
             />
           </div>
+
+          {/* Article body (readings) */}
+          {material.bodyText && (
+            <section className="mt-8">
+              <h2 className="mb-2 text-lg font-bold text-brand-800">النص</h2>
+              <div className="prose-arabic whitespace-pre-line rounded-2xl bg-ivory-50 p-6 leading-9 text-ink/90">
+                {material.bodyText}
+              </div>
+            </section>
+          )}
 
           {/* Description */}
           {material.description && (

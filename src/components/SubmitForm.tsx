@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { Icon, DynamicIcon } from './icons';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
+import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
 
 interface CategoryOption {
   slug: string;
@@ -12,146 +13,55 @@ interface CategoryOption {
   icon?: string | null;
 }
 
-interface FieldDef {
-  name: string;
-  label: string;
-  type?: 'text' | 'textarea' | 'date';
-  hint?: string;
-  canBeUnknown?: boolean; // show a "لا أعلم" toggle
-}
-
 const UNKNOWN = 'غير معروف';
-
-// Fields shown per category. Every field is required; the ones that a
-// contributor might genuinely not know carry a "لا أعلم" toggle. Location is a
-// single field (المكان/المدينة) to avoid the earlier duplication.
-const FIELDS: Record<string, { titleLabel: string; fields: FieldDef[] }> = {
-  madeeh: {
-    titleLabel: 'اسم المدحة',
-    fields: [
-      { name: 'performer', label: 'اسم المادح', canBeUnknown: true },
-      { name: 'narrator', label: 'اسم الراوي', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', hint: 'المسيد أو المسجد أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'تاريخ التسجيل', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف مختصر', type: 'textarea', canBeUnknown: true },
-      { name: 'lyrics', label: 'كلمات المدحة', type: 'textarea', canBeUnknown: true },
-    ],
-  },
-  lectures: {
-    titleLabel: 'عنوان المحاضرة',
-    fields: [
-      { name: 'speaker', label: 'اسم المحاضر', canBeUnknown: true },
-      { name: 'host', label: 'مقدم البرنامج', canBeUnknown: true },
-      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', hint: 'القاعة أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'summary', label: 'ملخص المحاضرة', type: 'textarea', canBeUnknown: true },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-    ],
-  },
-  sermons: {
-    titleLabel: 'عنوان الموعظة',
-    fields: [
-      { name: 'speaker', label: 'اسم الواعظ', canBeUnknown: true },
-      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'summary', label: 'ملخص الموعظة', type: 'textarea', canBeUnknown: true },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-    ],
-  },
-  seminars: {
-    titleLabel: 'عنوان الندوة',
-    fields: [
-      { name: 'topic', label: 'موضوع الندوة', canBeUnknown: true },
-      { name: 'occasion', label: 'اسم الندوة أو المناسبة', canBeUnknown: true },
-      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-      { name: 'host', label: 'مدير الندوة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف الندوة', type: 'textarea', canBeUnknown: true },
-    ],
-  },
-  occasions: {
-    titleLabel: 'اسم المناسبة',
-    fields: [
-      { name: 'occasion', label: 'نوع المناسبة', canBeUnknown: true },
-      { name: 'organizer', label: 'الجهة المنظمة', canBeUnknown: true },
-      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف المناسبة', type: 'textarea', canBeUnknown: true },
-    ],
-  },
-};
-
 const initial: SubmitState = {};
 
-function SubmitButton() {
+function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="btn-primary btn-lg">
+    <button type="submit" disabled={pending || disabled} className="btn-primary btn-lg">
       {pending ? 'جارٍ الإرسال…' : 'إرسال للمراجعة'}
     </button>
   );
 }
 
-// One field with an optional "لا أعلم" toggle.
 function Field({ field }: { field: FieldDef }) {
   const [unknown, setUnknown] = useState(false);
-  const commonProps = {
-    id: field.name,
-    name: field.name,
-    required: true,
-    className: 'input',
-  };
-
+  const common = { id: field.name, name: field.name, required: true, className: 'input' };
   return (
     <div className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
       <div className="mb-1.5 flex items-center justify-between">
-        <label className="text-sm font-medium text-brand-800" htmlFor={field.name}>
-          {field.label}
-        </label>
+        <label className="text-sm font-medium text-brand-800" htmlFor={field.name}>{field.label}</label>
         {field.canBeUnknown && (
           <label className="flex cursor-pointer items-center gap-1 text-xs text-muted">
-            <input
-              type="checkbox"
-              className="rounded"
-              checked={unknown}
-              onChange={(e) => setUnknown(e.target.checked)}
-            />
+            <input type="checkbox" className="rounded" checked={unknown} onChange={(e) => setUnknown(e.target.checked)} />
             لا أعلم
           </label>
         )}
       </div>
-
       {unknown ? (
-        // readOnly (not disabled) so the value is still submitted & passes required
-        <input {...commonProps} readOnly value={UNKNOWN} className="input bg-ivory-100 text-muted" />
+        <input {...common} readOnly value={UNKNOWN} className="input bg-ivory-100 text-muted" />
       ) : field.type === 'textarea' ? (
-        <textarea {...commonProps} rows={3} />
+        <textarea {...common} rows={3} />
       ) : (
-        <input {...commonProps} type={field.type === 'date' ? 'date' : 'text'} />
+        <input {...common} type={field.type === 'date' ? 'date' : 'text'} />
       )}
       {field.hint && !unknown && <p className="field-hint">{field.hint}</p>}
     </div>
   );
 }
 
+type Uploaded = { url: string; fileKind: string; fileType: string; fileSize: number };
+
 function FileUpload({
   onUploaded,
-  label = 'رفع الملف (صوت / فيديو / مستند / صورة)',
-  accept = '.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm,.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp',
-  hint = 'أرفق ملف المادة (صوت أو فيديو). يمكن رفعه لاحقاً إن لم يكن جاهزاً الآن.',
+  accept,
+  label,
   idle = 'اضغط لاختيار ملف (حتى 200 ميجابايت)',
 }: {
-  onUploaded: (data: { url: string; fileKind: string; fileType: string; fileSize: number } | null) => void;
-  label?: string;
-  accept?: string;
-  hint?: string;
+  onUploaded: (d: Uploaded | null) => void;
+  accept: string;
+  label: string;
   idle?: string;
 }) {
   const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
@@ -167,12 +77,8 @@ function FileUpload({
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: fd });
       const text = await res.text();
-      let data: { url?: string; fileKind?: string; fileType?: string; fileSize?: number; error?: string } = {};
-      try {
-        data = JSON.parse(text);
-      } catch {
-        data = { error: text.slice(0, 200) || `خطأ ${res.status}` };
-      }
+      let data: Partial<Uploaded> & { error?: string } = {};
+      try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) || `خطأ ${res.status}` }; }
       if (!res.ok || !data.url) {
         setState('error');
         setError(data.error || `فشل الرفع (${res.status})`);
@@ -180,7 +86,7 @@ function FileUpload({
         return;
       }
       setState('done');
-      onUploaded(data as { url: string; fileKind: string; fileType: string; fileSize: number });
+      onUploaded(data as Uploaded);
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'تعذّر رفع الملف');
@@ -203,17 +109,8 @@ function FileUpload({
           </span>
         )}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
-        <input
-          type="file"
-          className="hidden"
-          accept={accept}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) upload(f);
-          }}
-        />
+        <input type="file" className="hidden" accept={accept} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
       </label>
-      <p className="field-hint">{hint}</p>
     </div>
   );
 }
@@ -222,26 +119,27 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
   const [state, action] = useFormState(submitMaterialAction, initial);
   const [step, setStep] = useState(1);
   const [slug, setSlug] = useState('');
-  const [file, setFile] = useState<{ url: string; fileKind: string; fileType: string; fileSize: number } | null>(null);
-  const [cover, setCover] = useState<{ url: string } | null>(null);
+  const [file, setFile] = useState<Uploaded | null>(null);
+  const [cover, setCover] = useState<Uploaded | null>(null);
+  const [readingMode, setReadingMode] = useState<'file' | 'article'>('file');
+  const [articleText, setArticleText] = useState('');
 
-  const config = slug ? FIELDS[slug] : null;
+  const config = slug ? CATEGORY_FORMS[slug] : null;
   const activeCat = categories.find((c) => c.slug === slug);
+  const isReadings = !!config?.article;
+  const articleMode = isReadings && readingMode === 'article';
+
+  // Requirement to advance past the file step / to submit.
+  const fileSatisfied = articleMode ? articleText.trim().length > 1 : !!file;
 
   return (
     <div>
-      {/* Steps indicator */}
+      {/* Steps: 1 نوع · 2 الملف · 3 البيانات · 4 الإرسال */}
       <div className="mb-8 flex items-center justify-center gap-2">
-        {[1, 2, 3].map((n) => (
+        {[1, 2, 3, 4].map((n) => (
           <div key={n} className="flex items-center gap-2">
-            <span
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${
-                step >= n ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-200 text-muted'
-              }`}
-            >
-              {n}
-            </span>
-            {n < 3 && <span className={`h-0.5 w-10 ${step > n ? 'bg-brand-700' : 'bg-ivory-200'}`} />}
+            <span className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ${step >= n ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-200 text-muted'}`}>{n}</span>
+            {n < 4 && <span className={`h-0.5 w-8 ${step > n ? 'bg-brand-700' : 'bg-ivory-200'}`} />}
           </div>
         ))}
       </div>
@@ -252,18 +150,11 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
           <h2 className="mb-1 text-xl font-bold text-brand-800">اختر نوع المادة</h2>
           <p className="mb-6 text-sm text-muted">حدد التصنيف المناسب للمادة التي تريد مشاركتها.</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((c) => (
+            {categories.filter((c) => CATEGORY_FORMS[c.slug]).map((c) => (
               <button
                 key={c.slug}
-                onClick={() => {
-                  setSlug(c.slug);
-                  setStep(2);
-                }}
-                className={`flex items-center gap-3 rounded-2xl border p-4 text-right transition ${
-                  slug === c.slug
-                    ? 'border-brand-400 bg-brand-50'
-                    : 'border-ivory-300 bg-white hover:border-brand-200 hover:bg-brand-50/40'
-                }`}
+                onClick={() => { setSlug(c.slug); setFile(null); setStep(2); }}
+                className={`flex items-center gap-3 rounded-2xl border p-4 text-right transition ${slug === c.slug ? 'border-brand-400 bg-brand-50' : 'border-ivory-300 bg-white hover:border-brand-200 hover:bg-brand-50/40'}`}
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-100 text-brand-600">
                   <DynamicIcon name={c.icon} width={22} height={22} />
@@ -278,7 +169,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
         </div>
       )}
 
-      {/* Steps 2 & 3 share one form so all fields submit together */}
+      {/* One form for steps 2–4 so everything submits together */}
       {step >= 2 && config && (
         <form action={action}>
           <input type="hidden" name="categorySlug" value={slug} />
@@ -291,58 +182,99 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
             </>
           )}
           {cover && <input type="hidden" name="coverImage" value={cover.url} />}
+          {articleMode && <input type="hidden" name="bodyText" value={articleText} />}
 
-          {/* Step 2: data */}
+          {/* Step 2: file first */}
           <div className={step === 2 ? 'block' : 'hidden'}>
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-brand-800">بيانات {activeCat?.name}</h2>
-                <p className="text-sm text-muted">
-                  كل الحقول مطلوبة. إن كنت لا تعرف قيمة حقل، فعّل خيار «لا أعلم» بجانبه.
-                </p>
+                <h2 className="text-xl font-bold text-brand-800">ملف {activeCat?.name}</h2>
+                <p className="text-sm text-muted">ارفع الملف أولاً — لا يمكن الإرسال دون اكتمال الرفع.</p>
               </div>
-              <button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">
-                تغيير النوع
+              <button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">تغيير النوع</button>
+            </div>
+
+            {isReadings && (
+              <div className="mb-5 flex gap-2">
+                <button type="button" onClick={() => setReadingMode('file')} className={readingMode === 'file' ? 'btn-primary' : 'btn-outline'}>رفع ملف</button>
+                <button type="button" onClick={() => setReadingMode('article')} className={readingMode === 'article' ? 'btn-primary' : 'btn-outline'}>كتابة مقال</button>
+              </div>
+            )}
+
+            {articleMode ? (
+              <div>
+                <label className="label">نص المقال</label>
+                <textarea
+                  value={articleText}
+                  onChange={(e) => setArticleText(e.target.value)}
+                  rows={10}
+                  className="input"
+                  placeholder="اكتب نص المقال هنا…"
+                />
+                <p className="field-hint">يمكنك أيضاً إرفاق صورة غلاف في الخطوة التالية.</p>
+              </div>
+            ) : (
+              <FileUpload
+                onUploaded={setFile}
+                accept={config.accept}
+                label={`رفع الملف (${config.file === 'required' ? 'مطلوب' : 'اختياري'})`}
+              />
+            )}
+
+            <div className="mt-8 flex justify-between">
+              <button type="button" onClick={() => setStep(1)} className="btn-outline">السابق</button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                disabled={!fileSatisfied}
+                className="btn-primary disabled:opacity-50"
+              >
+                التالي
               </button>
             </div>
+            {!fileSatisfied && (
+              <p className="mt-2 text-left text-xs text-muted">
+                {articleMode ? 'اكتب نص المقال للمتابعة.' : 'أكمل رفع الملف للمتابعة.'}
+              </p>
+            )}
+          </div>
+
+          {/* Step 3: data */}
+          <div className={step === 3 ? 'block' : 'hidden'}>
+            <h2 className="mb-1 text-xl font-bold text-brand-800">بيانات {activeCat?.name}</h2>
+            <p className="mb-6 text-sm text-muted">كل الحقول مطلوبة. إن كنت لا تعرف قيمة حقل، فعّل «لا أعلم» بجانبه.</p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="label" htmlFor="title">{config.titleLabel}</label>
                 <input id="title" name="title" required className="input" />
               </div>
+              <div className="sm:col-span-2">
+                <label className="label" htmlFor="subtitle">{config.subtitleLabel}</label>
+                <input id="subtitle" name="subtitle" className="input" />
+              </div>
               {config.fields.map((f) => (
                 <Field key={f.name} field={f} />
               ))}
             </div>
 
+            <div className="mt-6">
+              <CoverUpload onUploaded={setCover} cover={cover} />
+            </div>
+
             <div className="mt-8 flex justify-between">
-              <button type="button" onClick={() => setStep(1)} className="btn-outline">السابق</button>
-              <button type="button" onClick={() => setStep(3)} className="btn-primary">التالي</button>
+              <button type="button" onClick={() => setStep(2)} className="btn-outline">السابق</button>
+              <button type="button" onClick={() => setStep(4)} className="btn-primary">التالي</button>
             </div>
           </div>
 
-          {/* Step 3: file + confirmation */}
-          <div className={step === 3 ? 'block' : 'hidden'}>
-            <h2 className="mb-6 text-xl font-bold text-brand-800">الملف والإقرار</h2>
-            <div className="space-y-5">
-              <FileUpload onUploaded={setFile} />
-              <FileUpload
-                onUploaded={(d) => setCover(d)}
-                label="صورة الغلاف (اختياري)"
-                accept=".jpg,.jpeg,.png,.webp"
-                idle="اضغط لاختيار صورة"
-                hint="صورة تظهر كغلاف للمادة — اختيارية."
-              />
-            </div>
-
+          {/* Step 4: confirm */}
+          <div className={step === 4 ? 'block' : 'hidden'}>
+            <h2 className="mb-6 text-xl font-bold text-brand-800">الإقرار والإرسال</h2>
             {state.error && (
-              <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                {state.error}
-              </div>
+              <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>
             )}
-
-            <div className="mt-6 space-y-3">
+            <div className="space-y-3">
               <label className="flex items-start gap-3 rounded-xl bg-ivory-50 p-4 text-sm text-ink/90">
                 <input type="checkbox" name="rightsConfirmed" required className="mt-1 rounded" />
                 <span>أقر بأن لدي الحق في مشاركة هذه المادة، وأن مشاركتها لا تخالف حقوق الآخرين.</span>
@@ -352,14 +284,30 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
                 <span>أوافق على مراجعة المادة من فريق الإشراف قبل نشرها.</span>
               </label>
             </div>
-
             <div className="mt-8 flex justify-between">
-              <button type="button" onClick={() => setStep(2)} className="btn-outline">السابق</button>
-              <SubmitButton />
+              <button type="button" onClick={() => setStep(3)} className="btn-outline">السابق</button>
+              <SubmitButton disabled={!fileSatisfied} />
             </div>
+            {!fileSatisfied && (
+              <p className="mt-2 text-left text-xs text-danger">يجب إرفاق ملف أو كتابة مقال قبل الإرسال.</p>
+            )}
           </div>
         </form>
       )}
+    </div>
+  );
+}
+
+function CoverUpload({ onUploaded, cover }: { onUploaded: (d: Uploaded | null) => void; cover: Uploaded | null }) {
+  return (
+    <div>
+      <FileUpload
+        onUploaded={onUploaded}
+        accept=".jpg,.jpeg,.png,.webp"
+        label="صورة الغلاف (اختياري)"
+        idle="اضغط لاختيار صورة"
+      />
+      {cover && <p className="field-hint mt-1 text-emerald-600">تم اختيار صورة الغلاف.</p>}
     </div>
   );
 }

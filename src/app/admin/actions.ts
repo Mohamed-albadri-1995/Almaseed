@@ -60,6 +60,13 @@ export async function reviewDecisionAction(formData: FormData) {
     newStatus = MATERIAL_STATUS.DRAFT;
   }
 
+  // Rejected material shouldn't keep occupying storage — remove its files.
+  const clearFiles = action === REVIEW_ACTIONS.REJECT;
+  if (clearFiles) {
+    await deleteUpload(material.fileUrl);
+    await deleteUpload(material.coverImage);
+  }
+
   await prisma.material.update({
     where: { id: materialId },
     data: {
@@ -69,6 +76,7 @@ export async function reviewDecisionAction(formData: FormData) {
         newStatus === MATERIAL_STATUS.PUBLISHED
           ? material.publishedAt ?? new Date()
           : material.publishedAt,
+      ...(clearFiles ? { fileUrl: null, coverImage: null } : {}),
     },
   });
 
@@ -123,6 +131,8 @@ export async function editMaterialAction(formData: FormData) {
 
   const fields = {
     title: get('title') ?? undefined,
+    subtitle: get('subtitle'),
+    bodyText: get('bodyText'),
     performer: get('performer'),
     narrator: get('narrator'),
     speaker: get('speaker'),
@@ -143,12 +153,24 @@ export async function editMaterialAction(formData: FormData) {
   const coverRaw = formData.get('coverImage');
   const coverImage = coverRaw == null ? undefined : String(coverRaw) || null;
 
+  // Record date (optional): parse safely; invalid/empty clears it.
+  const dateRaw = get('recordDate');
+  let recordDate: Date | null | undefined = undefined;
+  if (formData.has('recordDate')) {
+    if (!dateRaw) recordDate = null;
+    else {
+      const d = new Date(dateRaw);
+      recordDate = Number.isNaN(d.getTime()) ? null : d;
+    }
+  }
+
   await prisma.material.update({
     where: { id },
     data: {
       ...fields,
       ...(category ? { categoryId: category.id } : {}),
       ...(coverImage !== undefined ? { coverImage } : {}),
+      ...(recordDate !== undefined ? { recordDate } : {}),
       searchText: buildSearchText({ ...fields, title: fields.title ?? '' }),
     },
   });

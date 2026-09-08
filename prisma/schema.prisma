@@ -69,9 +69,10 @@ model Category {
 // fileKind values (FILE_KINDS): AUDIO, VIDEO, DOCUMENT, IMAGE
 
 model Material {
-  id     String @id @default(cuid())
-  title  String
-  status String @default("PENDING")
+  id       String  @id @default(cuid())
+  title    String
+  subtitle String? // عنوان فرعي (لكل الأقسام)
+  status   String  @default("PENDING")
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
@@ -79,6 +80,7 @@ model Material {
   description String?
   lyrics      String? // كلمات المدحة
   summary     String? // ملخص المحاضرة
+  bodyText    String? // نص المقال المكتوب (قسم المقروءات)
 
   // People — semantics vary by category (madeeh / speaker / narrator / host)
   performer    String? // المادح

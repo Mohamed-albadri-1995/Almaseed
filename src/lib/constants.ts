@@ -123,6 +123,8 @@ export const CATEGORY_SLUGS = {
   SEMINARS: 'seminars',
   SERMONS: 'sermons',
   OCCASIONS: 'occasions',
+  IMAGES: 'images',
+  READINGS: 'readings',
 } as const;
 
 export const CATEGORIES_SEED = [
@@ -165,6 +167,22 @@ export const CATEGORIES_SEED = [
     icon: 'calendar',
     color: 'violet',
     order: 5,
+  },
+  {
+    slug: CATEGORY_SLUGS.IMAGES,
+    name: 'الصور',
+    description: 'صور ووثائق من ذاكرة المسيد',
+    icon: 'image',
+    color: 'sky',
+    order: 6,
+  },
+  {
+    slug: CATEGORY_SLUGS.READINGS,
+    name: 'المقروءات',
+    description: 'مقالات ونصوص وملفات مقروءة',
+    icon: 'file',
+    color: 'brand',
+    order: 7,
   },
 ] as const;
 

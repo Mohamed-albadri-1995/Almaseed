@@ -16,9 +16,11 @@ export const loginSchema = z.object({
 export const submissionSchema = z.object({
   categorySlug: z.string().min(1, 'اختر نوع المادة'),
   title: z.string().min(2, 'العنوان مطلوب'),
+  subtitle: z.string().optional(),
   description: z.string().optional(),
   lyrics: z.string().optional(),
   summary: z.string().optional(),
+  bodyText: z.string().optional(),
   performer: z.string().optional(),
   narrator: z.string().optional(),
   speaker: z.string().optional(),

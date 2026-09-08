@@ -8,6 +8,7 @@ import { MATERIAL_STATUS } from '@/lib/constants';
 import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
+import { getCategoryForm } from '@/lib/fields';
 
 export interface SubmitState {
   error?: string;
@@ -35,6 +36,8 @@ function cleanFields(d: Record<string, unknown>) {
   const s = (k: string) => clean(d[k] as string | null | undefined);
   return {
     title: (d.title as string).trim(),
+    subtitle: s('subtitle'),
+    bodyText: (d.bodyText as string | undefined)?.trim() || null,
     description: s('description'),
     lyrics: s('lyrics'),
     summary: s('summary'),
@@ -70,6 +73,19 @@ export async function submitMaterialAction(
     where: { slug: d.categorySlug },
   });
   if (!category) return { error: 'التصنيف غير موجود' };
+
+  // Enforce the file requirement: a file must be uploaded before submitting,
+  // except in the readings "article" mode where a typed body is enough.
+  const form = getCategoryForm(d.categorySlug);
+  const hasFile = !!d.fileUrl;
+  const hasArticle = !!(d.bodyText && d.bodyText.trim());
+  if (form?.article) {
+    if (!hasFile && !hasArticle) {
+      return { error: 'أرفق ملفاً أو اكتب مقالاً قبل الإرسال' };
+    }
+  } else if (!hasFile) {
+    return { error: 'يجب رفع الملف واكتمال التحميل قبل الإرسال' };
+  }
 
   const f = cleanFields(d);
   const material = await prisma.material.create({
