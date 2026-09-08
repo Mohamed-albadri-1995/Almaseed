@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { resubmitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS } from '@/lib/fields';
+import { ArticleEditor } from './ArticleEditor';
 
 interface MaterialData {
   id: string;
@@ -40,6 +42,7 @@ function SubmitButton() {
 export function ResubmitForm({ material }: { material: MaterialData }) {
   const [state, action] = useFormState(resubmitMaterialAction, initial);
   const form = CATEGORY_FORMS[material.categorySlug];
+  const [bodyText, setBodyText] = useState(material.bodyText ?? '');
 
   return (
     <form action={action} className="space-y-4">
@@ -80,8 +83,9 @@ export function ResubmitForm({ material }: { material: MaterialData }) {
 
       {form?.article && (
         <div>
-          <label className="label" htmlFor="bodyText">نص المقال</label>
-          <textarea id="bodyText" name="bodyText" rows={8} defaultValue={material.bodyText ?? ''} className="input" />
+          <label className="label">نص المقال</label>
+          <input type="hidden" name="bodyText" value={bodyText} />
+          <ArticleEditor value={bodyText} onChange={setBodyText} />
         </div>
       )}
 

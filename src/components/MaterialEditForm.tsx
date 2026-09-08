@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { editMaterialAction } from '@/app/admin/actions';
 import { Icon } from './icons';
 import { CATEGORY_FORMS } from '@/lib/fields';
+import { ArticleEditor } from './ArticleEditor';
 
 interface MaterialData {
   id: string;
@@ -91,6 +92,7 @@ export function MaterialEditForm({
 }) {
   const [slug, setSlug] = useState(material.categorySlug);
   const form = CATEGORY_FORMS[slug];
+  const [bodyText, setBodyText] = useState(material.bodyText ?? '');
 
   return (
     <form action={editMaterialAction} className="card p-5">
@@ -137,8 +139,9 @@ export function MaterialEditForm({
         {/* Article body for the readings category */}
         {form?.article && (
           <div className="sm:col-span-2">
-            <label className="label" htmlFor="bodyText">نص المقال</label>
-            <textarea id="bodyText" name="bodyText" rows={8} defaultValue={material.bodyText ?? ''} className="input" />
+            <label className="label">نص المقال</label>
+            <input type="hidden" name="bodyText" value={bodyText} />
+            <ArticleEditor value={bodyText} onChange={setBodyText} />
           </div>
         )}
 

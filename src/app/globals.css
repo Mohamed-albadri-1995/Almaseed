@@ -86,6 +86,45 @@
   font-family: var(--font-display);
 }
 
+/* Article typography for المقروءات (rendered Markdown + editor preview) */
+.article-prose {
+  @apply text-[1.075rem] leading-[2.2] text-ink/90;
+}
+.article-prose > *:first-child {
+  margin-top: 0;
+}
+.article-prose h1 {
+  @apply mb-3 mt-8 font-display text-3xl font-extrabold text-brand-800;
+}
+.article-prose h2 {
+  @apply mb-3 mt-8 font-display text-2xl font-bold text-brand-800;
+}
+.article-prose h3 {
+  @apply mb-2 mt-6 text-xl font-bold text-brand-700;
+}
+.article-prose p {
+  @apply my-4;
+}
+.article-prose strong {
+  @apply font-bold text-brand-900;
+}
+.article-prose ul,
+.article-prose ol {
+  @apply my-4 space-y-1.5 pr-6;
+}
+.article-prose ul {
+  @apply list-disc;
+}
+.article-prose ol {
+  @apply list-decimal;
+}
+.article-prose blockquote {
+  @apply my-6 rounded-l-xl border-r-4 border-gold-400 bg-ivory-50 px-5 py-3 text-brand-800;
+}
+.article-prose hr {
+  @apply my-8 border-0 border-t border-ivory-300;
+}
+
 /* Range input (audio scrub) small polish */
 input[type='range'] {
   accent-color: #cd9b44;

@@ -59,160 +59,143 @@ export default async function ArchivePage({
   const activeCat = categories.find((c) => c.slug === searchParams.category);
   const title = activeCat ? activeCat.name : 'الأرشيف';
 
+  // Only the facets that actually exist in the current content become filters.
+  const extraFilters = [
+    facets.cities.length > 0 && {
+      name: 'city', label: 'المدينة', value: searchParams.city, options: facets.cities,
+    },
+    facets.years.length > 0 && {
+      name: 'year', label: 'السنة', value: searchParams.year, options: facets.years,
+    },
+    facets.languages.length > 1 && {
+      name: 'language', label: 'اللغة', value: searchParams.language, options: facets.languages,
+    },
+  ].filter(Boolean) as { name: string; label: string; value?: string; options: string[] }[];
+
+  const advancedActive =
+    !!searchParams.kind || !!searchParams.person || !!searchParams.sort ||
+    extraFilters.some((f) => f.value);
+
   return (
-    <div className="container-page py-10">
-      {/* Header */}
-      <div className="mb-6">
-        <nav className="mb-2 flex items-center gap-1 text-sm text-muted">
-          <Link href="/" className="hover:text-brand-600">الرئيسية</Link>
-          <Icon.chevronLeft width={14} height={14} />
-          <span className="text-brand-700">{title}</span>
-        </nav>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="section-title">{title}</h1>
-            {activeCat?.description && (
-              <p className="mt-1 text-muted">{activeCat.description}</p>
-            )}
-          </div>
-          <p className="text-sm text-muted">
-            {formatCount(result.total)} نتيجة
-          </p>
+    <div className="container-page py-8">
+      {/* Compact header: breadcrumb + title + count */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <nav className="flex items-center gap-1 text-sm text-muted">
+            <Link href="/" className="hover:text-brand-600">الرئيسية</Link>
+            <Icon.chevronLeft width={14} height={14} />
+          </nav>
+          <h1 className="text-xl font-bold text-brand-800 sm:text-2xl">{title}</h1>
         </div>
+        <p className="text-sm text-muted">{formatCount(result.total)} نتيجة</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        {/* Filters */}
-        <aside>
-          <form
-            method="get"
-            className="card sticky top-20 space-y-5 p-5"
+      {/* Category chips (horizontal, scrollable) */}
+      <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
+        <Link
+          href={buildQuery(searchParams, { category: '', page: '' })}
+          className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+            !searchParams.category ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-100 text-brand-700 hover:bg-ivory-200'
+          }`}
+        >
+          الكل
+        </Link>
+        {categories.map((c) => (
+          <Link
+            key={c.id}
+            href={buildQuery(searchParams, { category: c.slug, page: '' })}
+            className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
+              searchParams.category === c.slug ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-100 text-brand-700 hover:bg-ivory-200'
+            }`}
           >
-            <div>
-              <label className="label" htmlFor="q">البحث</label>
-              <input
-                id="q"
-                name="q"
-                type="search"
-                defaultValue={searchParams.q ?? ''}
-                placeholder="كلمة مفتاحية…"
-                className="input"
-              />
-            </div>
+            <span>{c.name}</span>
+            <span className={`text-xs ${searchParams.category === c.slug ? 'text-ivory-100/70' : 'text-muted'}`}>
+              {formatCount(c.count)}
+            </span>
+          </Link>
+        ))}
+      </div>
 
-            <div>
-              <p className="label">التصنيف</p>
-              <div className="space-y-1">
-                <Link
-                  href={buildQuery(searchParams, { category: '', page: '' })}
-                  className={`block rounded-lg px-3 py-1.5 text-sm ${
-                    !searchParams.category
-                      ? 'bg-brand-50 font-semibold text-brand-800'
-                      : 'text-brand-700 hover:bg-ivory-100'
-                  }`}
-                >
-                  الكل
-                </Link>
-                {categories.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={buildQuery(searchParams, { category: c.slug, page: '' })}
-                    className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-sm ${
-                      searchParams.category === c.slug
-                        ? 'bg-brand-50 font-semibold text-brand-800'
-                        : 'text-brand-700 hover:bg-ivory-100'
-                    }`}
-                  >
-                    <span>{c.name}</span>
-                    <span className="text-xs text-muted">{formatCount(c.count)}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+      {/* Slim search + collapsible filters */}
+      <form method="get" className="mb-6 rounded-2xl bg-white p-2 shadow-card ring-1 ring-black/5">
+        {searchParams.category && (
+          <input type="hidden" name="category" value={searchParams.category} />
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[12rem] flex-1">
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted">
+              <Icon.search width={16} height={16} />
+            </span>
+            <input
+              id="q"
+              name="q"
+              type="search"
+              defaultValue={searchParams.q ?? ''}
+              placeholder="ابحث في العناوين والأسماء والكلمات المفتاحية…"
+              className="w-full rounded-xl border border-ivory-300 bg-white py-2.5 pe-4 ps-9 text-sm text-ink placeholder:text-muted/70 focus:border-brand-400 focus:ring-0"
+            />
+          </div>
+          <select
+            name="sort"
+            defaultValue={searchParams.sort ?? 'newest'}
+            className="rounded-xl border border-ivory-300 bg-white px-3 py-2.5 text-sm text-brand-800 focus:border-brand-400 focus:ring-0"
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <button type="submit" className="btn-primary">تطبيق</button>
+          {(advancedActive || searchParams.q) && (
+            <Link href={buildQuery({}, { category: searchParams.category })} className="btn-ghost text-sm">مسح</Link>
+          )}
+        </div>
 
-            <div>
-              <label className="label" htmlFor="kind">نوع الملف</label>
-              <select id="kind" name="kind" defaultValue={searchParams.kind ?? ''} className="input">
+        {/* Adaptive advanced filters — only shown facets that have data */}
+        <details className="group mt-1" open={advancedActive}>
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-2 text-sm font-semibold text-brand-700">
+            <Icon.chevronLeft width={14} height={14} className="transition-transform group-open:-rotate-90" />
+            فلاتر متقدمة
+            {advancedActive && <span className="rounded-full bg-gold-100 px-2 py-0.5 text-xs text-gold-700">مُفعّلة</span>}
+          </summary>
+          <div className="grid gap-3 px-2 pb-2 pt-1 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">نوع الملف</span>
+              <select name="kind" defaultValue={searchParams.kind ?? ''} className="input">
                 <option value="">الكل</option>
                 {Object.values(FILE_KINDS).map((k) => (
                   <option key={k} value={k}>{FILE_KIND_LABELS[k as FileKind]}</option>
                 ))}
               </select>
-            </div>
-
-            {facets.cities.length > 0 && (
-              <div>
-                <label className="label" htmlFor="city">المدينة أو المنطقة</label>
-                <select id="city" name="city" defaultValue={searchParams.city ?? ''} className="input">
+            </label>
+            {extraFilters.map((f) => (
+              <label key={f.name} className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
+                <select name={f.name} defaultValue={f.value ?? ''} className="input">
                   <option value="">الكل</option>
-                  {facets.cities.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>{o}</option>
                   ))}
                 </select>
-              </div>
-            )}
-
-            {facets.years.length > 0 && (
-              <div>
-                <label className="label" htmlFor="year">السنة</label>
-                <select id="year" name="year" defaultValue={searchParams.year ?? ''} className="input">
-                  <option value="">الكل</option>
-                  {facets.years.map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {facets.languages.length > 1 && (
-              <div>
-                <label className="label" htmlFor="language">اللغة</label>
-                <select id="language" name="language" defaultValue={searchParams.language ?? ''} className="input">
-                  <option value="">الكل</option>
-                  {facets.languages.map((l) => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="label" htmlFor="person">المادح / المحاضر</label>
+              </label>
+            ))}
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">المادح / المحاضر</span>
               <input
-                id="person"
                 name="person"
                 defaultValue={searchParams.person ?? ''}
                 placeholder="الاسم…"
                 className="input"
               />
-            </div>
+            </label>
+          </div>
+        </details>
+      </form>
 
-            <div>
-              <label className="label" htmlFor="sort">الترتيب</label>
-              <select id="sort" name="sort" defaultValue={searchParams.sort ?? 'newest'} className="input">
-                {SORT_OPTIONS.map((s) => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* keep category on submit */}
-            {searchParams.category && (
-              <input type="hidden" name="category" value={searchParams.category} />
-            )}
-
-            <div className="flex gap-2">
-              <button type="submit" className="btn-primary flex-1">تطبيق</button>
-              <Link href="/archive" className="btn-outline">مسح</Link>
-            </div>
-          </form>
-        </aside>
-
-        {/* Results */}
-        <div>
-          {result.items.length ? (
+      {/* Results (full width) */}
+      <div>
+        {result.items.length ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {result.items.map((m) => (
                   <MaterialCard key={m.id} material={m} />
                 ))}
@@ -230,12 +213,11 @@ export default async function ArchivePage({
               </span>
               <p className="text-lg font-semibold text-brand-800">لا توجد نتائج مطابقة</p>
               <p className="max-w-sm text-sm text-muted">
-                جرّب تعديل كلمات البحث أو إزالة بعض الفلاتر، أو تصفّح التصنيفات من القائمة الجانبية.
+                جرّب تعديل كلمات البحث أو إزالة بعض الفلاتر، أو تصفّح التصنيفات من الشريط أعلى الصفحة.
               </p>
               <Link href="/archive" className="btn-outline mt-2">إعادة ضبط الفلاتر</Link>
             </div>
           )}
-        </div>
       </div>
     </div>
   );

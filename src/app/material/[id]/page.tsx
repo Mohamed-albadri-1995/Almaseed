@@ -15,6 +15,7 @@ import { getMaterial, getRelatedMaterials } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_STATUS } from '@/lib/constants';
+import { renderMarkdown } from '@/lib/markdown';
 import {
   formatDate,
   formatDurationLabel,
@@ -216,12 +217,18 @@ export default async function MaterialPage({
             />
           </div>
 
-          {/* Article body (readings) */}
+          {/* Article body (readings) — rendered Markdown, distinguished layout */}
           {material.bodyText && (
-            <section className="mt-8">
-              <h2 className="mb-2 text-lg font-bold text-brand-800">النص</h2>
-              <div className="prose-arabic whitespace-pre-line rounded-2xl bg-ivory-50 p-6 leading-9 text-ink/90">
-                {material.bodyText}
+            <section className="mt-10">
+              <div className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
+                <div className="flex items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
+                  <Icon.file width={18} height={18} className="text-gold-300" />
+                  <span className="font-display text-lg font-bold">النص الكامل</span>
+                </div>
+                <article
+                  className="article-prose px-6 py-8 sm:px-10 sm:py-10"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(material.bodyText) }}
+                />
               </div>
             </section>
           )}

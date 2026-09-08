@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { Icon, DynamicIcon } from './icons';
+import { ArticleEditor } from './ArticleEditor';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
 
@@ -204,13 +205,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
             {articleMode ? (
               <div>
                 <label className="label">نص المقال</label>
-                <textarea
-                  value={articleText}
-                  onChange={(e) => setArticleText(e.target.value)}
-                  rows={10}
-                  className="input"
-                  placeholder="اكتب نص المقال هنا…"
-                />
+                <ArticleEditor value={articleText} onChange={setArticleText} />
                 <p className="field-hint">يمكنك أيضاً إرفاق صورة غلاف في الخطوة التالية.</p>
               </div>
             ) : (
