@@ -70,9 +70,12 @@ function Feed({ push }) {
     <View style={{ flex: 1 }}>
       {/* Top bar */}
       <View style={styles.topbar}>
-        <View>
-          <Text style={styles.topTitle}>الطريقة السمّانية</Text>
-          <Text style={styles.topSub}>السجادة السليمانية</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Image source={require('./assets/icon.png')} style={styles.topLogo} />
+          <View>
+            <Text style={styles.topTitle}>الطريقة السمّانية</Text>
+            <Text style={styles.topSub}>السجادة السليمانية</Text>
+          </View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <IconBtn label="⤓" onPress={() => push('library')} />
@@ -414,7 +417,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
 
   topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 },
-  topTitle: { color: C.white, fontSize: 22, fontWeight: '900' },
+  topLogo: { width: 38, height: 38 },
+  topTitle: { color: C.white, fontSize: 20, fontWeight: '900' },
   topSub: { color: C.gold300, fontSize: 12, marginTop: 2 },
   iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' },
   iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' },

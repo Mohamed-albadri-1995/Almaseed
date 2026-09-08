@@ -15,6 +15,14 @@ export default function AboutPage() {
     <div>
       <section className="bg-brand-800 py-16 text-ivory-50">
         <div className="container-page text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="شعار الطريقة السمّانية — السجادة السليمانية"
+            width={104}
+            height={104}
+            className="mx-auto mb-5 h-24 w-24 drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
+          />
           <p className="text-sm font-bold text-gold-300">من ذاكرة المسيد</p>
           <h1 className="mt-2 font-display text-4xl sm:text-5xl">
             عن الطريقة السمّانية

@@ -6,12 +6,14 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#1f3d33",
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#1f3d33",
       "resizeMode": "contain"
     },
     "plugins": [
-      ["expo-splash-screen", { "backgroundColor": "#1f3d33", "resizeMode": "contain" }]
+      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }]
     ],
     "assetBundlePatterns": ["**/*"],
     "ios": {
@@ -23,6 +25,10 @@
     },
     "android": {
       "package": "app.almaseed.archive",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
       "permissions": ["FOREGROUND_SERVICE", "WAKE_LOCK"]
     }
   }

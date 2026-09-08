@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   },
   description:
     'أرشيف الطريقة السمّانية السجادة السليمانية للمدائح والمحاضرات والندوات والمواعظ والمناسبات، نجمع فيه ما يستحق أن يبقى قريباً من القلب.',
+  icons: {
+    icon: [{ url: '/logo.png', type: 'image/png' }],
+    apple: [{ url: '/logo.png' }],
+  },
 };
 
 export default async function RootLayout({

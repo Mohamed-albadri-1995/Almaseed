@@ -36,6 +36,14 @@ export default async function HomePage() {
         </div>
         <div className="container-page relative py-16 sm:py-24">
           <div className="mx-auto max-w-3xl text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="شعار الطريقة السمّانية — السجادة السليمانية"
+              width={124}
+              height={124}
+              className="mx-auto mb-6 h-28 w-28 drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)] sm:h-32 sm:w-32"
+            />
             <p className="inline-flex items-center gap-2 text-sm font-bold text-gold-300">
               <Icon.sparkle width={16} height={16} />
               من ذاكرة المسيد
