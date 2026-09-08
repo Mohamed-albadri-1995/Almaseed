@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL } from './config';
+import { getDownloads, addDownload, removeDownload } from './storage';
 
 // Force right-to-left layout for Arabic.
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
@@ -32,6 +33,8 @@ export default function App() {
       {top.name === 'player' && <Categories push={push} onBack={pop} />}
       {top.name === 'list' && <MaterialsList category={top.params.category} push={push} onBack={pop} />}
       {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} />}
+      {top.name === 'library' && <Library push={push} onBack={pop} />}
+      {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
     </SafeAreaView>
   );
 }
@@ -62,6 +65,10 @@ function Home({ push }) {
         desc="إرسال مادة ومتابعة موادك"
         onPress={() => push('web', { url: CONTRIBUTOR_URL, title: 'حسابي' })}
       />
+
+      <TouchableOpacity onPress={() => push('library')} style={styles.libraryLink}>
+        <Text style={styles.libraryLinkTxt}>التنزيلات المحفوظة ↓</Text>
+      </TouchableOpacity>
 
       <Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text>
     </ScrollView>
@@ -313,8 +320,17 @@ function Downloads({ material }) {
   const saveInApp = async () => {
     try {
       setBusy('app');
-      await ensureLocal();
-      Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق للاستماع دون اتصال.');
+      const localPath = await ensureLocal();
+      await addDownload({
+        id: material.id,
+        title: material.title,
+        subtitle: material.subtitle || null,
+        person: material.performer || material.speaker || material.host || null,
+        fileKind: material.fileKind || (material.bodyText ? 'ARTICLE' : 'AUDIO'),
+        localPath,
+        bodyText: material.bodyText || null,
+      });
+      Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق، وتظهر في «التنزيلات المحفوظة» للاستماع دون اتصال.');
     } catch (e) {
       Alert.alert('تعذّر الحفظ', String(e.message || e));
     } finally { setBusy(''); }
@@ -350,6 +366,81 @@ function Downloads({ material }) {
   );
 }
 
+// ---------------- Offline library ----------------
+function Library({ push, onBack }) {
+  const [items, setItems] = useState(null);
+  const reload = useCallback(() => { getDownloads().then(setItems); }, []);
+  useEffect(reload, [reload]);
+
+  const del = (id) => {
+    Alert.alert('حذف', 'حذف هذه المادة من التنزيلات؟', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف', style: 'destructive', onPress: async () => setItems(await removeDownload(id)) },
+    ]);
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title="التنزيلات المحفوظة" onBack={onBack} />
+      {!items ? <Loader /> : items.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.empty}>لا توجد تنزيلات محفوظة بعد.</Text>
+          <Text style={{ color: C.muted, textAlign: 'center', marginTop: 6 }}>
+            احفظ أي مادة عبر «حفظ داخل التطبيق» لتظهر هنا وتُشغَّل دون اتصال.
+          </Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 12 }}>
+          {items.map((it) => (
+            <View key={it.id} style={styles.matRow}>
+              <TouchableOpacity style={{ flex: 1 }} onPress={() => push('offline', { item: it })} activeOpacity={0.85}>
+                <Text style={styles.matTitle} numberOfLines={1}>{it.title}</Text>
+                <Text style={styles.matSub} numberOfLines={1}>
+                  {(it.person || '') + '  ·  ' + (KIND_LABEL[it.fileKind] || 'مقال')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => del(it.id)} style={{ padding: 6 }}>
+                <Text style={{ color: C.danger, fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// Plays / shows a saved item entirely from local storage (no network).
+function OfflineScreen({ item, onBack }) {
+  const isAudioVideo = item.fileKind === 'AUDIO' || item.fileKind === 'VIDEO';
+  const isImage = item.fileKind === 'IMAGE';
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title="مادة محفوظة" onBack={onBack} />
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Text style={styles.detailTitle}>{item.title}</Text>
+        {!!item.subtitle && <Text style={styles.detailSub}>{item.subtitle}</Text>}
+        {!!item.person && <Text style={styles.detailPerson}>{item.person}</Text>}
+
+        {isImage && item.localPath ? (
+          <Image source={{ uri: item.localPath }} style={styles.image} resizeMode="contain" />
+        ) : isAudioVideo && item.localPath ? (
+          <AudioPlayer url={item.localPath} title={item.title} />
+        ) : null}
+
+        {!!item.bodyText && (
+          <View style={styles.article}>
+            <Text style={styles.articleText}>{item.bodyText}</Text>
+          </View>
+        )}
+        <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
+          محفوظة داخل التطبيق — متاحة دون اتصال.
+        </Text>
+      </ScrollView>
+    </View>
+  );
+}
+
 // ---------------- Small UI ----------------
 function Loader() {
   return <View style={styles.center}><ActivityIndicator color={C.brand} size="large" /></View>;
@@ -380,7 +471,9 @@ const styles = StyleSheet.create({
   option: { backgroundColor: '#2a4a3e', borderRadius: 18, padding: 20, marginBottom: 14 },
   optionTitle: { color: C.white, fontSize: 19, fontWeight: '800', textAlign: 'right' },
   optionDesc: { color: '#cdd8d1', fontSize: 13, marginTop: 6, textAlign: 'right' },
-  footerText: { color: C.gold300, textAlign: 'center', marginTop: 20, fontSize: 12 },
+  libraryLink: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  libraryLinkTxt: { color: C.white, fontSize: 15, fontWeight: '700' },
+  footerText: { color: C.gold300, textAlign: 'center', marginTop: 12, fontSize: 12 },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingVertical: 14, paddingHorizontal: 12 },
   headerTitle: { color: C.white, fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' },
