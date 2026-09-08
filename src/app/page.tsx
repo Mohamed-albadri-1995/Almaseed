@@ -40,10 +40,13 @@ export default async function HomePage() {
               <Icon.sparkle width={16} height={16} />
               من ذاكرة المسيد
             </p>
-            <h1 className="font-display mt-4 text-4xl leading-tight sm:text-6xl">
-              <span className="text-ivory-50">صوتٌ يُحفظ،</span>{' '}
-              <span className="text-gold-300">وأثرٌ لا يغيب.</span>
+            <h1 className="font-display mt-4 text-4xl font-extrabold leading-tight text-ivory-50 sm:text-6xl">
+              الطريقة السمّانية
+              <span className="mt-1 block text-gold-300">السجادة السليمانية</span>
             </h1>
+            <p className="mt-5 font-display text-xl text-ivory-100/90 sm:text-2xl">
+              صوتٌ يُحفظ، وأثرٌ لا يغيب.
+            </p>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory-100/85 sm:text-lg">
               أرشيف مفتوح للمدائح والمحاضرات والندوات والمواعظ والمناسبات، نجمع فيه
               ما يستحق أن يبقى قريباً من القلب.

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Icon } from './icons';
+import { LogoLockup } from './Logo';
 
 const COLS = [
   {
@@ -15,7 +15,7 @@ const COLS = [
   {
     title: 'المنصة',
     links: [
-      { href: '/about', label: 'عن الأرشيف' },
+      { href: '/about', label: 'عن الطريقة' },
       { href: '/submit', label: 'إرسال مادة' },
       { href: '/faq', label: 'الأسئلة الشائعة' },
       { href: '/contact', label: 'تواصل معنا' },
@@ -37,18 +37,11 @@ export function Footer() {
       <div className="container-page py-12">
         <div className="grid gap-10 md:grid-cols-4">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-gold-300">
-                <Icon.archive width={22} height={22} />
-              </span>
-              <span className="leading-tight">
-                <span className="block text-lg font-extrabold text-ivory-50">أرشيف المسيد</span>
-                <span className="block text-xs text-gold-300">منذ ١٤٤٤</span>
-              </span>
-            </div>
+            <LogoLockup size={44} tone="dark" />
             <p className="mt-4 max-w-xs text-sm leading-7 text-ivory-100/80">
               صوتٌ يُحفظ، وأثرٌ لا يغيب. نجمع المدائح والمحاضرات والندوات والمواعظ
-              والمناسبات في مكان واحد قريب من القلب.
+              والمناسبات الخاصة بالطريقة السمّانية السجادة السليمانية في مكان واحد
+              قريب من القلب.
             </p>
           </div>
 
@@ -72,7 +65,7 @@ export function Footer() {
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-brand-700 pt-6 text-sm text-ivory-100/70 sm:flex-row">
-          <p>© {new Date().getFullYear()} أرشيف المسيد — جميع الحقوق محفوظة.</p>
+          <p>© {new Date().getFullYear()} الطريقة السمّانية — السجادة السليمانية — جميع الحقوق محفوظة.</p>
           <p className="text-gold-300">وقُل رَبِّ زِدْني عِلْمًا</p>
         </div>
       </div>

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Icon } from './icons';
+import { LogoLockup } from './Logo';
 import { isStaff } from '@/lib/rbac';
 import { ROLE_LABELS, type Role } from '@/lib/constants';
 import { logoutAction } from '@/app/auth-actions';
@@ -16,7 +17,7 @@ const NAV_LINKS = [
   { href: '/archive?category=seminars', label: 'الندوات' },
   { href: '/archive?category=sermons', label: 'المواعظ' },
   { href: '/archive?category=occasions', label: 'المناسبات' },
-  { href: '/about', label: 'عن الأرشيف' },
+  { href: '/about', label: 'عن الطريقة' },
 ];
 
 interface NavUser {
@@ -34,14 +35,8 @@ export function Navbar({ user }: { user: NavUser | null }) {
     <header className="sticky top-0 z-40 border-b border-ivory-300 bg-ivory-50/95 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-3 shrink-0">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-700 text-gold-300">
-            <Icon.archive width={22} height={22} />
-          </span>
-          <span className="leading-tight">
-            <span className="block text-lg font-extrabold text-brand-800">أرشيف</span>
-            <span className="block text-xs font-bold text-gold-600">المسيد</span>
-          </span>
+        <Link href="/" className="shrink-0" aria-label="الطريقة السمّانية — السجادة السليمانية">
+          <LogoLockup size={40} tone="light" />
         </Link>
 
         {/* Desktop nav */}

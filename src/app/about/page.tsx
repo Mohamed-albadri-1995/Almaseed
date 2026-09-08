@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
 
-export const metadata: Metadata = { title: 'عن الأرشيف' };
+export const metadata: Metadata = { title: 'عن الطريقة السمّانية السجادة السليمانية' };
 
 const VALUES = [
   { icon: 'archive' as const, title: 'حفظ دائم', body: 'نجمع المدائح والمحاضرات والندوات والمواعظ والمناسبات في مكان واحد يحميها من الضياع.' },
@@ -15,8 +15,11 @@ export default function AboutPage() {
     <div>
       <section className="bg-brand-800 py-16 text-ivory-50">
         <div className="container-page text-center">
-          <p className="text-sm font-bold text-gold-300">الطريقة السمّانية — السجادة السليمانية</p>
-          <h1 className="mt-2 font-display text-4xl sm:text-5xl">أرشيف المسيد</h1>
+          <p className="text-sm font-bold text-gold-300">من ذاكرة المسيد</p>
+          <h1 className="mt-2 font-display text-4xl sm:text-5xl">
+            عن الطريقة السمّانية
+            <span className="mt-1 block text-3xl text-gold-300 sm:text-4xl">السجادة السليمانية</span>
+          </h1>
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-ivory-100/85">
             أرشيفٌ رقمي يحفظ ذاكرة المسيد على نهج الطريقة السمّانية والسجادة
             السليمانية: مدائحها ومحاضراتها وندواتها ومواعظها ومناسباتها وصورها
