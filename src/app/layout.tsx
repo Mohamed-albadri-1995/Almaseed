@@ -4,6 +4,7 @@ import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { recordVisit } from '@/lib/stats';
 
 export const metadata: Metadata = {
   title: {
@@ -20,6 +21,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  void recordVisit(); // fire-and-forget page-view counter
   const unread = user
     ? await prisma.notification.count({ where: { userId: user.id, read: false } })
     : 0;

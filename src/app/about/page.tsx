@@ -15,11 +15,12 @@ export default function AboutPage() {
     <div>
       <section className="bg-brand-800 py-16 text-ivory-50">
         <div className="container-page text-center">
-          <p className="text-sm font-bold text-gold-300">عن المشروع</p>
+          <p className="text-sm font-bold text-gold-300">الطريقة السمّانية — السجادة السليمانية</p>
           <h1 className="mt-2 font-display text-4xl sm:text-5xl">أرشيف المسيد</h1>
           <p className="mx-auto mt-4 max-w-2xl leading-8 text-ivory-100/85">
-            منصة رقمية تهدف إلى حفظ ذاكرة المسيد الصوتية والمرئية، وتنظيمها وإتاحتها
-            للجميع بطريقة سهلة ومحترمة تليق بطبيعة هذا المحتوى.
+            أرشيفٌ رقمي يحفظ ذاكرة المسيد على نهج الطريقة السمّانية والسجادة
+            السليمانية: مدائحها ومحاضراتها وندواتها ومواعظها ومناسباتها وصورها
+            ومقروءاتها، منظّمةً ومتاحةً للجميع بما يليق بمكانتها.
           </p>
         </div>
       </section>
@@ -41,6 +42,18 @@ export default function AboutPage() {
         </div>
 
         <div className="mx-auto mt-14 max-w-3xl space-y-6 text-ink/90">
+          <div>
+            <h2 className="text-xl font-bold text-brand-800">عن الطريقة والسجادة</h2>
+            <p className="mt-2 leading-8">
+              يُعنى هذا الأرشيف بحفظ تراث الطريقة السمّانية على نهج السجادة
+              السليمانية، وتوثيق ما يجري في مسيدها ومجالسها من علمٍ وذكرٍ وإنشاد،
+              حفاظاً على هذا الإرث ونقله إلى الأجيال القادمة.
+            </p>
+            <p className="mt-3 text-sm text-muted">
+              (هذه فقرة تعريفية عامة — يمكن لإدارة المسيد تزويدنا بالنص الرسمي
+              الدقيق عن نشأة الطريقة والسجادة وأعلامها ليُعتمد هنا.)
+            </p>
+          </div>
           <div>
             <h2 className="text-xl font-bold text-brand-800">رسالتنا</h2>
             <p className="mt-2 leading-8">

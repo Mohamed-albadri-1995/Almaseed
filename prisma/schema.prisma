@@ -239,6 +239,12 @@ model ContentReport {
   createdAt  DateTime @default(now())
 }
 
+// Per-day page-view counter for the system-admin statistics.
+model DailyView {
+  date  String @id // YYYY-MM-DD
+  count Int    @default(0)
+}
+
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String?

@@ -22,6 +22,7 @@ export default async function AdminLayout({
     { href: '/admin/categories', label: 'التصنيفات', icon: 'book-open', show: can.editContent(role) },
     { href: '/admin/reports', label: 'البلاغات', icon: 'flag', show: can.manageContent(role) },
     { href: '/admin/users', label: 'المستخدمون', icon: 'users', show: can.manageUsers(role) },
+    { href: '/admin/system', label: 'حالة النظام', icon: 'chart', show: can.manageUsers(role) },
     { href: '/admin/activity', label: 'سجل النشاط', icon: 'clock', show: can.viewReports(role) },
   ].filter((n) => n.show);
 

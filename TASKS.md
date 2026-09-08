@@ -3,19 +3,19 @@
 Requested changes to finish before/with the native app.
 
 ## Web app — content & forms
-- [ ] **About page (عن الأرشيف):** tailor content to الطريقة السمّانية / السجادة السليمانية (specific order). Needs real wording from the owner.
-- [ ] **Subtitle (عنوان فرعي):** add an optional subtitle field to every category, shown in submit/edit/detail.
-- [ ] **New categories:** add **الصور** (images) and **المقروءات / الملفات المقروءة** (readings).
-- [ ] **المقروءات** must support **two modes**: (a) upload a file, (b) write an article (typed text, shown as an article).
-- [ ] **Form accuracy audit:** review/edit forms show irrelevant fields per category (e.g. "المادح" while reviewing محاضرات). Make every form strictly category-specific.
+- [x] **About page:** tailored to الطريقة السمّانية / السجادة السليمانية (placeholder for owner's official text).
+- [x] **Subtitle (عنوان فرعي):** added to every category (submit/edit/detail).
+- [x] **New categories:** الصور (images) and المقروءات (readings) added.
+- [x] **المقروءات two modes:** upload a file OR write an article (rendered as article).
+- [x] **Form accuracy:** shared per-category field source (src/lib/fields.ts) — every form is now category-specific.
 
 ## Web app — submission flow
-- [ ] **File upload must be a step BEFORE filling the fields.**
-- [ ] **Reject submission if no file attached / upload not finished** (except المقروءات article mode).
-- [ ] **On reject or delete, remove the file from storage** so it doesn't take space (delete already frees it; add the same on reject).
+- [x] **Upload is the step BEFORE the fields.**
+- [x] **Submission blocked until upload completes** (except readings article).
+- [x] **Reject and delete free the storage** (file removed from R2).
 
 ## Web app — admin
-- [ ] **System-admin statistics:** visits/traffic + storage & memory usage.
+- [x] **System-admin statistics:** visits + storage + memory (/admin/system).
 
 ## Native app (after web is finalized & confirmed)
 - [ ] Simple app, one entry page with **three choices**:
