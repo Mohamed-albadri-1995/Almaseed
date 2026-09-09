@@ -33,6 +33,8 @@ export function buildSearchText(m: {
   place?: string | null;
   city?: string | null;
   organizer?: string | null;
+  author?: string | null;
+  source?: string | null;
   keywords?: string | null;
   description?: string | null;
   summary?: string | null;
@@ -52,6 +54,8 @@ export function buildSearchText(m: {
       m.place,
       m.city,
       m.organizer,
+      m.author,
+      m.source,
       m.keywords,
       m.description,
       m.summary,

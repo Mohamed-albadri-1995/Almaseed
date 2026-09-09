@@ -48,6 +48,8 @@ const cardSelect = {
   performer: true,
   speaker: true,
   host: true,
+  organizer: true,
+  author: true,
   occasion: true,
   plays: true,
   downloads: true,
@@ -149,6 +151,7 @@ export interface ArchiveFilters {
   fileKind?: string;
   city?: string;
   person?: string;
+  occasion?: string;
   year?: string;
   language?: string;
   sort?: string;
@@ -163,6 +166,7 @@ export async function searchMaterials(filters: ArchiveFilters) {
     fileKind,
     city,
     person,
+    occasion,
     year,
     language,
     sort = 'newest',
@@ -177,6 +181,7 @@ export async function searchMaterials(filters: ArchiveFilters) {
   else if (fileKind) where.fileKind = fileKind;
   if (city) where.city = { contains: city };
   if (language) where.language = language;
+  if (occasion) where.occasion = { contains: occasion };
   if (year && /^\d{4}$/.test(year)) {
     const y = Number(year);
     where.recordDate = {
@@ -197,12 +202,17 @@ export async function searchMaterials(filters: ArchiveFilters) {
     and.push({ OR: or });
   }
   if (person) {
+    // The "person" filter matches whichever person field is relevant — the
+    // label shown to the user adapts to the chosen type, but the query stays
+    // broad so a name is found wherever it was stored.
     and.push({
       OR: [
         { performer: { contains: person } },
         { speaker: { contains: person } },
         { narrator: { contains: person } },
         { host: { contains: person } },
+        { author: { contains: person } },
+        { organizer: { contains: person } },
       ],
     });
   }

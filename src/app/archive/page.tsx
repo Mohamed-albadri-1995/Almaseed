@@ -9,6 +9,7 @@ import {
   searchMaterials,
 } from '@/lib/queries';
 import { CONTENT_FORMS, SORT_OPTIONS } from '@/lib/constants';
+import { getPrimaryPerson } from '@/lib/fields';
 import { formatCount } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,7 @@ interface SearchParams {
   kind?: string;
   city?: string;
   person?: string;
+  occasion?: string;
   year?: string;
   language?: string;
   sort?: string;
@@ -53,6 +55,7 @@ export default async function ArchivePage({
       fileKind: isGallery ? 'IMAGE' : searchParams.kind,
       city: searchParams.city,
       person: searchParams.person,
+      occasion: searchParams.occasion,
       year: searchParams.year,
       language: searchParams.language,
       sort: searchParams.sort,
@@ -63,6 +66,12 @@ export default async function ArchivePage({
 
   const activeCat = categories.find((c) => c.slug === searchParams.category);
   const title = activeCat ? activeCat.name : 'الأرشيف';
+
+  // The person filter adapts to the selected type: choosing مديح shows «المادح»,
+  // محاضرات shows «المحاضر», المكتبة shows «الكاتب», …. With no type chosen it
+  // stays a broad name search across every person field.
+  const primaryPerson = searchParams.category ? getPrimaryPerson(searchParams.category) : null;
+  const personLabel = primaryPerson ? `اسم ${primaryPerson.label}` : 'المادح / المحاضر / الكاتب';
 
   // Only the facets that actually exist in the current content become filters.
   const extraFilters = [
@@ -78,7 +87,7 @@ export default async function ArchivePage({
   ].filter(Boolean) as { name: string; label: string; value?: string; options: string[] }[];
 
   const advancedActive =
-    !!searchParams.person || extraFilters.some((f) => f.value);
+    !!searchParams.person || !!searchParams.occasion || extraFilters.some((f) => f.value);
 
   const kindLabel = CONTENT_FORMS.find((f) => f.value === searchParams.kind)?.label;
   const activeChips = [
@@ -87,7 +96,8 @@ export default async function ArchivePage({
     searchParams.city && { key: 'city', label: searchParams.city },
     searchParams.year && { key: 'year', label: searchParams.year },
     searchParams.language && { key: 'language', label: searchParams.language },
-    searchParams.person && { key: 'person', label: `الاسم: ${searchParams.person}` },
+    searchParams.occasion && { key: 'occasion', label: `المناسبة: ${searchParams.occasion}` },
+    searchParams.person && { key: 'person', label: `${personLabel}: ${searchParams.person}` },
   ].filter(Boolean) as { key: string; label: string }[];
 
   return (
@@ -224,11 +234,20 @@ export default async function ArchivePage({
               </label>
             ))}
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted">المادح / المحاضر</span>
+              <span className="mb-1 block text-xs font-medium text-muted">{personLabel}</span>
               <input
                 name="person"
                 defaultValue={searchParams.person ?? ''}
                 placeholder="الاسم…"
+                className="input"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">المناسبة</span>
+              <input
+                name="occasion"
+                defaultValue={searchParams.occasion ?? ''}
+                placeholder="اسم المناسبة…"
                 className="input"
               />
             </label>

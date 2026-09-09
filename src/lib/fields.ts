@@ -104,3 +104,30 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
 export function getCategoryForm(slug: string): CategoryForm | null {
   return CATEGORY_FORMS[slug] ?? null;
 }
+
+// Fields rendered as their own full-width sections on the detail page, so they
+// must NOT be repeated inside the compact "معلومات المادة" info table.
+const SECTION_FIELDS = new Set(['description', 'summary', 'lyrics', 'bodyText', 'keywords']);
+
+// The short, type-specific fields that belong in the info table for a given
+// category — driven entirely by the category form, so a book never shows
+// «المحاضر» and a madeeh never shows «الكاتب».
+export function getInfoFields(slug: string): FieldDef[] {
+  const form = CATEGORY_FORMS[slug];
+  if (!form) return [];
+  return form.fields.filter((f) => !SECTION_FIELDS.has(f.name) && f.type !== 'textarea');
+}
+
+// The single "headline" person/author shown under the title, chosen per type.
+const PRIMARY_PERSON: Record<string, { field: string; label: string }> = {
+  madeeh: { field: 'performer', label: 'المادح' },
+  lectures: { field: 'speaker', label: 'المحاضر' },
+  sermons: { field: 'speaker', label: 'الواعظ' },
+  seminars: { field: 'host', label: 'مدير الندوة' },
+  occasions: { field: 'organizer', label: 'الجهة المنظمة' },
+  readings: { field: 'author', label: 'الكاتب' },
+};
+
+export function getPrimaryPerson(slug: string): { field: string; label: string } | null {
+  return PRIMARY_PERSON[slug] ?? null;
+}

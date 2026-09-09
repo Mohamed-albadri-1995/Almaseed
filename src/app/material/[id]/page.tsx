@@ -17,6 +17,7 @@ import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_STATUS } from '@/lib/constants';
 import { renderArticle } from '@/lib/richtext';
+import { getInfoFields, getPrimaryPerson } from '@/lib/fields';
 import {
   formatDate,
   formatDurationLabel,
@@ -86,25 +87,31 @@ export default async function MaterialPage({
     authorId: c.user.id,
   }));
 
+  const slug = material.category?.slug ?? '';
+  const mat = material as unknown as Record<string, unknown>;
+  const getVal = (name: string): string | null => {
+    if (name === 'recordDate') return material.recordDate ? formatDate(material.recordDate) : null;
+    const v = mat[name];
+    return typeof v === 'string' ? v : null;
+  };
+
+  // Type-specific fields come from the category form, so each material type
+  // shows only what is relevant to it (a book shows الكاتب/المصدر, a madeeh
+  // shows المادح/الراوي, …) — never an unrelated label.
+  const typeRows = getInfoFields(slug).map((f) => ({ label: f.label, value: getVal(f.name) }));
+
   const info: { label: string; value?: string | null }[] = [
     { label: 'التصنيف', value: material.category?.name },
-    { label: 'المادح', value: material.performer },
-    { label: 'المحاضر / المتحدث', value: material.speaker },
-    { label: 'الراوي', value: material.narrator },
-    { label: 'مدير الندوة', value: material.host },
-    { label: 'المشاركون', value: material.participants },
-    { label: 'المناسبة', value: material.occasion },
-    { label: 'الموضوع', value: material.topic },
-    { label: 'الجهة المنظمة', value: material.organizer },
-    { label: 'المكان', value: material.place },
-    { label: 'المدينة', value: material.city },
-    { label: 'تاريخ التسجيل', value: material.recordDate ? formatDate(material.recordDate) : null },
+    ...typeRows,
+    // Universal technical metadata — applies to every type that has a file.
     { label: 'مدة التسجيل', value: formatDurationLabel(material.durationSec) || null },
     { label: 'نوع الملف', value: material.fileType },
     { label: 'حجم الملف', value: material.fileSize ? formatFileSize(material.fileSize) : null },
     { label: 'اللغة', value: material.language },
-    { label: 'المصدر', value: material.source },
   ].filter((r) => r.value);
+
+  const primaryPerson = getPrimaryPerson(slug);
+  const primaryPersonValue = primaryPerson ? getVal(primaryPerson.field) : null;
 
   const keywords = splitKeywords(material.keywords);
 
@@ -134,9 +141,10 @@ export default async function MaterialPage({
           {material.subtitle && (
             <p className="mt-1 text-lg text-brand-600">{material.subtitle}</p>
           )}
-          {(material.performer || material.speaker || material.host) && (
+          {primaryPersonValue && (
             <p className="mt-2 text-lg text-muted">
-              {material.performer || material.speaker || material.host}
+              <span className="text-muted/70">{primaryPerson!.label}: </span>
+              {primaryPersonValue}
             </p>
           )}
 

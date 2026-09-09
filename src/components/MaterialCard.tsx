@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Icon } from './icons';
 import { StatusBadge } from './StatusBadge';
 import { FILE_KIND_LABELS, type FileKind } from '@/lib/constants';
+import { getPrimaryPerson } from '@/lib/fields';
 import { formatCount, formatDurationLabel } from '@/lib/format';
 
 export interface MaterialCardData {
@@ -14,13 +15,22 @@ export interface MaterialCardData {
   performer?: string | null;
   speaker?: string | null;
   host?: string | null;
+  organizer?: string | null;
+  author?: string | null;
   occasion?: string | null;
   plays?: number;
   downloads?: number;
   category?: { name: string; slug: string } | null;
 }
 
+// Show the headline person/author that matches the material's type, so a book
+// shows its كاتب and a madeeh shows its مادح — never a mismatched field.
 function personLabel(m: MaterialCardData): string | null {
+  const primary = getPrimaryPerson(m.category?.slug ?? '');
+  if (primary) {
+    const v = (m as unknown as Record<string, unknown>)[primary.field];
+    if (typeof v === 'string' && v) return v;
+  }
   return m.performer || m.speaker || m.host || null;
 }
 
