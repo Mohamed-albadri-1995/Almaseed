@@ -103,12 +103,13 @@ export async function POST(req: Request) {
 
     await createSession({
       uid: user.id,
-      role: user.role,
+      role: user.role as 'ADMIN' | 'CONTRIBUTOR',
       name: user.name,
     });
 
     return NextResponse.redirect(
       new URL('/account', req.url),
+      303,
     );
   } catch (error) {
     console.error('Google authentication error:', error);
