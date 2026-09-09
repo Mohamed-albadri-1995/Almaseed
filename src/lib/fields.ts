@@ -90,10 +90,10 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   readings: {
-    titleLabel: 'عنوان الكتاب أو المادة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'عنوان الكتاب', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'source', label: 'اسم الكتاب أو المصدر', required: true },
       { name: 'author', label: 'الكاتب / المؤلف', required: true },
+      { name: 'source', label: 'المصدر', hint: 'اختياري، إذا كان الكتاب منقولاً أو من مصدر محدد' },
       { name: 'topic', label: 'الموضوع' },
       { name: 'occasion', label: 'المناسبة' },
       ...COMMON_OPTIONAL,
