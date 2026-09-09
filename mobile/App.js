@@ -62,8 +62,10 @@ export default function App() {
   // Global "now playing" — lives above the screen stack so audio/video keeps
   // playing while you browse other pages (YouTube/mp3 style).
   const [now, setNow] = useState(null);
+  // Audio goes to the persistent mini-player (music style, keeps playing while
+  // browsing). Video plays inline on the material screen instead.
   const play = useCallback((m) => {
-    if (!m?.fileUrl || (m.fileKind !== 'AUDIO' && m.fileKind !== 'VIDEO')) return;
+    if (!m?.fileUrl || m.fileKind !== 'AUDIO') return;
     setNow({
       id: m.id, title: m.title, subtitle: m.subtitle || null,
       person: m.performer || m.speaker || m.host || null,
@@ -273,7 +275,6 @@ function MaterialScreen({ id, onBack, onPlay, nowId }) {
   const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
 
-  const isMedia = m && m.fileUrl && (m.fileKind === 'AUDIO' || m.fileKind === 'VIDEO');
   const playingHere = m && nowId === m.id;
 
   return (
@@ -289,19 +290,17 @@ function MaterialScreen({ id, onBack, onPlay, nowId }) {
 
           {m.fileKind === 'IMAGE' && m.fileUrl ? (
             <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" />
-          ) : isMedia ? (
-            <TouchableOpacity
-              style={[styles.playCard, m.fileKind === 'VIDEO' && styles.playCardVideo]}
-              onPress={() => onPlay(m)}
-              activeOpacity={0.9}
-            >
+          ) : m.fileKind === 'VIDEO' && m.fileUrl ? (
+            <InlineVideo url={m.fileUrl} poster={m.coverImage} />
+          ) : m.fileKind === 'AUDIO' && m.fileUrl ? (
+            <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>
               {m.coverImage ? (
                 <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
               ) : null}
               <View style={styles.playCardOverlay}>
                 <View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View>
                 <Text style={styles.playCardLabel}>
-                  {playingHere ? 'يعمل الآن في المشغّل بالأسفل' : m.fileKind === 'VIDEO' ? 'تشغيل الفيديو' : 'استماع'}
+                  {playingHere ? 'يعمل الآن في المشغّل بالأسفل' : 'استماع'}
                 </Text>
                 <Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text>
               </View>
@@ -315,6 +314,35 @@ function MaterialScreen({ id, onBack, onPlay, nowId }) {
 
           <Downloads material={m} />
         </ScrollView>
+      )}
+    </View>
+  );
+}
+
+// Inline video player — plays at page width with native controls + fullscreen.
+function InlineVideo({ url, poster }) {
+  const ref = useRef(null);
+  const [err, setErr] = useState(false);
+  const fullscreen = async () => { try { await ref.current?.presentFullscreenPlayer(); } catch {} };
+  return (
+    <View style={styles.videoWrap}>
+      <Video
+        ref={ref}
+        source={{ uri: url }}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        usePoster={!!poster}
+        posterSource={poster ? { uri: poster } : undefined}
+        style={styles.videoInline}
+        onError={() => setErr(true)}
+      />
+      {err ? (
+        <Text style={styles.videoErr}>تعذّر تشغيل الفيديو — جرّب التنزيل.</Text>
+      ) : (
+        <TouchableOpacity style={styles.fsBtn} onPress={fullscreen} activeOpacity={0.85}>
+          <Text style={styles.fsIcon}>⛶</Text>
+          <Text style={styles.fsTxt}>ملء الشاشة</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -648,6 +676,13 @@ const styles = StyleSheet.create({
   detailPerson: { fontSize: 15, color: C.muted, marginTop: 4, textAlign: 'right' },
   image: { width: '100%', height: 260, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
   video: { width: '100%', height: 220, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
+
+  videoWrap: { marginTop: 16 },
+  videoInline: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: '#000' },
+  fsBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.brand },
+  fsIcon: { color: C.gold300, fontSize: 16, fontWeight: '900' },
+  fsTxt: { color: C.white, fontSize: 14, fontWeight: '800' },
+  videoErr: { color: C.danger, fontSize: 13, marginTop: 10, textAlign: 'center' },
 
   playCard: { height: 150, borderRadius: 16, marginTop: 16, overflow: 'hidden', backgroundColor: C.brand },
   playCardVideo: { height: 200, backgroundColor: '#12241d' },
