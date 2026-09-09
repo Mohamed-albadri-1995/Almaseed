@@ -6,15 +6,17 @@ import { formatDuration } from '@/lib/format';
 
 interface Props {
   src?: string | null;
-  kind?: string | null; // AUDIO | VIDEO
+  kind?: string | null; // AUDIO | VIDEO | IMAGE | DOCUMENT
   title: string;
   poster?: string | null;
 }
 
-// Handles both audio and video; when no real file exists it shows a friendly
-// "sample / no file" state so the demo remains usable without media assets.
+// Handles audio, video, images and documents; when no real file exists it shows
+// a friendly "sample / no file" state so the demo remains usable without assets.
 export function MediaPlayer({ src, kind, title, poster }: Props) {
   const isVideo = kind === 'VIDEO';
+  const isImage = kind === 'IMAGE';
+  const isDoc = kind === 'DOCUMENT';
   const ref = useRef<HTMLMediaElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -68,6 +70,28 @@ export function MediaPlayer({ src, kind, title, poster }: Props) {
           عند رفع ملف حقيقي سيظهر هنا مشغّل التشغيل الكامل.
         </p>
       </div>
+    );
+  }
+
+  if (isImage) {
+    return (
+      <div className="overflow-hidden rounded-2xl bg-black/5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={title} className="max-h-[75vh] w-full rounded-2xl object-contain" />
+      </div>
+    );
+  }
+
+  if (isDoc) {
+    return (
+      <a
+        href={src}
+        target="_blank"
+        className="flex items-center justify-center gap-2 rounded-2xl border border-brand-200 bg-brand-50/50 p-6 text-brand-700 hover:bg-brand-50"
+      >
+        <Icon.file width={22} height={22} />
+        فتح المستند
+      </a>
     );
   }
 
