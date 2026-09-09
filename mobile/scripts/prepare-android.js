@@ -8,11 +8,6 @@ let src = fs.readFileSync(file, 'utf8');
 src = src.replace(/\nimport \{ Audio \} from 'expo-av';\n/, '\n');
 src = src.replace(/function AudioPlayer\(\{ url, title \}\) \{[\s\S]*?\n\}\nfunction Downloads\(/, 'function Downloads(');
 
-// Do not initialize the native audio player during app startup. It is initialized
-// lazily when the user actually starts an audio item. This prevents a native
-// TrackPlayer startup failure from leaving the Android splash screen visible.
-src = src.replace(/\n  useEffect\(\(\) => \{ ensureTrackPlayer\(\); \}, \[\]\);/, '\n  // TrackPlayer is initialized lazily when playback starts.');
-
 // Let the seek bar own the gesture before the surrounding ScrollView can claim it.
 src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]*?\n\}\nfunction FullAudioPlayer\(/, `function SeekBar({ position, duration, onSeek }) {
   const wRef = useRef(1);
@@ -37,7 +32,7 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
       onResponderRelease={finish}
       onResponderTerminate={() => setDrag(null)}
     >
-      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: \`\${frac * 100}%\` }]} /><View style={[styles.seekThumb, { left: \`\${frac * 100}%\` }]} /></View>
+      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: `\${frac * 100}%` }]} /><View style={[styles.seekThumb, { left: `\${frac * 100}%` }]} /></View>
     </View>
     <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
   </View>;
