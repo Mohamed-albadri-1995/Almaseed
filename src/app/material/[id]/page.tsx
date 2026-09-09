@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { MediaPlayer } from '@/components/MediaPlayer';
+import { PdfViewer } from '@/components/PdfViewer';
 import { MaterialCard } from '@/components/MaterialCard';
 import {
   ShareButton,
@@ -148,18 +149,7 @@ export default async function MaterialPage({
             />
           ) : material.fileKind === 'DOCUMENT' && material.fileUrl ? (
             <div className="mt-6">
-              {material.coverImage && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={material.coverImage} alt={material.title} className="mb-4 max-h-80 w-full rounded-2xl object-cover" />
-              )}
-              <a
-                href={material.fileUrl}
-                target="_blank"
-                className="flex items-center justify-center gap-2 rounded-2xl border border-brand-200 bg-brand-50/50 p-6 text-brand-700 hover:bg-brand-50"
-              >
-                <Icon.file width={22} height={22} />
-                فتح المستند {material.fileType ? `(${material.fileType})` : ''}
-              </a>
+              <PdfViewer url={material.fileUrl} fileType={material.fileType} title={material.title} />
             </div>
           ) : (
             <>

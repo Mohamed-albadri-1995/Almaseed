@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from './icons';
+import { PdfViewer } from './PdfViewer';
 import { formatDuration } from '@/lib/format';
 
 interface Props {
@@ -83,16 +84,7 @@ export function MediaPlayer({ src, kind, title, poster }: Props) {
   }
 
   if (isDoc) {
-    return (
-      <a
-        href={src}
-        target="_blank"
-        className="flex items-center justify-center gap-2 rounded-2xl border border-brand-200 bg-brand-50/50 p-6 text-brand-700 hover:bg-brand-50"
-      >
-        <Icon.file width={22} height={22} />
-        فتح المستند
-      </a>
-    );
+    return <PdfViewer url={src} title={title} />;
   }
 
   if (isVideo) {
