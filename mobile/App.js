@@ -7,6 +7,9 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 import { Audio, Video, ResizeMode } from 'expo-av';
+import TrackPlayer, {
+  Capability, State, RepeatMode, usePlaybackState, useProgress,
+} from 'react-native-track-player';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { C } from './theme';
@@ -21,6 +24,34 @@ const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند
 // Android's SafeAreaView doesn't inset the status bar; pad the top bars manually
 // so the header (and the back button) never hide under the status bar icons.
 const STATUSBAR_H = Platform.OS === 'android' ? RNStatusBar.currentHeight || 24 : 0;
+
+// Set up the native track player once (safe to call again — it no-ops if ready).
+let trackPlayerReady = null;
+function ensureTrackPlayer() {
+  if (trackPlayerReady) return trackPlayerReady;
+  trackPlayerReady = (async () => {
+    try {
+      await TrackPlayer.setupPlayer();
+    } catch (e) {
+      // "player already initialized" is fine; anything else we swallow so the
+      // rest of the app keeps working (video still uses expo-av).
+    }
+    try {
+      await TrackPlayer.updateOptions({
+        android: { appKilledPlaybackBehavior: 'StopPlaybackAndRemoveNotification' },
+        capabilities: [Capability.Play, Capability.Pause, Capability.Stop, Capability.SeekTo,
+          Capability.JumpForward, Capability.JumpBackward],
+        compactCapabilities: [Capability.Play, Capability.Pause],
+        notificationCapabilities: [Capability.Play, Capability.Pause, Capability.Stop,
+          Capability.SeekTo, Capability.JumpForward, Capability.JumpBackward],
+        forwardJumpInterval: 15,
+        backwardJumpInterval: 15,
+      });
+      await TrackPlayer.setRepeatMode(RepeatMode.Off);
+    } catch (e) {}
+  })();
+  return trackPlayerReady;
+}
 
 export default function App() {
   const [stack, setStack] = useState([{ name: 'home', params: {} }]);
@@ -39,6 +70,8 @@ export default function App() {
       fileUrl: m.fileUrl, fileKind: m.fileKind, poster: m.coverImage || null,
     });
   }, []);
+
+  useEffect(() => { ensureTrackPlayer(); }, []);
 
   // Android hardware back → navigate back through the stack; exit only at home.
   useEffect(() => {
@@ -288,83 +321,116 @@ function MaterialScreen({ id, onBack, onPlay, nowId }) {
 }
 
 // ---------------- Global mini-player (persists across screens) ----------------
-function MiniPlayer({ item, onClose, onOpen }) {
-  const soundRef = useRef(null);
-  const videoRef = useRef(null);
-  const isVideo = item.fileKind === 'VIDEO';
-  const [status, setStatus] = useState({ isPlaying: false, positionMillis: 0, durationMillis: 1 });
-  const [loading, setLoading] = useState(!isVideo);
+// Audio → react-native-track-player (shows controls in the notification shade /
+// lock screen and keeps playing in the background). Video → expo-av in a small
+// live frame that keeps playing while you browse other pages.
+function MiniPlayer(props) {
+  return props.item.fileKind === 'VIDEO'
+    ? <MiniVideo {...props} />
+    : <MiniAudio {...props} />;
+}
 
-  // Audio: create/replace the sound whenever the item changes; keeps playing
-  // regardless of which screen is mounted (this component lives at app root).
-  useEffect(() => {
-    if (isVideo) return; // video is handled by the <Video> element below
-    let sound;
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true, shouldDuckAndroid: true });
-        const res = await Audio.Sound.createAsync({ uri: item.fileUrl }, { shouldPlay: true });
-        if (cancelled) { res.sound.unloadAsync(); return; }
-        sound = res.sound;
-        soundRef.current = sound;
-        sound.setOnPlaybackStatusUpdate((s) => setStatus(s));
-      } catch (e) { Alert.alert('تعذّر التشغيل', String(e.message || e)); } finally { setLoading(false); }
-    })();
-    return () => { cancelled = true; if (sound) sound.unloadAsync(); soundRef.current = null; };
-  }, [item.id, item.fileUrl, isVideo]);
-
-  const toggle = async () => {
-    try {
-      if (isVideo) {
-        if (status.isPlaying) await videoRef.current?.pauseAsync();
-        else await videoRef.current?.playAsync();
-      } else if (soundRef.current) {
-        if (status.isPlaying) await soundRef.current.pauseAsync();
-        else await soundRef.current.playAsync();
-      }
-    } catch {}
-  };
-
-  const pct = status.durationMillis ? Math.min(100, Math.round((status.positionMillis / status.durationMillis) * 100)) : 0;
-
+function MiniShell({ children, onClose, onOpen, item, pct, leading }) {
   return (
     <View style={styles.mini}>
       <View style={styles.miniProgress}><View style={[styles.miniProgressFill, { width: `${pct}%` }]} /></View>
       <View style={styles.miniRow}>
-        {isVideo ? (
-          <TouchableOpacity onPress={onOpen} activeOpacity={0.9}>
-            <Video
-              ref={videoRef}
-              source={{ uri: item.fileUrl }}
-              resizeMode={ResizeMode.COVER}
-              shouldPlay
-              onPlaybackStatusUpdate={(s) => setStatus(s)}
-              style={styles.miniVideo}
-            />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>
-            {item.poster ? (
-              <Image source={{ uri: item.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            ) : <Text style={styles.miniThumbGlyph}>♪</Text>}
-          </TouchableOpacity>
-        )}
-
+        {leading}
         <TouchableOpacity style={{ flex: 1 }} onPress={onOpen} activeOpacity={0.8}>
           <Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>
           {!!item.person && <Text style={styles.miniPerson} numberOfLines={1}>{item.person}</Text>}
         </TouchableOpacity>
-
-        <TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          {loading ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{status.isPlaying ? '❚❚' : '▶'}</Text>}
-        </TouchableOpacity>
+        {children}
         <TouchableOpacity onPress={onClose} style={styles.miniClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={styles.miniCloseIcon}>✕</Text>
         </TouchableOpacity>
       </View>
     </View>
+  );
+}
+
+function MiniAudio({ item, onClose, onOpen }) {
+  const playback = usePlaybackState();
+  const { position, duration } = useProgress(500);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        await ensureTrackPlayer();
+        if (cancelled) return;
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          id: item.id,
+          url: item.fileUrl,
+          title: item.title,
+          artist: item.person || 'الطريقة السمّانية — السجادة السليمانية',
+          artwork: item.poster || undefined,
+        });
+        await TrackPlayer.play();
+      } catch (e) {
+        if (!cancelled) Alert.alert('تعذّر التشغيل', String(e.message || e));
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [item.id, item.fileUrl]);
+
+  const state = playback?.state;
+  const isPlaying = state === State.Playing;
+  const busy = loading || state === State.Buffering || state === State.Loading || state === State.Connecting;
+  const toggle = () => { isPlaying ? TrackPlayer.pause() : TrackPlayer.play(); };
+  const close = async () => { try { await TrackPlayer.reset(); } catch {} onClose(); };
+  const pct = duration ? Math.min(100, Math.round((position / duration) * 100)) : 0;
+
+  return (
+    <MiniShell item={item} onClose={close} onOpen={onOpen} pct={pct}
+      leading={
+        <TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>
+          {item.poster ? (
+            <Image source={{ uri: item.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : <Text style={styles.miniThumbGlyph}>♪</Text>}
+        </TouchableOpacity>
+      }
+    >
+      <TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        {busy ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}
+      </TouchableOpacity>
+    </MiniShell>
+  );
+}
+
+function MiniVideo({ item, onClose, onOpen }) {
+  const videoRef = useRef(null);
+  const [status, setStatus] = useState({ isPlaying: false, positionMillis: 0, durationMillis: 1 });
+  const toggle = async () => {
+    try {
+      if (status.isPlaying) await videoRef.current?.pauseAsync();
+      else await videoRef.current?.playAsync();
+    } catch {}
+  };
+  const pct = status.durationMillis ? Math.min(100, Math.round((status.positionMillis / status.durationMillis) * 100)) : 0;
+
+  return (
+    <MiniShell item={item} onClose={onClose} onOpen={onOpen} pct={pct}
+      leading={
+        <TouchableOpacity onPress={onOpen} activeOpacity={0.9}>
+          <Video
+            ref={videoRef}
+            source={{ uri: item.fileUrl }}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            onPlaybackStatusUpdate={(s) => setStatus(s)}
+            style={styles.miniVideo}
+          />
+        </TouchableOpacity>
+      }
+    >
+      <TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Text style={styles.miniBtnIcon}>{status.isPlaying ? '❚❚' : '▶'}</Text>
+      </TouchableOpacity>
+    </MiniShell>
   );
 }
 
