@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 /**
  * Rich WYSIWYG editor for المقروءات articles. Stores HTML (rendered safely via
- * `renderArticle`). Toolbar: font family & size, bold/italic/underline, colour,
+ * `renderArticle`. Toolbar: font family & size, bold/italic/underline, colour,
  * headings, alignment, lists, quote, link, divider, clear formatting.
  *
  * Scoped intentionally: only the categories whose form sets `article: true`
@@ -35,7 +35,7 @@ function Btn({
     <button
       type="button"
       title={title}
-      onMouseDown={(e) => e.preventDefault()} // keep the editor selection
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-2 text-sm font-bold transition ${
         active ? 'bg-brand-100 text-brand-800' : 'text-brand-700 hover:bg-brand-100'
@@ -60,7 +60,6 @@ export function ArticleEditor({
   const ref = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(!value);
 
-  // Initialise once (uncontrolled thereafter, so the caret is never reset).
   useEffect(() => {
     if (ref.current && value && ref.current.innerHTML !== value) {
       ref.current.innerHTML = value;
@@ -106,9 +105,8 @@ export function ArticleEditor({
 
   return (
     <div className="rounded-2xl border border-ivory-300 bg-white">
-      {/* Toolbar — stays pinned to the top of the screen while scrolling a long
-          article so the formatting tools are always reachable. */}
-      <div className="sticky top-16 z-20 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-2 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Keep the toolbar below the site's main header. */}
+      <div className="sticky top-[80px] z-20 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-2 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <select
           title="نوع الخط"
           onMouseDown={(e) => e.stopPropagation()}
@@ -167,7 +165,6 @@ export function ArticleEditor({
         <Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
       </div>
 
-      {/* Editable surface */}
       <div className="relative">
         {empty && (
           <span className="pointer-events-none absolute right-6 top-5 text-muted/70">{placeholder}</span>
