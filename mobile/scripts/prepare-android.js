@@ -32,7 +32,7 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
       onResponderRelease={finish}
       onResponderTerminate={() => setDrag(null)}
     >
-      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: \`${frac * 100}%\` }]} /><View style={[styles.seekThumb, { left: \`${frac * 100}%\` }]} /></View>
+      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: \`\${frac * 100}%\` }]} /><View style={[styles.seekThumb, { left: \`\${frac * 100}%\` }]} /></View>
     </View>
     <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
   </View>;
