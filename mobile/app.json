@@ -14,6 +14,7 @@
     },
     "plugins": [
       ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }],
+      ["expo-video", { "supportsPictureInPicture": true, "supportsBackgroundPlayback": true }],
       ["expo-media-library", {
         "photosPermission": "لحفظ الصور والملفات في جهازك.",
         "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
@@ -30,7 +31,7 @@
     },
     "android": {
       "package": "app.almaseed.archive",
-      "versionCode": 19,
+      "versionCode": 21,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

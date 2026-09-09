@@ -10,4 +10,4 @@ export const CONTRIBUTOR_URL = `${API_BASE}/account`;
 // obvious on the device which build is actually installed (shown on the
 // account screen). If this number does not change after an update, the new
 // APK did not install.
-export const BUILD = 20;
+export const BUILD = 21;

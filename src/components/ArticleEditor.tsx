@@ -37,7 +37,7 @@ function Btn({
       title={title}
       onMouseDown={(e) => e.preventDefault()} // keep the editor selection
       onClick={onClick}
-      className={`flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-bold transition ${
+      className={`flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-2 text-sm font-bold transition ${
         active ? 'bg-brand-100 text-brand-800' : 'text-brand-700 hover:bg-brand-100'
       }`}
     >
@@ -108,12 +108,12 @@ export function ArticleEditor({
     <div className="rounded-2xl border border-ivory-300 bg-white">
       {/* Toolbar — stays pinned to the top of the screen while scrolling a long
           article so the formatting tools are always reachable. */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-2 shadow-sm">
+      <div className="sticky top-16 z-20 flex flex-nowrap items-center gap-1 overflow-x-auto rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-2 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <select
           title="نوع الخط"
           onMouseDown={(e) => e.stopPropagation()}
           onChange={(e) => exec('fontName', e.target.value)}
-          className="h-8 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800"
+          className="h-8 shrink-0 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800"
           defaultValue=""
         >
           {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
@@ -122,35 +122,35 @@ export function ArticleEditor({
           title="حجم الخط"
           onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => exec('fontSize', e.target.value)}
-          className="h-8 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800"
+          className="h-8 shrink-0 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800"
           defaultValue="3"
         >
           {SIZES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         <Btn title="عريض" onClick={() => exec('bold')}><b>ب</b></Btn>
         <Btn title="مائل" onClick={() => exec('italic')}><i>م</i></Btn>
         <Btn title="تحته خط" onClick={() => exec('underline')}><u>خ</u></Btn>
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         <Btn title="عنوان" onClick={() => setBlock('H2')}>ع١</Btn>
         <Btn title="عنوان فرعي" onClick={() => setBlock('H3')}>ع٢</Btn>
         <Btn title="فقرة" onClick={() => setBlock('P')}>¶</Btn>
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         <Btn title="محاذاة لليمين" onClick={() => exec('justifyRight')}>▷</Btn>
         <Btn title="توسيط" onClick={() => exec('justifyCenter')}>≡</Btn>
         <Btn title="محاذاة لليسار" onClick={() => exec('justifyLeft')}>◁</Btn>
         <Btn title="ضبط" onClick={() => exec('justifyFull')}>☰</Btn>
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         <Btn title="قائمة نقطية" onClick={() => exec('insertUnorderedList')}>•</Btn>
         <Btn title="قائمة مرقّمة" onClick={() => exec('insertOrderedList')}>۱.</Btn>
         <Btn title="اقتباس" onClick={() => setBlock('BLOCKQUOTE')}>❝</Btn>
         <Btn title="رابط" onClick={addLink}>🔗</Btn>
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         {COLORS.map((c) => (
           <button
             key={c}
@@ -158,12 +158,12 @@ export function ArticleEditor({
             title="لون النص"
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => exec('foreColor', c)}
-            className="h-6 w-6 rounded-full border border-black/10"
+            className="h-6 w-6 shrink-0 rounded-full border border-black/10"
             style={{ backgroundColor: c }}
           />
         ))}
 
-        <span className="mx-1 h-6 w-px bg-ivory-300" />
+        <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
         <Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
       </div>
 
