@@ -1,4 +1,4 @@
-import { API_BASE } from './config';
+import { API_HOST } from './config';
 
 // Network request timeout (milliseconds)
 const REQUEST_TIMEOUT = 10000;
@@ -13,7 +13,7 @@ async function j(path, opts, attempt = 0) {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
 
   try {
-    const res = await fetch(`${API_BASE}${path}`, {
+    const res = await fetch(`${API_HOST}${path}`, {
       ...opts,
       // Present as a normal browser request so a CDN/WAF bot-filter (e.g.
       // Cloudflare Bot Fight Mode) doesn't flag the app's fetches and answer
