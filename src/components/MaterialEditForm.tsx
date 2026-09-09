@@ -140,8 +140,8 @@ export function MaterialEditForm({
         {form?.article && (
           <div className="sm:col-span-2">
             <label className="label">نص المقال</label>
-            <input type="hidden" name="bodyText" value={bodyText} />
             <ArticleEditor value={bodyText} onChange={setBodyText} />
+            <input type="hidden" name="bodyText" value={bodyText} readOnly />
           </div>
         )}
 
