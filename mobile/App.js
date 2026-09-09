@@ -28,6 +28,18 @@ export default function App() {
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const top = stack[stack.length - 1];
 
+  // Global "now playing" — lives above the screen stack so audio/video keeps
+  // playing while you browse other pages (YouTube/mp3 style).
+  const [now, setNow] = useState(null);
+  const play = useCallback((m) => {
+    if (!m?.fileUrl || (m.fileKind !== 'AUDIO' && m.fileKind !== 'VIDEO')) return;
+    setNow({
+      id: m.id, title: m.title, subtitle: m.subtitle || null,
+      person: m.performer || m.speaker || m.host || null,
+      fileUrl: m.fileUrl, fileKind: m.fileKind, poster: m.coverImage || null,
+    });
+  }, []);
+
   // Android hardware back → navigate back through the stack; exit only at home.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -37,15 +49,20 @@ export default function App() {
     return () => sub.remove();
   }, [stack.length, pop]);
 
+  const openNow = useCallback(() => { if (now) push('material', { id: now.id }); }, [now]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      {top.name === 'home' && <Feed push={push} />}
-      {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} />}
-      {top.name === 'library' && <Library push={push} onBack={pop} />}
-      {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
-      {top.name === 'account' && <Account push={push} onBack={pop} />}
-      {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
+      <View style={{ flex: 1 }}>
+        {top.name === 'home' && <Feed push={push} />}
+        {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} onPlay={play} nowId={now?.id} />}
+        {top.name === 'library' && <Library push={push} onBack={pop} />}
+        {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
+        {top.name === 'account' && <Account push={push} onBack={pop} />}
+        {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
+      </View>
+      {now && <MiniPlayer item={now} onClose={() => setNow(null)} onOpen={openNow} />}
     </SafeAreaView>
   );
 }
@@ -218,10 +235,13 @@ function WebScreen({ url, title, onBack }) {
 }
 
 // ---------------- Material detail ----------------
-function MaterialScreen({ id, onBack }) {
+function MaterialScreen({ id, onBack, onPlay, nowId }) {
   const [m, setM] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
+
+  const isMedia = m && m.fileUrl && (m.fileKind === 'AUDIO' || m.fileKind === 'VIDEO');
+  const playingHere = m && nowId === m.id;
 
   return (
     <View style={{ flex: 1 }}>
@@ -234,12 +254,25 @@ function MaterialScreen({ id, onBack }) {
             <Text style={styles.detailPerson}>{m.performer || m.speaker || m.host}</Text>
           )}
 
-          {m.fileKind === 'VIDEO' && m.fileUrl ? (
-            <Video source={{ uri: m.fileUrl }} useNativeControls resizeMode={ResizeMode.CONTAIN} style={styles.video} />
-          ) : m.fileKind === 'IMAGE' && m.fileUrl ? (
+          {m.fileKind === 'IMAGE' && m.fileUrl ? (
             <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" />
-          ) : m.fileUrl && m.fileKind === 'AUDIO' ? (
-            <AudioPlayer url={m.fileUrl} title={m.title} />
+          ) : isMedia ? (
+            <TouchableOpacity
+              style={[styles.playCard, m.fileKind === 'VIDEO' && styles.playCardVideo]}
+              onPress={() => onPlay(m)}
+              activeOpacity={0.9}
+            >
+              {m.coverImage ? (
+                <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              ) : null}
+              <View style={styles.playCardOverlay}>
+                <View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View>
+                <Text style={styles.playCardLabel}>
+                  {playingHere ? 'يعمل الآن في المشغّل بالأسفل' : m.fileKind === 'VIDEO' ? 'تشغيل الفيديو' : 'استماع'}
+                </Text>
+                <Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text>
+              </View>
+            </TouchableOpacity>
           ) : null}
 
           {!!m.bodyText && (
@@ -250,6 +283,87 @@ function MaterialScreen({ id, onBack }) {
           <Downloads material={m} />
         </ScrollView>
       )}
+    </View>
+  );
+}
+
+// ---------------- Global mini-player (persists across screens) ----------------
+function MiniPlayer({ item, onClose, onOpen }) {
+  const soundRef = useRef(null);
+  const videoRef = useRef(null);
+  const isVideo = item.fileKind === 'VIDEO';
+  const [status, setStatus] = useState({ isPlaying: false, positionMillis: 0, durationMillis: 1 });
+  const [loading, setLoading] = useState(!isVideo);
+
+  // Audio: create/replace the sound whenever the item changes; keeps playing
+  // regardless of which screen is mounted (this component lives at app root).
+  useEffect(() => {
+    if (isVideo) return; // video is handled by the <Video> element below
+    let sound;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: true, shouldDuckAndroid: true });
+        const res = await Audio.Sound.createAsync({ uri: item.fileUrl }, { shouldPlay: true });
+        if (cancelled) { res.sound.unloadAsync(); return; }
+        sound = res.sound;
+        soundRef.current = sound;
+        sound.setOnPlaybackStatusUpdate((s) => setStatus(s));
+      } catch (e) { Alert.alert('تعذّر التشغيل', String(e.message || e)); } finally { setLoading(false); }
+    })();
+    return () => { cancelled = true; if (sound) sound.unloadAsync(); soundRef.current = null; };
+  }, [item.id, item.fileUrl, isVideo]);
+
+  const toggle = async () => {
+    try {
+      if (isVideo) {
+        if (status.isPlaying) await videoRef.current?.pauseAsync();
+        else await videoRef.current?.playAsync();
+      } else if (soundRef.current) {
+        if (status.isPlaying) await soundRef.current.pauseAsync();
+        else await soundRef.current.playAsync();
+      }
+    } catch {}
+  };
+
+  const pct = status.durationMillis ? Math.min(100, Math.round((status.positionMillis / status.durationMillis) * 100)) : 0;
+
+  return (
+    <View style={styles.mini}>
+      <View style={styles.miniProgress}><View style={[styles.miniProgressFill, { width: `${pct}%` }]} /></View>
+      <View style={styles.miniRow}>
+        {isVideo ? (
+          <TouchableOpacity onPress={onOpen} activeOpacity={0.9}>
+            <Video
+              ref={videoRef}
+              source={{ uri: item.fileUrl }}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              onPlaybackStatusUpdate={(s) => setStatus(s)}
+              style={styles.miniVideo}
+            />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>
+            {item.poster ? (
+              <Image source={{ uri: item.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            ) : <Text style={styles.miniThumbGlyph}>♪</Text>}
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={{ flex: 1 }} onPress={onOpen} activeOpacity={0.8}>
+          <Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>
+          {!!item.person && <Text style={styles.miniPerson} numberOfLines={1}>{item.person}</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          {loading ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{status.isPlaying ? '❚❚' : '▶'}</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onClose} style={styles.miniClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={styles.miniCloseIcon}>✕</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -468,6 +582,28 @@ const styles = StyleSheet.create({
   detailPerson: { fontSize: 15, color: C.muted, marginTop: 4, textAlign: 'right' },
   image: { width: '100%', height: 260, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
   video: { width: '100%', height: 220, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
+
+  playCard: { height: 150, borderRadius: 16, marginTop: 16, overflow: 'hidden', backgroundColor: C.brand },
+  playCardVideo: { height: 200, backgroundColor: '#12241d' },
+  playCardOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#00000055', gap: 8 },
+  playCircle: { width: 62, height: 62, borderRadius: 31, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  playCircleIcon: { color: C.brand, fontSize: 24, fontWeight: '900', marginLeft: 3 },
+  playCardLabel: { color: C.white, fontSize: 15, fontWeight: '800' },
+  playCardHint: { color: '#e6efe9', fontSize: 11 },
+
+  mini: { backgroundColor: '#12241d', borderTopWidth: 1, borderTopColor: '#294a3d' },
+  miniProgress: { height: 3, backgroundColor: '#294a3d' },
+  miniProgressFill: { height: 3, backgroundColor: C.gold },
+  miniRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  miniVideo: { width: 96, height: 54, borderRadius: 8, backgroundColor: '#000' },
+  miniThumb: { width: 46, height: 46, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  miniThumbGlyph: { color: C.gold300, fontSize: 22, fontWeight: '900' },
+  miniTitle: { color: C.white, fontSize: 14, fontWeight: '800', textAlign: 'right' },
+  miniPerson: { color: '#aebfb6', fontSize: 12, textAlign: 'right', marginTop: 1 },
+  miniBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  miniBtnIcon: { color: C.brand, fontSize: 16, fontWeight: '900' },
+  miniClose: { width: 30, alignItems: 'center', justifyContent: 'center' },
+  miniCloseIcon: { color: '#8fa79b', fontSize: 16, fontWeight: '900' },
 
   player: { backgroundColor: C.brand, borderRadius: 18, padding: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
   playBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
