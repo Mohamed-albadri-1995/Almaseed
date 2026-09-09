@@ -42,6 +42,8 @@ const cardSelect = {
   status: true,
   fileKind: true,
   fileType: true,
+  fileUrl: true,
+  coverImage: true,
   durationSec: true,
   performer: true,
   speaker: true,

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MaterialCard } from '@/components/MaterialCard';
+import { ImageGallery } from '@/components/ImageGallery';
 import { Pagination } from '@/components/Pagination';
 import { Icon } from '@/components/icons';
 import {
@@ -195,11 +196,15 @@ export default async function ArchivePage({
       <div>
         {result.items.length ? (
             <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {result.items.map((m) => (
-                  <MaterialCard key={m.id} material={m} />
-                ))}
-              </div>
+              {searchParams.category === 'images' ? (
+                <ImageGallery items={result.items} />
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {result.items.map((m) => (
+                    <MaterialCard key={m.id} material={m} />
+                  ))}
+                </div>
+              )}
               <Pagination
                 page={result.page}
                 pages={result.pages}
