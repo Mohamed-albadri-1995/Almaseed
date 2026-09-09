@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler,
-  Platform, StatusBar as RNStatusBar,
+  Platform, StatusBar as RNStatusBar, PanResponder,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -12,6 +12,7 @@ import TrackPlayer, {
 } from 'react-native-track-player';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL } from './config';
@@ -75,6 +76,30 @@ export default function App() {
 
   useEffect(() => { ensureTrackPlayer(); }, []);
 
+  // Load the current audio track once (here, not in the player components) so
+  // both the full player and the mini-player just control the same instance.
+  useEffect(() => {
+    if (!now) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureTrackPlayer();
+        if (cancelled) return;
+        await TrackPlayer.reset();
+        await TrackPlayer.add({
+          id: now.id, url: now.fileUrl, title: now.title,
+          artist: now.person || 'الطريقة السمّانية — السجادة السليمانية',
+          artwork: now.poster || undefined,
+        });
+        await TrackPlayer.setRate(1);
+        await TrackPlayer.play();
+      } catch (e) { if (!cancelled) Alert.alert('تعذّر التشغيل', String(e.message || e)); }
+    })();
+    return () => { cancelled = true; };
+  }, [now && now.id]);
+
+  const stopNow = useCallback(async () => { try { await TrackPlayer.reset(); } catch {} setNow(null); }, []);
+
   // Android hardware back → navigate back through the stack; exit only at home.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -86,18 +111,21 @@ export default function App() {
 
   const openNow = useCallback(() => { if (now) push('material', { id: now.id }); }, [now]);
 
+  // Hide the mini-player while viewing the same material's full player.
+  const hideMini = now && top.name === 'material' && top.params.id === now.id;
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <View style={{ flex: 1 }}>
         {top.name === 'home' && <Feed push={push} />}
-        {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} onPlay={play} nowId={now?.id} />}
+        {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
         {top.name === 'library' && <Library push={push} onBack={pop} />}
         {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
         {top.name === 'account' && <Account push={push} onBack={pop} />}
         {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
       </View>
-      {now && <MiniPlayer item={now} onClose={() => setNow(null)} onOpen={openNow} />}
+      {now && !hideMini && <MiniPlayer item={now} onClose={stopNow} onOpen={openNow} />}
     </SafeAreaView>
   );
 }
@@ -270,7 +298,7 @@ function WebScreen({ url, title, onBack }) {
 }
 
 // ---------------- Material detail ----------------
-function MaterialScreen({ id, onBack, onPlay, nowId }) {
+function MaterialScreen({ id, onBack, onPlay, onStop, nowId }) {
   const [m, setM] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
@@ -293,18 +321,25 @@ function MaterialScreen({ id, onBack, onPlay, nowId }) {
           ) : m.fileKind === 'VIDEO' && m.fileUrl ? (
             <InlineVideo url={m.fileUrl} poster={m.coverImage} />
           ) : m.fileKind === 'AUDIO' && m.fileUrl ? (
-            <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>
-              {m.coverImage ? (
-                <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-              ) : null}
-              <View style={styles.playCardOverlay}>
-                <View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View>
-                <Text style={styles.playCardLabel}>
-                  {playingHere ? 'يعمل الآن في المشغّل بالأسفل' : 'استماع'}
-                </Text>
-                <Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text>
-              </View>
-            </TouchableOpacity>
+            playingHere ? (
+              <FullAudioPlayer
+                title={m.title}
+                person={m.performer || m.speaker || m.host || null}
+                poster={m.coverImage}
+                onStop={onStop}
+              />
+            ) : (
+              <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>
+                {m.coverImage ? (
+                  <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                ) : null}
+                <View style={styles.playCardOverlay}>
+                  <View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View>
+                  <Text style={styles.playCardLabel}>استماع</Text>
+                  <Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text>
+                </View>
+              </TouchableOpacity>
+            )
           ) : null}
 
           {!!m.bodyText && (
@@ -377,43 +412,18 @@ function MiniShell({ children, onClose, onOpen, item, pct, leading }) {
   );
 }
 
+const AUDIO_BUSY = (s) => s === State.Buffering || s === State.Loading || s === State.Connecting || s === State.None || s == null;
+
 function MiniAudio({ item, onClose, onOpen }) {
   const playback = usePlaybackState();
   const { position, duration } = useProgress(500);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        await ensureTrackPlayer();
-        if (cancelled) return;
-        await TrackPlayer.reset();
-        await TrackPlayer.add({
-          id: item.id,
-          url: item.fileUrl,
-          title: item.title,
-          artist: item.person || 'الطريقة السمّانية — السجادة السليمانية',
-          artwork: item.poster || undefined,
-        });
-        await TrackPlayer.play();
-      } catch (e) {
-        if (!cancelled) Alert.alert('تعذّر التشغيل', String(e.message || e));
-      } finally { if (!cancelled) setLoading(false); }
-    })();
-    return () => { cancelled = true; };
-  }, [item.id, item.fileUrl]);
-
   const state = playback?.state;
   const isPlaying = state === State.Playing;
-  const busy = loading || state === State.Buffering || state === State.Loading || state === State.Connecting;
   const toggle = () => { isPlaying ? TrackPlayer.pause() : TrackPlayer.play(); };
-  const close = async () => { try { await TrackPlayer.reset(); } catch {} onClose(); };
   const pct = duration ? Math.min(100, Math.round((position / duration) * 100)) : 0;
 
   return (
-    <MiniShell item={item} onClose={close} onOpen={onOpen} pct={pct}
+    <MiniShell item={item} onClose={onClose} onOpen={onOpen} pct={pct}
       leading={
         <TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>
           {item.poster ? (
@@ -423,9 +433,107 @@ function MiniAudio({ item, onClose, onOpen }) {
       }
     >
       <TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        {busy ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}
+        {AUDIO_BUSY(state) ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}
       </TouchableOpacity>
     </MiniShell>
+  );
+}
+
+const fmtTime = (sec) => {
+  const s = Math.max(0, Math.floor(sec || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
+
+// Draggable seek bar (tap or drag to jump to any point). No native slider dep.
+function SeekBar({ position, duration, onSeek }) {
+  const wRef = useRef(1);
+  const [drag, setDrag] = useState(null);
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const frac = drag != null ? drag : duration ? position / duration : 0;
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => setDrag(clamp(e.nativeEvent.locationX / wRef.current)),
+      onPanResponderMove: (e) => setDrag(clamp(e.nativeEvent.locationX / wRef.current)),
+      onPanResponderRelease: (e) => {
+        const f = clamp(e.nativeEvent.locationX / wRef.current);
+        setDrag(null);
+        onSeek(f);
+      },
+      onPanResponderTerminate: () => setDrag(null),
+    }),
+  ).current;
+
+  return (
+    <View>
+      <View
+        {...pan.panHandlers}
+        onLayout={(e) => { wRef.current = e.nativeEvent.layout.width || 1; }}
+        style={styles.seekHit}
+      >
+        <View style={styles.seekTrack}>
+          <View style={[styles.seekFill, { width: `${frac * 100}%` }]} />
+          <View style={[styles.seekThumb, { left: `${frac * 100}%` }]} />
+        </View>
+      </View>
+      <View style={styles.seekTimes}>
+        <Text style={styles.seekTime}>{fmtTime(duration)}</Text>
+        <Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text>
+      </View>
+    </View>
+  );
+}
+
+// Full audio player on the material screen: play/pause, seek, ±15s, speed.
+function FullAudioPlayer({ title, person, poster, onStop }) {
+  const playback = usePlaybackState();
+  const { position, duration } = useProgress(400);
+  const [speedIdx, setSpeedIdx] = useState(0);
+  const state = playback?.state;
+  const isPlaying = state === State.Playing;
+
+  const toggle = () => { isPlaying ? TrackPlayer.pause() : TrackPlayer.play(); };
+  const seekTo = (f) => TrackPlayer.seekTo(f * (duration || 0));
+  const jump = (d) => TrackPlayer.seekTo(Math.max(0, Math.min(duration || 0, (position || 0) + d)));
+  const cycleSpeed = () => {
+    const next = (speedIdx + 1) % SPEEDS.length;
+    setSpeedIdx(next);
+    TrackPlayer.setRate(SPEEDS[next]);
+  };
+
+  return (
+    <View style={styles.full}>
+      <View style={styles.fullArt}>
+        {poster ? (
+          <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : <Text style={styles.fullArtGlyph}>♪</Text>}
+      </View>
+      <Text style={styles.fullTitle} numberOfLines={1}>{title}</Text>
+      {!!person && <Text style={styles.fullPerson} numberOfLines={1}>{person}</Text>}
+
+      <SeekBar position={position} duration={duration} onSeek={seekTo} />
+
+      <View style={styles.fullControls}>
+        <TouchableOpacity onPress={cycleSpeed} style={styles.fullSpeed}>
+          <Text style={styles.fullSpeedTxt}>{SPEEDS[speedIdx]}×</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => jump(-15)} style={styles.fullSkip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.fullSkipTxt}>«15</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={toggle} style={styles.fullPlay}>
+          {AUDIO_BUSY(state) ? <ActivityIndicator color={C.brand} /> : <Text style={styles.fullPlayIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => jump(15)} style={styles.fullSkip} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.fullSkipTxt}>15»</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onStop} style={styles.fullSpeed}>
+          <Text style={styles.fullStopTxt}>إيقاف</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.playCardHint}>يستمر التشغيل في شريط الإشعارات وأثناء تصفّح باقي الصفحات</Text>
+    </View>
   );
 }
 
@@ -532,13 +640,29 @@ function Downloads({ material }) {
     } catch (e) { Alert.alert('تعذّر الحفظ', String(e.message || e)); } finally { setBusy(''); }
   };
 
+  // Download straight to the phone: media saves to the gallery/Music
+  // immediately (after a one-time permission); documents fall back to the
+  // system sheet since Android has no generic write without a folder pick.
   const saveToDevice = async () => {
     try {
       setBusy('device');
+      const isMedia = ['AUDIO', 'VIDEO', 'IMAGE'].includes(material.fileKind);
       const uri = await ensureLocal();
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
-      else if (material.fileUrl) Linking.openURL(material.fileUrl);
-      else Alert.alert('غير متاح', 'المشاركة غير مدعومة على هذا الجهاز.');
+      if (isMedia) {
+        const perm = await MediaLibrary.requestPermissionsAsync(false);
+        if (!perm.granted) {
+          Alert.alert('الإذن مطلوب', 'فعّل إذن الوسائط من إعدادات التطبيق لحفظ الملف في جهازك.');
+          return;
+        }
+        await MediaLibrary.saveToLibraryAsync(uri);
+        Alert.alert('تم التنزيل', 'حُفظ الملف في جهازك (المعرض / الموسيقى).');
+      } else if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri);
+      } else if (material.fileUrl) {
+        Linking.openURL(material.fileUrl);
+      } else {
+        Alert.alert('غير متاح', 'تعذّر حفظ هذا النوع على الجهاز.');
+      }
     } catch (e) { Alert.alert('تعذّر التنزيل', String(e.message || e)); } finally { setBusy(''); }
   };
 
@@ -705,6 +829,26 @@ const styles = StyleSheet.create({
   miniBtnIcon: { color: C.brand, fontSize: 16, fontWeight: '900' },
   miniClose: { width: 30, alignItems: 'center', justifyContent: 'center' },
   miniCloseIcon: { color: '#8fa79b', fontSize: 16, fontWeight: '900' },
+
+  full: { backgroundColor: '#12241d', borderRadius: 20, padding: 18, marginTop: 16, alignItems: 'center' },
+  fullArt: { width: 128, height: 128, borderRadius: 16, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 12 },
+  fullArtGlyph: { color: C.gold300, fontSize: 46, fontWeight: '900' },
+  fullTitle: { color: C.white, fontSize: 17, fontWeight: '900', textAlign: 'center' },
+  fullPerson: { color: '#aebfb6', fontSize: 13, marginTop: 2, textAlign: 'center' },
+  seekHit: { width: '100%', paddingVertical: 14, marginTop: 14 },
+  seekTrack: { height: 6, borderRadius: 3, backgroundColor: '#33564a', justifyContent: 'center' },
+  seekFill: { position: 'absolute', left: 0, height: 6, borderRadius: 3, backgroundColor: C.gold },
+  seekThumb: { position: 'absolute', width: 16, height: 16, borderRadius: 8, backgroundColor: C.gold, marginLeft: -8, top: -5 },
+  seekTimes: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
+  seekTime: { color: '#cdd8d1', fontSize: 11 },
+  fullControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 10 },
+  fullSkip: { paddingHorizontal: 6, paddingVertical: 6 },
+  fullSkipTxt: { color: C.white, fontSize: 15, fontWeight: '800' },
+  fullPlay: { width: 62, height: 62, borderRadius: 31, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  fullPlayIcon: { color: C.brand, fontSize: 22, fontWeight: '900' },
+  fullSpeed: { minWidth: 46, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: '#ffffff18', alignItems: 'center' },
+  fullSpeedTxt: { color: C.gold300, fontSize: 13, fontWeight: '900' },
+  fullStopTxt: { color: '#e0a39c', fontSize: 12, fontWeight: '800' },
 
   player: { backgroundColor: C.brand, borderRadius: 18, padding: 16, marginTop: 18, flexDirection: 'row', alignItems: 'center', gap: 14 },
   playBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },

@@ -13,7 +13,12 @@
       "resizeMode": "contain"
     },
     "plugins": [
-      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }]
+      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }],
+      ["expo-media-library", {
+        "photosPermission": "لحفظ الصور والملفات في جهازك.",
+        "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
+        "isAccessMediaLocationEnabled": false
+      }]
     ],
     "assetBundlePatterns": ["**/*"],
     "ios": {
