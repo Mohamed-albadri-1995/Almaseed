@@ -69,15 +69,17 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         data-auto_prompt="false"
       />
 
-      <div
-        className="g_id_signin"
-        data-type="standard"
-        data-size="large"
-        data-theme="outline"
-        data-text="signin_with"
-        data-shape="rectangular"
-        data-width="400"
-      />
+      <div className="w-full overflow-hidden flex justify-center">
+        <div
+          className="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-text="signin_with"
+          data-shape="rectangular"
+          data-width="100%"
+        />
+      </div>
     </>
   );
 }
