@@ -1,9 +1,13 @@
 import { registerRootComponent } from 'expo';
+import * as SplashScreen from 'expo-splash-screen';
 import TrackPlayer from 'react-native-track-player';
 import App from './App';
 import { PlaybackService } from './service';
 
-// Register the app root and the background playback service that keeps audio
-// (and its notification/lock-screen controls) alive when the app is backgrounded.
+// Do not let a JavaScript/native startup problem leave the user permanently
+// trapped on the static Android splash screen.
 registerRootComponent(App);
+setTimeout(() => { SplashScreen.hideAsync().catch(() => {}); }, 1500);
+
+// Register the background playback service used by the audio player.
 TrackPlayer.registerPlaybackService(() => PlaybackService);
