@@ -25,15 +25,16 @@ async function j(path, opts, attempt = 0) {
       data = { error: text.slice(0, 200) || `خطأ ${res.status}` };
     }
 
-    // A duplicated startup request can briefly hit a proxy/server rate limit.
-    // Retry only once, and never spin in a retry loop.
-    if (res.status === 429 && attempt === 0) {
+    // 429 can be temporary at the hosting/proxy layer. Back off progressively
+    // instead of failing the app after a single short retry.
+    if (res.status === 429 && attempt < 4) {
       const retryAfter = Number(res.headers.get('retry-after'));
+      const backoff = 1500 * (2 ** attempt);
       const delay = Number.isFinite(retryAfter) && retryAfter > 0
-        ? Math.min(retryAfter * 1000, 5000)
-        : 1500;
+        ? Math.min(retryAfter * 1000, 15000)
+        : backoff;
       await sleep(delay);
-      return j(path, opts, 1);
+      return j(path, opts, attempt + 1);
     }
 
     if (!res.ok) {
