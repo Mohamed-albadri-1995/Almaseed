@@ -6,8 +6,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
-import { Audio } from 'expo-av';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { Audio, Video, ResizeMode } from 'expo-av';
 import TrackPlayer, {
   Capability, State, RepeatMode, usePlaybackState, useProgress,
 } from 'react-native-track-player';
@@ -174,16 +173,12 @@ function MaterialScreen({ id, push, onBack, onPlay, onStop, nowId }) {
   const person = isBook ? m.author : (m?.performer || m?.speaker || m?.host);
   return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><Text style={styles.detailTitle}>{m.title}</Text>{!!m.subtitle && <Text style={styles.detailSub}>{m.subtitle}</Text>}{!!person && <Text style={styles.detailPerson}>{isBook ? `المؤلف: ${person}` : person}</Text>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <Text style={styles.desc}>{m.description}</Text>}<Downloads material={m} /></ScrollView>}</View>;
 }
-// Video playback via expo-video, which supports Android's native
-// Picture-in-Picture: «تصغير» drops the video into a floating window that
-// keeps playing OVER other apps and the home screen, and leaving the app while
-// a video plays enters PiP automatically — the real YouTube behaviour.
-function InlineVideo({ url }) {
-  const ref = useRef(null);
-  const player = useVideoPlayer({ uri: url }, (p) => { try { p.play(); } catch {} });
-  const enterPip = () => { try { ref.current?.startPictureInPicture(); } catch {} };
-  const fullscreen = () => { try { ref.current?.enterFullscreen(); } catch {} };
-  return <View style={styles.videoWrap}><VideoView ref={ref} player={player} style={styles.videoInline} contentFit="contain" nativeControls allowsPictureInPicture startsPictureInPictureAutomatically /><View style={styles.videoBtns}><TouchableOpacity style={styles.fsBtn} onPress={enterPip} activeOpacity={0.85}><Text style={styles.fsIcon}>⤵</Text><Text style={styles.fsTxt}>تصغير (نافذة عائمة)</Text></TouchableOpacity><TouchableOpacity style={[styles.fsBtn, styles.fsBtnAlt]} onPress={fullscreen} activeOpacity={0.85}><Text style={styles.fsIcon}>⛶</Text><Text style={styles.fsTxt}>ملء الشاشة</Text></TouchableOpacity></View></View>;
+// Video playback via expo-av (reliable native rendering on Android). Inline
+// with native controls plus a fullscreen button.
+function InlineVideo({ url, poster }) {
+  const ref = useRef(null); const [err, setErr] = useState(false);
+  const fullscreen = async () => { try { await ref.current?.presentFullscreenPlayer(); } catch {} };
+  return <View style={styles.videoWrap}><Video ref={ref} source={{ uri: url }} useNativeControls resizeMode={ResizeMode.CONTAIN} usePoster={!!poster} posterSource={poster ? { uri: poster } : undefined} style={styles.videoInline} onError={() => setErr(true)} />{err ? <Text style={styles.videoErr}>تعذّر تشغيل الفيديو — جرّب التنزيل.</Text> : <View style={styles.videoBtns}><TouchableOpacity style={[styles.fsBtn, styles.fsBtnAlt]} onPress={fullscreen} activeOpacity={0.85}><Text style={styles.fsIcon}>⛶</Text><Text style={styles.fsTxt}>ملء الشاشة</Text></TouchableOpacity></View>}</View>;
 }
 function MiniPlayer(props) { return <MiniAudio {...props} />; }
 function MiniShell({ children, onClose, onOpen, item, pct, leading }) { return <View style={styles.mini}><View style={styles.miniProgress}><View style={[styles.miniProgressFill, { width: `${pct}%` }]} /></View><View style={styles.miniRow}>{leading}<TouchableOpacity style={{ flex: 1 }} onPress={onOpen} activeOpacity={0.8}><Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>{!!item.person && <Text style={styles.miniPerson} numberOfLines={1}>{item.person}</Text>}</TouchableOpacity>{children}<TouchableOpacity onPress={onClose} style={styles.miniClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.miniCloseIcon}>✕</Text></TouchableOpacity></View></View>; }
@@ -198,24 +193,29 @@ function SeekBar({ position, duration, onSeek }) {
   const wRef = useRef(1);
   const [drag, setDrag] = useState(null);
   const clamp = (x) => Math.max(0, Math.min(1, x));
-  const pointToFraction = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
-  const pan = useRef(PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponderCapture: () => true,
-    onPanResponderTerminationRequest: () => false,
-    onPanResponderGrant: (e) => setDrag(pointToFraction(e)),
-    onPanResponderMove: (e) => setDrag(pointToFraction(e)),
-    onPanResponderRelease: (e) => {
-      const f = pointToFraction(e);
-      setDrag(null);
-      onSeek(f);
-    },
-    onPanResponderTerminate: () => setDrag(null),
-  })).current;
+  const fractionFromEvent = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
+  const begin = (e) => setDrag(fractionFromEvent(e));
+  const move = (e) => setDrag(fractionFromEvent(e));
+  const finish = (e) => { const f = fractionFromEvent(e); setDrag(null); onSeek(f); };
   const frac = drag != null ? drag : duration ? Math.max(0, Math.min(1, position / duration)) : 0;
-  return <View style={styles.seekWrap}><View {...pan.panHandlers} onLayout={(e) => { wRef.current = e.nativeEvent.layout.width || 1; }} style={styles.seekHit}><View style={styles.seekTrack}><View style={[styles.seekFill, { width: `${frac * 100}%` }]} /><View style={[styles.seekThumb, { left: `${frac * 100}%` }]} /></View></View><View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View></View>;
+  return <View style={styles.seekWrap}>
+    <View
+      style={styles.seekHit}
+      onLayout={(e) => { wRef.current = e.nativeEvent.layout.width || 1; }}
+      onStartShouldSetResponder={() => true}
+      onStartShouldSetResponderCapture={() => true}
+      onMoveShouldSetResponder={() => true}
+      onMoveShouldSetResponderCapture={() => true}
+      onResponderTerminationRequest={() => false}
+      onResponderGrant={begin}
+      onResponderMove={move}
+      onResponderRelease={finish}
+      onResponderTerminate={() => setDrag(null)}
+    >
+      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: `${frac * 100}%` }]} /><View style={[styles.seekThumb, { left: `${frac * 100}%` }]} /></View>
+    </View>
+    <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
+  </View>;
 }
 function FullAudioPlayer({ title, person, poster, onStop }) {
   const playback = usePlaybackState(); const { position, duration } = useProgress(400); const [speedIdx, setSpeedIdx] = useState(0); const state = playback?.state; const isPlaying = state === State.Playing;
@@ -226,9 +226,7 @@ function AudioPlayer({ url, title }) { const soundRef = useRef(null); const [sta
 function Downloads({ material }) { const [busy, setBusy] = useState(''); const ext = (material.fileType || (material.bodyText ? 'txt' : 'dat')).toLowerCase(); const safe = material.title.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 40) || 'material'; const filename = `${safe}-${material.id}.${ext}`; async function ensureLocal() { const dest = FileSystem.documentDirectory + filename; const info = await FileSystem.getInfoAsync(dest); if (info.exists) return dest; if (material.fileUrl) { const dl = await FileSystem.downloadAsync(material.fileUrl, dest); return dl.uri; } await FileSystem.writeAsStringAsync(dest, material.bodyText || material.description || ''); return dest; } const saveInApp = async () => { try { setBusy('app'); const localPath = await ensureLocal(); await addDownload({ id: material.id, title: material.title, subtitle: material.subtitle || null, person: material.category?.slug === 'readings' ? material.author || null : (material.performer || material.speaker || material.host || null), fileKind: material.fileKind || (material.bodyText ? 'ARTICLE' : 'AUDIO'), localPath, bodyText: material.bodyText || null }); Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق، وتظهر في «التنزيلات المحفوظة».'); } catch (e) { Alert.alert('تعذّر الحفظ', String(e.message || e)); } finally { setBusy(''); } }; const saveToDevice = async () => { try { setBusy('device'); const isMedia = ['AUDIO', 'VIDEO', 'IMAGE'].includes(material.fileKind); const uri = await ensureLocal(); if (isMedia) { const perm = await MediaLibrary.requestPermissionsAsync(false); if (!perm.granted) { Alert.alert('الإذن مطلوب', 'فعّل إذن الوسائط من إعدادات التطبيق لحفظ الملف في جهازك.'); return; } await MediaLibrary.saveToLibraryAsync(uri); Alert.alert('تم التنزيل', 'حُفظ الملف في جهازك (المعرض / الموسيقى).'); } else if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri); else if (material.fileUrl) Linking.openURL(material.fileUrl); else Alert.alert('غير متاح', 'تعذّر حفظ هذا النوع على الجهاز.'); } catch (e) { Alert.alert('تعذّر التنزيل', String(e.message || e)); } finally { setBusy(''); } }; if (!material.fileUrl && !material.bodyText) return null; return <View style={styles.downloads}><TouchableOpacity style={styles.dlBtn} onPress={saveInApp} disabled={!!busy}><Text style={styles.dlTxt}>{busy === 'app' ? 'جارٍ…' : 'حفظ داخل التطبيق'}</Text></TouchableOpacity><TouchableOpacity style={[styles.dlBtn, styles.dlBtnAlt]} onPress={saveToDevice} disabled={!!busy}><Text style={[styles.dlTxt, { color: C.brand }]}>{busy === 'device' ? 'جارٍ…' : 'تنزيل إلى الجهاز'}</Text></TouchableOpacity></View>; }
 function Library({ push, onBack }) { const [items, setItems] = useState(null); const reload = useCallback(() => { getDownloads().then(setItems); }, []); useEffect(reload, [reload]); const del = (id) => Alert.alert('حذف', 'حذف هذه المادة من التنزيلات؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: async () => setItems(await removeDownload(id)) }]); return <View style={{ flex: 1 }}><Header title="التنزيلات المحفوظة" onBack={onBack} />{!items ? <Loader /> : items.length === 0 ? <View style={styles.center}><Text style={styles.empty}>لا توجد تنزيلات محفوظة بعد.</Text><Text style={{ color: C.muted, textAlign: 'center', marginTop: 6 }}>احفظ أي مادة عبر «حفظ داخل التطبيق» لتظهر هنا وتُشغَّل دون اتصال.</Text></View> : <ScrollView contentContainerStyle={{ padding: 12 }}>{items.map((it) => <View key={it.id} style={styles.feedCard}><TouchableOpacity style={[styles.thumb, { width: 64, height: 64 }]} onPress={() => push('offline', { item: it })}><Text style={styles.thumbGlyph}>{it.fileKind === 'VIDEO' ? '►' : it.fileKind === 'IMAGE' ? '🖼' : it.fileKind === 'DOCUMENT' ? '📄' : '♪'}</Text></TouchableOpacity><TouchableOpacity style={{ flex: 1 }} onPress={() => push('offline', { item: it })}><Text style={styles.feedTitle} numberOfLines={2}>{it.title}</Text><Text style={styles.feedPerson} numberOfLines={1}>{(it.person || '') + '  ·  ' + (KIND_LABEL[it.fileKind] || 'مقال')}</Text></TouchableOpacity><TouchableOpacity onPress={() => del(it.id)} style={{ padding: 6 }}><Text style={{ color: C.danger, fontSize: 18 }}>✕</Text></TouchableOpacity></View>)}</ScrollView>}</View>; }
 function OfflineVideo({ uri }) {
-  const ref = useRef(null);
-  const player = useVideoPlayer({ uri }, (p) => { try { p.play(); } catch {} });
-  return <VideoView ref={ref} player={player} style={styles.video} contentFit="contain" nativeControls allowsPictureInPicture startsPictureInPictureAutomatically />;
+  return <Video source={{ uri }} useNativeControls resizeMode={ResizeMode.CONTAIN} style={styles.video} />;
 }
 function OfflineScreen({ item, onBack }) { const isImage = item.fileKind === 'IMAGE'; const isVideo = item.fileKind === 'VIDEO'; return <View style={{ flex: 1 }}><Header title="مادة محفوظة" onBack={onBack} /><ScrollView contentContainerStyle={{ padding: 16 }}><Text style={styles.detailTitle}>{item.title}</Text>{!!item.subtitle && <Text style={styles.detailSub}>{item.subtitle}</Text>}{!!item.person && <Text style={styles.detailPerson}>{item.person}</Text>}{isImage && item.localPath ? <Image source={{ uri: item.localPath }} style={styles.image} resizeMode="contain" /> : isVideo && item.localPath ? <OfflineVideo uri={item.localPath} /> : item.localPath && item.fileKind !== 'ARTICLE' && item.fileKind !== 'DOCUMENT' ? <AudioPlayer url={item.localPath} title={item.title} /> : null}{item.fileKind === 'DOCUMENT' && item.localPath ? <TouchableOpacity style={styles.documentCard} onPress={() => Linking.openURL(item.localPath).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>فتح المستند</Text></TouchableOpacity> : null}{!!item.bodyText && <ArticleHtml html={item.bodyText} />}<Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>محفوظة داخل التطبيق — متاحة دون اتصال.</Text></ScrollView></View>; }
 function Loader() { return <View style={styles.center}><ActivityIndicator color={C.brand} size="large" /></View>; }

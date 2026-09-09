@@ -4,10 +4,6 @@ const path = require('path');
 const file = path.join(__dirname, '..', 'App.js');
 let src = fs.readFileSync(file, 'utf8');
 
-// expo-av conflicts with expo-video on Android in some Expo 51 builds.
-src = src.replace(/\nimport \{ Audio \} from 'expo-av';\n/, '\n');
-src = src.replace(/function AudioPlayer\(\{ url, title \}\) \{[\s\S]*?\n\}\nfunction Downloads\(/, 'function Downloads(');
-
 // Let the seek bar own the gesture before the surrounding ScrollView can claim it.
 src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]*?\n\}\nfunction FullAudioPlayer\(/, `function SeekBar({ position, duration, onSeek }) {
   const wRef = useRef(1);
@@ -38,10 +34,6 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
   </View>;
 }
 function FullAudioPlayer(`);
-
-// TextureView is a safer Android rendering surface for expo-video when native surfaces overlap.
-src = src.replace(/<VideoView ref=\{ref\} player=\{player\} style=\{styles\.videoInline\} contentFit="contain"/, '<VideoView ref={ref} player={player} style={styles.videoInline} surfaceType="textureView" contentFit="contain"');
-src = src.replace(/<VideoView ref=\{ref\} player=\{player\} style=\{styles\.video\} contentFit="contain"/, '<VideoView ref={ref} player={player} style={styles.video} surfaceType="textureView" contentFit="contain"');
 
 fs.writeFileSync(file, src);
 console.log('Almaseed Android preparation applied.');
