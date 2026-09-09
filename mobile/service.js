@@ -1,16 +1,15 @@
-import TrackPlayer, { Event, State } from 'react-native-track-player';
+import TrackPlayer, { Event } from 'react-native-track-player';
 
 // Handles the media controls the OS shows in the notification shade / lock
 // screen (and headset buttons). Runs in a background service registered from
 // index.js.
 export async function PlaybackService() {
-  let pausedByInterruption = false;
-
-  // Keep the player alive when the app UI is removed from recent apps.
-  // Temporary audio-focus interruptions are handled separately below.
+  // Keep the player alive when the app UI is removed from recent apps, and let
+  // us — not the library — decide what happens on an audio-focus change.
   try {
     await TrackPlayer.updateOptions({
       android: { appKilledPlaybackBehavior: 'ContinuePlayback' },
+      autoHandleInterruptions: false,
     });
   } catch {}
 
@@ -27,21 +26,15 @@ export async function PlaybackService() {
     TrackPlayer.seekTo(Math.max(0, p.position - (interval || 15)));
   });
 
-  // Android can temporarily take audio focus when another app starts audio.
-  // Pause only for a transient interruption and resume when focus returns.
-  TrackPlayer.addEventListener(Event.RemoteDuck, async ({ paused, permanent }) => {
+  // Audio-focus changes. A short notification ping (ChatGPT, WhatsApp, …) is a
+  // TRANSIENT interruption: many Android OEMs (Huawei/Honor/Samsung) never send
+  // the "focus regained" event, so pausing on it would leave playback stopped
+  // for good — exactly the bug users hit. So we keep playing through transient
+  // interruptions and only stop when another media app PERMANENTLY takes over
+  // (e.g. the user starts YouTube or a music app).
+  TrackPlayer.addEventListener(Event.RemoteDuck, async ({ permanent }) => {
     if (permanent) {
-      pausedByInterruption = false;
-      return;
-    }
-
-    if (paused) {
-      const state = await TrackPlayer.getState();
-      pausedByInterruption = state === State.Playing || state === State.Buffering;
-      if (pausedByInterruption) await TrackPlayer.pause();
-    } else if (pausedByInterruption) {
-      pausedByInterruption = false;
-      await TrackPlayer.play();
+      try { await TrackPlayer.pause(); } catch {}
     }
   });
 }

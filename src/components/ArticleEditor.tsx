@@ -105,9 +105,10 @@ export function ArticleEditor({
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-ivory-300 bg-white">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 border-b border-ivory-200 bg-ivory-50/70 p-2">
+    <div className="rounded-2xl border border-ivory-300 bg-white">
+      {/* Toolbar — stays pinned to the top of the screen while scrolling a long
+          article so the formatting tools are always reachable. */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-1 rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-2 shadow-sm">
         <select
           title="نوع الخط"
           onMouseDown={(e) => e.stopPropagation()}
