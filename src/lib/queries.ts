@@ -72,6 +72,21 @@ export async function getMostPlayed(take = 4) {
   });
 }
 
+// Latest images and videos that actually have a viewable file — for the
+// interactive media carousel on the home page.
+export async function getMediaShowcase(take = 10) {
+  return prisma.material.findMany({
+    where: {
+      ...PUBLIC_WHERE,
+      fileKind: { in: ['IMAGE', 'VIDEO'] },
+      fileUrl: { not: null },
+    },
+    orderBy: { publishedAt: 'desc' },
+    take,
+    select: cardSelect,
+  });
+}
+
 export interface ArchiveFilters {
   categorySlug?: string;
   q?: string;

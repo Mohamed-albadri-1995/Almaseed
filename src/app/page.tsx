@@ -2,21 +2,24 @@ import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { CategoryCard } from '@/components/CategoryCard';
 import { MaterialCard } from '@/components/MaterialCard';
+import { MediaCarousel } from '@/components/MediaCarousel';
 import { SearchBox } from '@/components/SearchBox';
 import {
   getCategoriesWithCounts,
   getHomeStats,
   getLatestPublished,
+  getMediaShowcase,
   getMostPlayed,
 } from '@/lib/queries';
 import { formatCount } from '@/lib/format';
 
 export default async function HomePage() {
-  const [categories, stats, latest, mostPlayed] = await Promise.all([
+  const [categories, stats, latest, mostPlayed, showcase] = await Promise.all([
     getCategoriesWithCounts(),
     getHomeStats(),
     getLatestPublished(8),
     getMostPlayed(4),
+    getMediaShowcase(10),
   ]);
 
   const statCards = [
@@ -113,6 +116,9 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ---------------- Interactive media carousel ---------------- */}
+      {showcase.length > 0 && <MediaCarousel items={showcase} />}
 
       {/* ---------------- Latest ---------------- */}
       <section className="bg-ivory-50 py-14">
