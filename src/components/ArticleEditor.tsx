@@ -60,7 +60,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const addLink = () => { rememberSelection(); const url = window.prompt('أدخل الرابط:'); if (url) exec('createLink', url.trim()); };
 
   return <div className="overflow-visible rounded-2xl border border-ivory-300 bg-white">
-    <div className="sticky top-[80px] z-30 flex min-h-12 flex-nowrap items-center gap-1 overflow-x-auto overscroll-contain rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-1.5 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="flex min-h-12 flex-nowrap items-center gap-1 overflow-x-auto overscroll-contain rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <select title="نوع الخط" aria-label="نوع الخط" onMouseDown={() => rememberSelection()} onTouchStart={() => rememberSelection()} onChange={(e) => exec('fontName', e.target.value)} className="h-9 shrink-0 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800" defaultValue="">
         {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}
       </select>
@@ -76,7 +76,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
       {COLORS.map((c) => <button key={c} type="button" title="لون النص" aria-label={`لون النص ${c}`} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} onClick={() => exec('foreColor', c)} className="h-7 w-7 shrink-0 touch-manipulation rounded-full border border-black/10" style={{ backgroundColor: c }} />)}
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
     </div>
-    <div className="relative">{empty && <span className="pointer-events-none absolute right-6 top-5 text-muted/70">{placeholder}</span>}
+    <div className="relative max-h-[52vh] overflow-y-auto">{empty && <span className="pointer-events-none absolute right-6 top-5 text-muted/70">{placeholder}</span>}
       <div ref={ref} contentEditable dir="rtl" role="textbox" aria-multiline="true" aria-label="نص المقال" suppressContentEditableWarning onInput={sync} onBlur={sync} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onTouchEnd={rememberSelection} className="article-prose block w-full px-4 py-5 text-[16px] leading-8 outline-none sm:px-6 sm:text-base" style={{ minHeight }} />
     </div>
     <p className="border-t border-ivory-200 bg-ivory-50/60 px-4 py-2 text-xs text-muted">حرّر النص مباشرةً كما سيظهر للقارئ — شريط الأدوات يبقى متاحًا أثناء الكتابة والتمرير.</p>
