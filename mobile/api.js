@@ -15,6 +15,16 @@ async function j(path, opts, attempt = 0) {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...opts,
+      // Present as a normal browser request so a CDN/WAF bot-filter (e.g.
+      // Cloudflare Bot Fight Mode) doesn't flag the app's fetches and answer
+      // with 429/403. Also identify the app for server-side allow-listing.
+      headers: {
+        Accept: 'application/json, text/plain, */*',
+        'X-Almaseed-App': 'android',
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36 AlmaseedApp',
+        ...(opts && opts.headers),
+      },
       signal: controller.signal,
     });
     const text = await res.text();
