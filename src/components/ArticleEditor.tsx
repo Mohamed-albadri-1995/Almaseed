@@ -77,10 +77,24 @@ export function ArticleEditor({
   };
 
   const exec = (cmd: string, val?: string) => {
-    ref.current?.focus();
+    const editor = ref.current;
+    if (!editor) return;
+
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    const selection = window.getSelection();
+    const savedRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+
+    editor.focus({ preventScroll: true });
+    if (savedRange && selection) {
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
+    }
+
     try { document.execCommand('styleWithCSS', false, 'true'); } catch {}
     document.execCommand(cmd, false, val);
     sync();
+    window.scrollTo(scrollX, scrollY);
   };
 
   const setBlock = (tag: string) => exec('formatBlock', tag);
@@ -105,6 +119,7 @@ export function ArticleEditor({
         </select>
         <select
           title="حجم الخط"
+          onMouseDown={(e) => e.preventDefault()}
           onChange={(e) => exec('fontSize', e.target.value)}
           className="h-8 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800"
           defaultValue="3"
