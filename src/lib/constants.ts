@@ -78,10 +78,20 @@ export type FileKind = (typeof FILE_KINDS)[keyof typeof FILE_KINDS];
 
 export const FILE_KIND_LABELS: Record<FileKind, string> = {
   AUDIO: 'صوت',
-  VIDEO: 'فيديو',
-  DOCUMENT: 'مستند',
+  VIDEO: 'مرئي',
+  DOCUMENT: 'وثيقة',
   IMAGE: 'صورة',
 };
+
+// Browsable content forms — every section can hold all of these. `ARTICLE`
+// isn't a fileKind (it's a written body), so it's filtered separately.
+export const CONTENT_FORMS = [
+  { value: 'AUDIO', label: 'صوتيات' },
+  { value: 'VIDEO', label: 'مرئيات' },
+  { value: 'DOCUMENT', label: 'وثائق' },
+  { value: 'ARTICLE', label: 'مقالات' },
+  { value: 'IMAGE', label: 'صور' },
+] as const;
 
 // ---------------------------------------------------------------------------
 // Review actions & rejection reasons
@@ -178,9 +188,9 @@ export const CATEGORIES_SEED = [
   },
   {
     slug: CATEGORY_SLUGS.READINGS,
-    name: 'المقروءات',
-    description: 'مقالات ونصوص وملفات مقروءة',
-    icon: 'file',
+    name: 'مكتبة المسيد',
+    description: 'مقالات ووثائق ونصوص وتسجيلات من مكتبة المسيد',
+    icon: 'archive',
     color: 'brand',
     order: 7,
   },

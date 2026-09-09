@@ -8,7 +8,7 @@ import {
   getFilterFacets,
   searchMaterials,
 } from '@/lib/queries';
-import { FILE_KINDS, FILE_KIND_LABELS, SORT_OPTIONS, type FileKind } from '@/lib/constants';
+import { CONTENT_FORMS, SORT_OPTIONS } from '@/lib/constants';
 import { formatCount } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -160,11 +160,11 @@ export default async function ArchivePage({
           </summary>
           <div className="grid gap-3 px-2 pb-2 pt-1 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted">نوع الملف</span>
+              <span className="mb-1 block text-xs font-medium text-muted">نوع المحتوى</span>
               <select name="kind" defaultValue={searchParams.kind ?? ''} className="input">
                 <option value="">الكل</option>
-                {Object.values(FILE_KINDS).map((k) => (
-                  <option key={k} value={k}>{FILE_KIND_LABELS[k as FileKind]}</option>
+                {CONTENT_FORMS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
             </label>

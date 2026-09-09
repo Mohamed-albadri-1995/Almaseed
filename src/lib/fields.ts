@@ -21,17 +21,22 @@ export interface CategoryForm {
                    // when the uploaded file IS an image (e.g. الصور).
 }
 
-const MEDIA = '.mp3,.wav,.m4a,.ogg,.mp4,.mov,.webm';
+const AUDIO = '.mp3,.wav,.m4a,.ogg';
+const VIDEO = '.mp4,.mov,.webm';
+const MEDIA = `${AUDIO},${VIDEO}`;
 const IMAGES = '.jpg,.jpeg,.png,.webp';
 const DOCS = '.pdf,.doc,.docx';
+// Every content section accepts all four forms — صوتيات، مرئيات، وثائق، صور —
+// and (via `article`) written مقالات. الصور stays image‑only as the gallery.
+const ALL = `${MEDIA},${DOCS},${IMAGES}`;
 
 export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   madeeh: {
     titleLabel: 'اسم المدحة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: MEDIA,
-    article: false,
+    file: 'optional',
+    accept: ALL,
+    article: true,
     fields: [
       { name: 'performer', label: 'اسم المادح', canBeUnknown: true },
       { name: 'narrator', label: 'اسم الراوي', canBeUnknown: true },
@@ -45,9 +50,9 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   lectures: {
     titleLabel: 'عنوان المحاضرة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: MEDIA,
-    article: false,
+    file: 'optional',
+    accept: ALL,
+    article: true,
     fields: [
       { name: 'speaker', label: 'اسم المحاضر', canBeUnknown: true },
       { name: 'host', label: 'مقدم البرنامج', canBeUnknown: true },
@@ -62,9 +67,9 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   sermons: {
     titleLabel: 'عنوان الموعظة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: MEDIA,
-    article: false,
+    file: 'optional',
+    accept: ALL,
+    article: true,
     fields: [
       { name: 'speaker', label: 'اسم الواعظ', canBeUnknown: true },
       { name: 'topic', label: 'الموضوع', canBeUnknown: true },
@@ -78,9 +83,9 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   seminars: {
     titleLabel: 'عنوان الندوة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: MEDIA,
-    article: false,
+    file: 'optional',
+    accept: ALL,
+    article: true,
     fields: [
       { name: 'topic', label: 'موضوع الندوة', canBeUnknown: true },
       { name: 'occasion', label: 'اسم الندوة أو المناسبة', canBeUnknown: true },
@@ -94,9 +99,9 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   occasions: {
     titleLabel: 'اسم المناسبة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: MEDIA + ',' + IMAGES,
-    article: false,
+    file: 'optional',
+    accept: ALL,
+    article: true,
     fields: [
       { name: 'occasion', label: 'نوع المناسبة', canBeUnknown: true },
       { name: 'organizer', label: 'الجهة المنظمة', canBeUnknown: true },
@@ -121,10 +126,10 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   readings: {
-    titleLabel: 'عنوان المادة المقروءة',
+    titleLabel: 'عنوان المادة',
     subtitleLabel: 'عنوان فرعي (اختياري)',
     file: 'optional', // may upload a file OR write an article
-    accept: DOCS + ',' + IMAGES,
+    accept: ALL,
     article: true,
     fields: [
       { name: 'speaker', label: 'الكاتب أو المؤلف', canBeUnknown: true },

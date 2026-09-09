@@ -83,11 +83,9 @@ export function MaterialCard({
               {formatDurationLabel(material.durationSec)}
             </span>
           ) : null}
-          {kind && (
-            <span className="inline-flex items-center gap-1">
-              {FILE_KIND_LABELS[kind as FileKind]}
-            </span>
-          )}
+          <span className="inline-flex items-center gap-1">
+            {kind ? FILE_KIND_LABELS[kind as FileKind] : 'مقال'}
+          </span>
           {typeof material.plays === 'number' && material.plays > 0 && (
             <span className="inline-flex items-center gap-1">
               <Icon.play width={11} height={11} />

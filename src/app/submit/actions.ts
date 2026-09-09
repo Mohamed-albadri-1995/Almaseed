@@ -96,7 +96,7 @@ export async function submitMaterialAction(
       language: clean(d.language) || 'العربية',
       recordDate: parseDate(d.recordDate),
       fileUrl: d.fileUrl || null,
-      fileKind: d.fileKind || 'AUDIO',
+      fileKind: d.fileUrl ? d.fileKind || 'AUDIO' : null,
       fileType: d.fileType || null,
       fileSize: d.fileSize || null,
       durationSec: d.durationSec || null,

@@ -117,7 +117,8 @@ export async function searchMaterials(filters: ArchiveFilters) {
   const where: Prisma.MaterialWhereInput = { ...PUBLIC_WHERE };
 
   if (categorySlug) where.category = { slug: categorySlug };
-  if (fileKind) where.fileKind = fileKind;
+  if (fileKind === 'ARTICLE') where.bodyText = { not: null };
+  else if (fileKind) where.fileKind = fileKind;
   if (city) where.city = { contains: city };
   if (language) where.language = language;
   if (year && /^\d{4}$/.test(year)) {
