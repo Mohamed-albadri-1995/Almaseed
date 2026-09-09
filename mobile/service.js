@@ -6,6 +6,14 @@ import TrackPlayer, { Event, State } from 'react-native-track-player';
 export async function PlaybackService() {
   let pausedByInterruption = false;
 
+  // Keep the player alive when the app UI is removed from recent apps.
+  // Temporary audio-focus interruptions are handled separately below.
+  try {
+    await TrackPlayer.updateOptions({
+      android: { appKilledPlaybackBehavior: 'ContinuePlayback' },
+    });
+  } catch {}
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => TrackPlayer.play());
   TrackPlayer.addEventListener(Event.RemotePause, () => TrackPlayer.pause());
   TrackPlayer.addEventListener(Event.RemoteStop, () => TrackPlayer.reset());
