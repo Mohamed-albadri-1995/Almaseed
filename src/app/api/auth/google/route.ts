@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.redirect(
-      new URL('/account', req.url),
+      new URL('https://almaseeed.com/account'),
       303,
     );
   } catch (error) {
