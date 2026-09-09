@@ -12,7 +12,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'كلمة المرور مطلوبة'),
 });
 
-// A submission accepts a superset of fields; only title & category are required.
 export const submissionSchema = z.object({
   categorySlug: z.string().min(1, 'اختر نوع المادة'),
   title: z.string().min(2, 'العنوان مطلوب'),
@@ -31,6 +30,8 @@ export const submissionSchema = z.object({
   place: z.string().optional(),
   city: z.string().optional(),
   organizer: z.string().optional(),
+  source: z.string().optional(),
+  author: z.string().optional(),
   language: z.string().optional(),
   recordDate: z.string().optional(),
   keywords: z.string().optional(),
@@ -40,16 +41,8 @@ export const submissionSchema = z.object({
   fileSize: z.coerce.number().optional(),
   durationSec: z.coerce.number().optional(),
   coverImage: z.string().optional(),
-  rightsConfirmed: z
-    .union([z.literal('on'), z.literal('true'), z.boolean()])
-    .refine((v) => v === 'on' || v === 'true' || v === true, {
-      message: 'يجب الإقرار بحق مشاركة المادة',
-    }),
-  reviewConsent: z
-    .union([z.literal('on'), z.literal('true'), z.boolean()])
-    .refine((v) => v === 'on' || v === 'true' || v === true, {
-      message: 'يجب الموافقة على المراجعة قبل النشر',
-    }),
+  rightsConfirmed: z.union([z.literal('on'), z.literal('true'), z.boolean()]).refine((v) => v === 'on' || v === 'true' || v === true, { message: 'يجب الإقرار بحق مشاركة المادة' }),
+  reviewConsent: z.union([z.literal('on'), z.literal('true'), z.boolean()]).refine((v) => v === 'on' || v === 'true' || v === true, { message: 'يجب الموافقة على المراجعة قبل النشر' }),
 });
 
 export type SubmissionInput = z.infer<typeof submissionSchema>;
