@@ -74,8 +74,17 @@ export default async function ArchivePage({
   ].filter(Boolean) as { name: string; label: string; value?: string; options: string[] }[];
 
   const advancedActive =
-    !!searchParams.kind || !!searchParams.person || !!searchParams.sort ||
-    extraFilters.some((f) => f.value);
+    !!searchParams.person || extraFilters.some((f) => f.value);
+
+  const kindLabel = CONTENT_FORMS.find((f) => f.value === searchParams.kind)?.label;
+  const activeChips = [
+    searchParams.q && { key: 'q', label: `بحث: ${searchParams.q}` },
+    kindLabel && { key: 'kind', label: kindLabel },
+    searchParams.city && { key: 'city', label: searchParams.city },
+    searchParams.year && { key: 'year', label: searchParams.year },
+    searchParams.language && { key: 'language', label: searchParams.language },
+    searchParams.person && { key: 'person', label: `الاسم: ${searchParams.person}` },
+  ].filter(Boolean) as { key: string; label: string }[];
 
   return (
     <div className="container-page py-8">
@@ -113,6 +122,29 @@ export default async function ArchivePage({
             <span className={`text-xs ${searchParams.category === c.slug ? 'text-ivory-100/70' : 'text-muted'}`}>
               {formatCount(c.count)}
             </span>
+          </Link>
+        ))}
+      </div>
+
+      {/* Content-type quick filters */}
+      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+        <Link
+          href={buildQuery(searchParams, { kind: '', page: '' })}
+          className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
+            !searchParams.kind ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+          }`}
+        >
+          كل الأنواع
+        </Link>
+        {CONTENT_FORMS.map((f) => (
+          <Link
+            key={f.value}
+            href={buildQuery(searchParams, { kind: f.value, page: '' })}
+            className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
+              searchParams.kind === f.value ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+            }`}
+          >
+            {f.label}
           </Link>
         ))}
       </div>
@@ -191,6 +223,29 @@ export default async function ArchivePage({
           </div>
         </details>
       </form>
+
+      {/* Active filter pills */}
+      {activeChips.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">المطبّقة:</span>
+          {activeChips.map((c) => (
+            <Link
+              key={c.key}
+              href={buildQuery(searchParams, { [c.key]: '', page: '' })}
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
+            >
+              <span>{c.label}</span>
+              <span className="text-brand-500">✕</span>
+            </Link>
+          ))}
+          <Link
+            href={buildQuery({}, { category: searchParams.category })}
+            className="text-xs font-semibold text-danger hover:underline"
+          >
+            مسح الكل
+          </Link>
+        </div>
+      )}
 
       {/* Results (full width) */}
       <div>

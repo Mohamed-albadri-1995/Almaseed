@@ -72,6 +72,62 @@ export async function getMostPlayed(take = 4) {
   });
 }
 
+// Find likely duplicates / near‑matches of a material, to help a reviewer spot
+// content that already exists. Matches by title, by identical file size (a
+// strong duplicate signal), and by same performer/speaker.
+export interface SimilarMaterial {
+  id: string;
+  title: string;
+  status: string;
+  fileSize: number | null;
+  durationSec: number | null;
+  performer: string | null;
+  speaker: string | null;
+  publishedAt: Date | null;
+  category: { name: string } | null;
+  reasons: string[];
+}
+
+export async function getSimilarMaterials(m: {
+  id: string;
+  title: string;
+  searchText?: string | null;
+  fileSize?: number | null;
+  performer?: string | null;
+  speaker?: string | null;
+}): Promise<SimilarMaterial[]> {
+  const normTitle = normalizeArabic(m.title || '');
+  const or: Prisma.MaterialWhereInput[] = [{ title: { contains: m.title } }];
+  if (normTitle) or.push({ searchText: { contains: normTitle } });
+  if (m.fileSize) or.push({ fileSize: m.fileSize });
+  if (m.performer) or.push({ performer: m.performer });
+  if (m.speaker) or.push({ speaker: m.speaker });
+
+  const rows = await prisma.material.findMany({
+    where: { id: { not: m.id }, OR: or },
+    orderBy: { createdAt: 'desc' },
+    take: 6,
+    select: {
+      id: true, title: true, status: true, fileSize: true, durationSec: true,
+      performer: true, speaker: true, publishedAt: true, searchText: true,
+      category: { select: { name: true } },
+    },
+  });
+
+  return rows.map((r) => {
+    const reasons: string[] = [];
+    if (m.fileSize && r.fileSize === m.fileSize) reasons.push('نفس حجم الملف');
+    if (normTitle && r.searchText && r.searchText.includes(normTitle)) reasons.push('تطابق العنوان');
+    else if (r.title === m.title) reasons.push('نفس العنوان');
+    if (m.performer && r.performer === m.performer) reasons.push('نفس المادح');
+    if (m.speaker && r.speaker === m.speaker) reasons.push('نفس المحاضر');
+    if (reasons.length === 0) reasons.push('عنوان مشابه');
+    const { searchText: _omit, ...rest } = r;
+    void _omit;
+    return { ...rest, reasons };
+  });
+}
+
 // Latest images and videos that actually have a viewable file — for the
 // interactive media carousel on the home page.
 export async function getMediaShowcase(take = 10) {

@@ -52,7 +52,25 @@ function Field({ field }: { field: FieldDef }) {
   );
 }
 
-type Uploaded = { url: string; fileKind: string; fileType: string; fileSize: number };
+type Uploaded = { url: string; fileKind: string; fileType: string; fileSize: number; durationSec?: number };
+
+// Read the duration (seconds) of an audio/video file locally, so the reviewer
+// can later check whether the size is plausible for the length.
+function readMediaDuration(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const isVideo = /video/.test(file.type) || /\.(mp4|mov|webm)$/i.test(file.name);
+    if (!isVideo && !/audio/.test(file.type) && !/\.(mp3|wav|m4a|ogg)$/i.test(file.name)) {
+      return resolve(undefined);
+    }
+    const el = document.createElement(isVideo ? 'video' : 'audio');
+    el.preload = 'metadata';
+    const done = (v?: number) => { try { URL.revokeObjectURL(el.src); } catch {} resolve(v); };
+    el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? Math.round(el.duration) : undefined);
+    el.onerror = () => done(undefined);
+    setTimeout(() => done(undefined), 8000);
+    el.src = URL.createObjectURL(file);
+  });
+}
 
 function FileUpload({
   onUploaded,
@@ -86,8 +104,9 @@ function FileUpload({
         onUploaded(null);
         return;
       }
+      const durationSec = await readMediaDuration(file);
       setState('done');
-      onUploaded(data as Uploaded);
+      onUploaded({ ...(data as Uploaded), durationSec });
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'تعذّر رفع الملف');
@@ -180,6 +199,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
               <input type="hidden" name="fileKind" value={file.fileKind} />
               <input type="hidden" name="fileType" value={file.fileType} />
               <input type="hidden" name="fileSize" value={file.fileSize} />
+              {file.durationSec ? <input type="hidden" name="durationSec" value={file.durationSec} /> : null}
             </>
           )}
           {cover && <input type="hidden" name="coverImage" value={cover.url} />}

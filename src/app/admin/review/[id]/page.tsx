@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { MediaPlayer } from '@/components/MediaPlayer';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ReviewPanel } from '@/components/ReviewPanel';
+import { ReviewInsights } from '@/components/ReviewInsights';
+import { getSimilarMaterials } from '@/lib/queries';
 import { MaterialEditForm } from '@/components/MaterialEditForm';
 import { restoreMaterialAction, rollbackVersionAction } from '@/app/admin/actions';
 import { Icon } from '@/components/icons';
@@ -49,6 +51,7 @@ export default async function ReviewPage({
     select: { slug: true, name: true },
   });
 
+  const similar = await getSimilarMaterials(material);
   const canEdit = can.editContent(user.role as Role);
   const canRestore =
     material.status === 'REJECTED' || material.status === 'HIDDEN';
@@ -171,6 +174,12 @@ export default async function ReviewPage({
 
         {/* Right: decision + history */}
         <div className="space-y-6">
+          <ReviewInsights
+            fileKind={material.fileKind}
+            fileSize={material.fileSize}
+            durationSec={material.durationSec}
+            similar={similar}
+          />
           <ReviewPanel materialId={material.id} errorReason={searchParams.error === 'reason'} />
 
           <div className="card p-5">
