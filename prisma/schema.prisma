@@ -34,11 +34,9 @@ model User {
   role         String   @default("CONTRIBUTOR")
   city         String?
   active       Boolean  @default(true)
-  // CSV of category slugs a staff member is limited to (empty = all sections).
   assignedCategories String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   submissions   Material[]     @relation("submittedBy")
   reviewed      Material[]     @relation("reviewedBy")
   reviewNotes   ReviewNote[]
@@ -49,77 +47,61 @@ model User {
   comments      Comment[]
 }
 
-// ---------------------------------------------------------------------------
-// Categories
-// ---------------------------------------------------------------------------
-
 model Category {
   id          String     @id @default(cuid())
-  slug        String     @unique // madeeh, lectures, seminars, sermons, occasions
-  name        String // المدائح
-  description String? // أصوات المادحين وذاكرة الإنشاد
-  icon        String? // icon key
-  color       String? // tailwind accent hint
+  slug        String     @unique
+  name        String
+  description String?
+  icon        String?
+  color       String?
   order       Int        @default(0)
   materials   Material[]
 }
 
-// ---------------------------------------------------------------------------
-// Materials (the archived items)
-// ---------------------------------------------------------------------------
-// status values (MATERIAL_STATUS): DRAFT, PENDING, PUBLISHED, NEEDS_EDIT, REJECTED, HIDDEN
-// fileKind values (FILE_KINDS): AUDIO, VIDEO, DOCUMENT, IMAGE
-
 model Material {
   id       String  @id @default(cuid())
   title    String
-  subtitle String? // عنوان فرعي (لكل الأقسام)
+  subtitle String?
   status   String  @default("PENDING")
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
   description String?
-  lyrics      String? // كلمات المدحة
-  summary     String? // ملخص المحاضرة
-  bodyText    String? // نص المقال المكتوب (قسم المقروءات)
+  lyrics      String?
+  summary     String?
+  bodyText    String?
 
-  // People — semantics vary by category (madeeh / speaker / narrator / host)
-  performer    String? // المادح
-  narrator     String? // الراوي
-  speaker      String? // المحاضر / المتحدث
-  host         String? // مدير الندوة / مقدم البرنامج
-  participants String? // أسماء المشاركين (comma separated)
+  performer    String?
+  narrator     String?
+  speaker      String?
+  host         String?
+  participants String?
 
-  // Context
-  occasion   String? // المناسبة
-  topic      String? // الموضوع
-  place      String? // المكان / المسيد / الجهة
-  city       String? // المدينة أو المنطقة
-  organizer  String? // الجهة المنظمة
+  occasion   String?
+  topic      String?
+  place      String?
+  city       String?
+  organizer  String?
   language   String?   @default("العربية")
-  recordDate DateTime? // تاريخ التسجيل
-  keywords   String? // الكلمات المفتاحية (comma separated)
-  source     String? // المصدر / اسم المساهم النصي
+  recordDate DateTime?
+  keywords   String?
+  source     String?
+  author     String?
 
-  // Normalized concatenation of searchable text (diacritics stripped, letters
-  // unified) — kept in sync on create/edit for fast, forgiving search.
   searchText String?
 
-  // Duplicate merge: when set, this material was merged into another.
   mergedIntoId String?
   mergedInto   Material?  @relation("merge", fields: [mergedIntoId], references: [id])
   mergedFrom   Material[] @relation("merge")
 
-  // File
   fileUrl     String?
   fileKind    String?  @default("AUDIO")
-  fileType    String? // MP3, MP4, PDF ...
-  fileSize    Int? // bytes
-  durationSec Int? // مدة التسجيل بالثواني
+  fileType    String?
+  fileSize    Int?
+  durationSec Int?
   coverImage  String?
 
-  // Metrics
   downloads Int @default(0)
   plays     Int @default(0)
 
@@ -143,22 +125,19 @@ model Material {
   @@index([categoryId])
 }
 
-// A 1–5 star rating, one per user per material.
 model Rating {
   id         String   @id @default(cuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   materialId String
   material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
-  value      Int // 1..5
+  value      Int
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-
   @@unique([userId, materialId])
   @@index([materialId])
 }
 
-// A public comment on a material. Visible unless hidden by a moderator.
 model Comment {
   id         String   @id @default(cuid())
   userId     String
@@ -168,28 +147,20 @@ model Comment {
   body       String
   hidden     Boolean  @default(false)
   createdAt  DateTime @default(now())
-
   @@index([materialId])
 }
 
-// Snapshot of a material's data before an edit — the edit history / audit trail.
 model MaterialVersion {
   id         String   @id @default(cuid())
   materialId String
   material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
   editorId   String?
   editorName String?
-  reason     String? // e.g. "edit", "merge", "resubmit"
-  snapshot   String // JSON of the material fields at that time
+  reason     String?
+  snapshot   String
   createdAt  DateTime @default(now())
-
   @@index([materialId])
 }
-
-// ---------------------------------------------------------------------------
-// Review workflow
-// ---------------------------------------------------------------------------
-// action values (REVIEW_ACTIONS): APPROVE, REQUEST_EDIT, REJECT, DRAFT, RESUBMIT
 
 model ReviewNote {
   id         String   @id @default(cuid())
@@ -198,14 +169,10 @@ model ReviewNote {
   reviewerId String?
   reviewer   User?    @relation(fields: [reviewerId], references: [id])
   action     String
-  reason     String? // بيانات ناقصة / جودة ضعيفة / تكرار / مخالفة / حقوق
+  reason     String?
   note       String?
   createdAt  DateTime @default(now())
 }
-
-// ---------------------------------------------------------------------------
-// Favorites, notifications, reports, activity log
-// ---------------------------------------------------------------------------
 
 model Favorite {
   id         String   @id @default(cuid())
@@ -214,7 +181,6 @@ model Favorite {
   materialId String
   material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
   createdAt  DateTime @default(now())
-
   @@unique([userId, materialId])
 }
 
@@ -227,7 +193,6 @@ model Notification {
   link      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
-
   @@index([userId, read])
 }
 
@@ -241,9 +206,8 @@ model ContentReport {
   createdAt  DateTime @default(now())
 }
 
-// Per-day page-view counter for the system-admin statistics.
 model DailyView {
-  date  String @id // YYYY-MM-DD
+  date  String @id
   count Int    @default(0)
 }
 
@@ -254,8 +218,7 @@ model ActivityLog {
   action    String
   entity    String
   entityId  String?
-  meta      String? // json string
+  meta      String?
   createdAt DateTime @default(now())
-
   @@index([createdAt])
 }
