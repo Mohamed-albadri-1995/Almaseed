@@ -5,7 +5,7 @@ const file = path.join(__dirname, '..', 'App.js');
 let src = fs.readFileSync(file, 'utf8');
 
 // expo-av conflicts with expo-video on Android in some Expo 51 builds.
-src = src.replace(/\nimport \{ Audio \} from 'expo-av';\n/, '\n');
+src = src.replace(/import \{ Audio \} from 'expo-av';\n?/, '');
 src = src.replace(/function AudioPlayer\(\{ url, title \}\) \{[\s\S]*?\n\}\nfunction Downloads\(/, 'function Downloads(');
 
 // Let the seek bar own the gesture before the surrounding ScrollView can claim it.
