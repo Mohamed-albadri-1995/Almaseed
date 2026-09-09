@@ -13,23 +13,30 @@
       "resizeMode": "contain"
     },
     "plugins": [
-      ["expo-splash-screen", {"image":"./assets/splash.png","backgroundColor":"#1f3d33","resizeMode":"contain"}],
-      ["expo-video", {"supportsPictureInPicture":true,"supportsBackgroundPlayback":true}],
-      ["expo-media-library", {"photosPermission":"السماح للتطبيق بحفظ المواد التي تختار تنزيلها.","savePhotosPermission":"السماح للتطبيق بحفظ المواد التي تختار تنزيلها."}]
+      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }],
+      ["expo-video", { "supportsPictureInPicture": true, "supportsBackgroundPlayback": true }],
+      ["expo-media-library", {
+        "photosPermission": "لحفظ الصور والملفات في جهازك.",
+        "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
+        "isAccessMediaLocationEnabled": false
+      }]
     ],
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.almaseed.archive",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
+    },
     "android": {
       "package": "app.almaseed.archive",
-      "versionCode": 23,
+      "versionCode": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1f3d33"
+        "backgroundColor": "#ffffff"
       },
-      "permissions": ["INTERNET","FOREGROUND_SERVICE","FOREGROUND_SERVICE_MEDIA_PLAYBACK","POST_NOTIFICATIONS","WAKE_LOCK","READ_MEDIA_IMAGES","READ_MEDIA_VIDEO","READ_MEDIA_AUDIO"]
-    },
-    "extra": {
-      "eas": {
-        "projectId": "4b2f4a5e-4a8e-4d95-8d76-5d4d6f4e8b4e"
-      }
+      "permissions": ["FOREGROUND_SERVICE", "FOREGROUND_SERVICE_MEDIA_PLAYBACK", "WAKE_LOCK"]
     }
   }
 }
