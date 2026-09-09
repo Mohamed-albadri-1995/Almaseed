@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler,
-  Platform, StatusBar as RNStatusBar, PanResponder,
+  Platform, StatusBar as RNStatusBar, PanResponder, Animated, Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -100,6 +100,20 @@ export default function App() {
 
   const stopNow = useCallback(async () => { try { await TrackPlayer.reset(); } catch {} setNow(null); }, []);
 
+  // Picture-in-picture: a floating video that keeps playing while browsing.
+  const [pip, setPip] = useState(null);
+  const enterPip = useCallback((data) => {
+    setPip(data);
+    setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)); // drop the material screen; keep browsing
+  }, []);
+  const expandPip = useCallback(() => {
+    setPip((p) => {
+      if (p) setStack((s) => [...s, { name: 'material', params: { id: p.id, resumeMs: p.positionMillis } }]);
+      return null;
+    });
+  }, []);
+  const closePip = useCallback(() => setPip(null), []);
+
   // Android hardware back → navigate back through the stack; exit only at home.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -119,13 +133,14 @@ export default function App() {
       <StatusBar style="light" />
       <View style={{ flex: 1 }}>
         {top.name === 'home' && <Feed push={push} />}
-        {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
+        {top.name === 'material' && <MaterialScreen id={top.params.id} onBack={pop} onPlay={play} onStop={stopNow} onPip={enterPip} resumeMs={top.params.resumeMs} nowId={now?.id} />}
         {top.name === 'library' && <Library push={push} onBack={pop} />}
         {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
         {top.name === 'account' && <Account push={push} onBack={pop} />}
         {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
       </View>
       {now && !hideMini && <MiniPlayer item={now} onClose={stopNow} onOpen={openNow} />}
+      {pip && <PipVideo item={pip} onExpand={expandPip} onClose={closePip} />}
     </SafeAreaView>
   );
 }
@@ -298,7 +313,7 @@ function WebScreen({ url, title, onBack }) {
 }
 
 // ---------------- Material detail ----------------
-function MaterialScreen({ id, onBack, onPlay, onStop, nowId }) {
+function MaterialScreen({ id, onBack, onPlay, onStop, onPip, resumeMs, nowId }) {
   const [m, setM] = useState(null);
   const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
@@ -319,7 +334,12 @@ function MaterialScreen({ id, onBack, onPlay, onStop, nowId }) {
           {m.fileKind === 'IMAGE' && m.fileUrl ? (
             <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" />
           ) : m.fileKind === 'VIDEO' && m.fileUrl ? (
-            <InlineVideo url={m.fileUrl} poster={m.coverImage} />
+            <InlineVideo
+              url={m.fileUrl}
+              poster={m.coverImage}
+              resumeMs={resumeMs}
+              onMinimize={(positionMillis) => onPip && onPip({ id: m.id, url: m.fileUrl, poster: m.coverImage, title: m.title, positionMillis })}
+            />
           ) : m.fileKind === 'AUDIO' && m.fileUrl ? (
             playingHere ? (
               <FullAudioPlayer
@@ -355,8 +375,9 @@ function MaterialScreen({ id, onBack, onPlay, onStop, nowId }) {
 }
 
 // Inline video player — plays at page width with native controls + fullscreen.
-function InlineVideo({ url, poster }) {
+function InlineVideo({ url, poster, resumeMs, onMinimize }) {
   const ref = useRef(null);
+  const posRef = useRef(0);
   const [err, setErr] = useState(false);
   const fullscreen = async () => { try { await ref.current?.presentFullscreenPlayer(); } catch {} };
   return (
@@ -370,16 +391,63 @@ function InlineVideo({ url, poster }) {
         posterSource={poster ? { uri: poster } : undefined}
         style={styles.videoInline}
         onError={() => setErr(true)}
+        onPlaybackStatusUpdate={(s) => { if (s && s.positionMillis) posRef.current = s.positionMillis; }}
+        onLoad={() => { if (resumeMs) { ref.current?.setPositionAsync(resumeMs); ref.current?.playAsync(); } }}
       />
       {err ? (
         <Text style={styles.videoErr}>تعذّر تشغيل الفيديو — جرّب التنزيل.</Text>
       ) : (
-        <TouchableOpacity style={styles.fsBtn} onPress={fullscreen} activeOpacity={0.85}>
-          <Text style={styles.fsIcon}>⛶</Text>
-          <Text style={styles.fsTxt}>ملء الشاشة</Text>
-        </TouchableOpacity>
+        <View style={styles.videoBtns}>
+          {onMinimize && (
+            <TouchableOpacity style={styles.fsBtn} onPress={() => onMinimize(posRef.current)} activeOpacity={0.85}>
+              <Text style={styles.fsIcon}>⤵</Text>
+              <Text style={styles.fsTxt}>تصغير</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[styles.fsBtn, styles.fsBtnAlt]} onPress={fullscreen} activeOpacity={0.85}>
+            <Text style={styles.fsIcon}>⛶</Text>
+            <Text style={styles.fsTxt}>ملء الشاشة</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
+  );
+}
+
+// Floating, draggable picture-in-picture video that keeps playing while you
+// browse other screens. Tap ⤢ to expand back, ✕ to close.
+function PipVideo({ item, onExpand, onClose }) {
+  const ref = useRef(null);
+  const { width: W, height: H } = Dimensions.get('window');
+  const pan = useRef(new Animated.ValueXY({ x: W - 178, y: H - 220 })).current;
+  const responder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 4 || Math.abs(g.dy) > 4,
+      onPanResponderGrant: () => {
+        pan.setOffset({ x: pan.x.__getValue(), y: pan.y.__getValue() });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], { useNativeDriver: false }),
+      onPanResponderRelease: () => pan.flattenOffset(),
+    }),
+  ).current;
+
+  return (
+    <Animated.View style={[styles.pip, { transform: pan.getTranslateTransform() }]} {...responder.panHandlers}>
+      <Video
+        ref={ref}
+        source={{ uri: item.url }}
+        resizeMode={ResizeMode.CONTAIN}
+        shouldPlay
+        style={styles.pipVideo}
+        onLoad={() => { if (item.positionMillis) ref.current?.setPositionAsync(item.positionMillis); }}
+      />
+      <TouchableOpacity style={styles.pipTap} activeOpacity={0.9} onPress={onExpand} />
+      <View style={styles.pipBar}>
+        <TouchableOpacity onPress={onExpand} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={styles.pipIcon}>⤢</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}><Text style={styles.pipIcon}>✕</Text></TouchableOpacity>
+      </View>
+    </Animated.View>
   );
 }
 
@@ -803,10 +871,18 @@ const styles = StyleSheet.create({
 
   videoWrap: { marginTop: 16 },
   videoInline: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: '#000' },
-  fsBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.brand },
+  videoBtns: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  fsBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.brand },
+  fsBtnAlt: { backgroundColor: '#294a3d' },
   fsIcon: { color: C.gold300, fontSize: 16, fontWeight: '900' },
   fsTxt: { color: C.white, fontSize: 14, fontWeight: '800' },
   videoErr: { color: C.danger, fontSize: 13, marginTop: 10, textAlign: 'center' },
+
+  pip: { position: 'absolute', width: 168, height: 112, borderRadius: 12, backgroundColor: '#000', overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, zIndex: 50 },
+  pipVideo: { width: '100%', height: '100%' },
+  pipTap: { ...StyleSheet.absoluteFillObject },
+  pipBar: { position: 'absolute', top: 4, right: 4, flexDirection: 'row', gap: 10, backgroundColor: '#00000066', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  pipIcon: { color: '#fff', fontSize: 14, fontWeight: '900' },
 
   playCard: { height: 150, borderRadius: 16, marginTop: 16, overflow: 'hidden', backgroundColor: C.brand },
   playCardVideo: { height: 200, backgroundColor: '#12241d' },
