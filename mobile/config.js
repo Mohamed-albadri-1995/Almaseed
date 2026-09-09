@@ -8,6 +8,5 @@ export const CONTRIBUTOR_URL = `${API_BASE}/account`;
 
 // Human-visible build marker. Bump this with every mobile change so it is
 // obvious on the device which build is actually installed (shown on the
-// account screen). If this number does not change after an update, the new
-// APK did not install.
-export const BUILD = 22;
+// account screen).
+export const BUILD = 23;
