@@ -64,12 +64,12 @@ export function ImageGallery({ items }: { items: GalleryItem[] }) {
   return (
     <>
       {/* Masonry studio grid */}
-      <div className="[column-fill:_balance] columns-2 gap-3 sm:columns-3 lg:columns-4">
+      <div className="[column-fill:_balance] columns-2 gap-4 sm:columns-3 lg:columns-4 xl:columns-5">
         {shots.map((it, idx) => (
           <button
             key={it.id}
             onClick={() => setOpen(idx)}
-            className="group relative mb-3 block w-full overflow-hidden rounded-2xl bg-brand-900/5 ring-1 ring-black/5"
+            className="group relative mb-4 block w-full overflow-hidden rounded-2xl bg-brand-900/5 shadow-sm ring-1 ring-black/5 transition hover:shadow-lg"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

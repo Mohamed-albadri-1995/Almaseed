@@ -41,19 +41,23 @@ export default async function ArchivePage({
   searchParams: SearchParams;
 }) {
   const page = Math.max(1, Number(searchParams.page) || 1);
+  // المعرض: the الصور section is a gallery that aggregates EVERY image across all
+  // sections, not just materials filed under it.
+  const isGallery = searchParams.category === 'images';
   const [categories, facets, result] = await Promise.all([
     getCategoriesWithCounts(),
     getFilterFacets(),
     searchMaterials({
-      categorySlug: searchParams.category,
+      categorySlug: isGallery ? undefined : searchParams.category,
       q: searchParams.q,
-      fileKind: searchParams.kind,
+      fileKind: isGallery ? 'IMAGE' : searchParams.kind,
       city: searchParams.city,
       person: searchParams.person,
       year: searchParams.year,
       language: searchParams.language,
       sort: searchParams.sort,
       page,
+      perPage: isGallery ? 30 : undefined,
     }),
   ]);
 
@@ -97,8 +101,14 @@ export default async function ArchivePage({
           </nav>
           <h1 className="text-xl font-bold text-brand-800 sm:text-2xl">{title}</h1>
         </div>
-        <p className="text-sm text-muted">{formatCount(result.total)} نتيجة</p>
+        <p className="text-sm text-muted">{formatCount(result.total)} {isGallery ? 'صورة' : 'نتيجة'}</p>
       </div>
+
+      {isGallery && (
+        <p className="mb-4 max-w-2xl text-sm leading-7 text-muted">
+          معرض الصور — تُجمع فيه كل صور المسيد من جميع الأقسام في مكان واحد. اضغط أي صورة لعرضها بالحجم الكامل.
+        </p>
+      )}
 
       {/* Category chips (horizontal, scrollable) */}
       <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -126,28 +136,30 @@ export default async function ArchivePage({
         ))}
       </div>
 
-      {/* Content-type quick filters */}
-      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
-        <Link
-          href={buildQuery(searchParams, { kind: '', page: '' })}
-          className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
-            !searchParams.kind ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
-          }`}
-        >
-          كل الأنواع
-        </Link>
-        {CONTENT_FORMS.map((f) => (
+      {/* Content-type quick filters (hidden in the all-images gallery) */}
+      {!isGallery && (
+        <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
           <Link
-            key={f.value}
-            href={buildQuery(searchParams, { kind: f.value, page: '' })}
+            href={buildQuery(searchParams, { kind: '', page: '' })}
             className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
-              searchParams.kind === f.value ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+              !searchParams.kind ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
             }`}
           >
-            {f.label}
+            كل الأنواع
           </Link>
-        ))}
-      </div>
+          {CONTENT_FORMS.map((f) => (
+            <Link
+              key={f.value}
+              href={buildQuery(searchParams, { kind: f.value, page: '' })}
+              className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
+                searchParams.kind === f.value ? 'bg-gold-400 text-brand-900' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+              }`}
+            >
+              {f.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Slim search + collapsible filters */}
       <form method="get" className="mb-6 rounded-2xl bg-white p-2 shadow-card ring-1 ring-black/5">
