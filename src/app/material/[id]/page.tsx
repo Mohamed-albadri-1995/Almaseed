@@ -15,7 +15,7 @@ import { getMaterial, getRelatedMaterials } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_STATUS } from '@/lib/constants';
-import { renderMarkdown } from '@/lib/markdown';
+import { renderArticle } from '@/lib/richtext';
 import {
   formatDate,
   formatDurationLabel,
@@ -227,7 +227,7 @@ export default async function MaterialPage({
                 </div>
                 <article
                   className="article-prose px-6 py-8 sm:px-10 sm:py-10"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(material.bodyText) }}
+                  dangerouslySetInnerHTML={{ __html: renderArticle(material.bodyText) }}
                 />
               </div>
             </section>
