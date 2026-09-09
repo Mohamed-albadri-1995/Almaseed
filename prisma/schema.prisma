@@ -34,6 +34,8 @@ model User {
   role         String   @default("CONTRIBUTOR")
   city         String?
   active       Boolean  @default(true)
+  // CSV of category slugs a staff member is limited to (empty = all sections).
+  assignedCategories String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

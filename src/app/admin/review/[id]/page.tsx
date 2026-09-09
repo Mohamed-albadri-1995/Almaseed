@@ -11,7 +11,7 @@ import { restoreMaterialAction, rollbackVersionAction } from '@/app/admin/action
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
-import { can } from '@/lib/rbac';
+import { can, canAccessCategory } from '@/lib/rbac';
 import {
   REVIEW_ACTION_LABELS,
   type Role,
@@ -45,6 +45,7 @@ export default async function ReviewPage({
     },
   });
   if (!material) notFound();
+  if (!canAccessCategory(user, material.category.slug)) redirect('/admin/submissions');
 
   const categories = await prisma.category.findMany({
     orderBy: { order: 'asc' },

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
-import { can } from '@/lib/rbac';
+import { can, canAccessCategory } from '@/lib/rbac';
 import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
@@ -34,8 +34,12 @@ export async function reviewDecisionAction(formData: FormData) {
   const reason = (formData.get('reason') as string) || null;
   const note = (formData.get('note') as string) || null;
 
-  const material = await prisma.material.findUnique({ where: { id: materialId } });
+  const material = await prisma.material.findUnique({
+    where: { id: materialId },
+    include: { category: { select: { slug: true } } },
+  });
   if (!material) throw new Error('المادة غير موجودة');
+  if (!canAccessCategory(user, material.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
 
   // Reason is mandatory for edit-requests and rejections.
   if (
@@ -125,6 +129,16 @@ export async function editMaterialAction(formData: FormData) {
   const category = categorySlug
     ? await prisma.category.findUnique({ where: { slug: categorySlug } })
     : null;
+
+  // Section scoping: the editor must have access to both the material's current
+  // section and (if moving it) the target section.
+  const current = await prisma.material.findUnique({
+    where: { id },
+    include: { category: { select: { slug: true } } },
+  });
+  if (!current) throw new Error('المادة غير موجودة');
+  if (!canAccessCategory(user, current.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
+  if (category && !canAccessCategory(user, category.slug)) throw new Error('غير مصرّح للقسم المستهدف');
 
   // Snapshot current state before overwriting (edit history).
   await snapshotMaterial(id, user.id, user.name, 'edit');
@@ -279,13 +293,21 @@ export async function changeRoleAction(formData: FormData) {
   const role = formData.get('role') as string;
   if (!Object.values(ROLES).includes(role as Role)) throw new Error('دور غير صحيح');
 
-  await prisma.user.update({ where: { id }, data: { role } });
+  // Section scoping: validate the submitted slugs against real categories.
+  const slugs = (formData.getAll('categories') as string[]).map((s) => s.trim()).filter(Boolean);
+  const valid = await prisma.category.findMany({
+    where: { slug: { in: slugs } },
+    select: { slug: true },
+  });
+  const assignedCategories = valid.length ? valid.map((c) => c.slug).join(',') : null;
+
+  await prisma.user.update({ where: { id }, data: { role, assignedCategories } });
   await logActivity({
     userId: user.id,
     action: 'change_role',
     entity: 'user',
     entityId: id,
-    meta: { role },
+    meta: { role, assignedCategories },
   });
   revalidatePath('/admin/users');
 }

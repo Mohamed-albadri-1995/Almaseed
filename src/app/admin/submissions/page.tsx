@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/session';
+import { assignedCategoriesOf } from '@/lib/rbac';
 import { MATERIAL_STATUS, STATUS_LABELS } from '@/lib/constants';
 import { timeAgo } from '@/lib/format';
 import type { Prisma } from '@prisma/client';
@@ -24,8 +26,16 @@ export default async function SubmissionsPage({
 }: {
   searchParams: { status?: string; done?: string };
 }) {
+  const me = await getCurrentUser();
   const status = searchParams.status ?? 'PENDING';
-  const where: Prisma.MaterialWhereInput = status ? { status } : {};
+
+  // Section scoping: staff limited to specific sections only see those.
+  const assigned = me && me.role !== 'ADMIN' ? assignedCategoriesOf(me) : [];
+  const scope: Prisma.MaterialWhereInput = assigned.length
+    ? { category: { slug: { in: assigned } } }
+    : {};
+
+  const where: Prisma.MaterialWhereInput = { ...scope, ...(status ? { status } : {}) };
 
   const [items, counts] = await Promise.all([
     prisma.material.findMany({
@@ -36,7 +46,7 @@ export default async function SubmissionsPage({
         submittedBy: { select: { name: true } },
       },
     }),
-    prisma.material.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.material.groupBy({ by: ['status'], where: scope, _count: { _all: true } }),
   ]);
 
   const countFor = (s: string) =>

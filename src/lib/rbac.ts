@@ -29,3 +29,22 @@ export const can = {
 export function isStaff(role?: string | null): boolean {
   return !!role && (STAFF_ROLES as Role[]).includes(role as Role);
 }
+
+// Section scoping: a staff member may be limited to specific category slugs.
+// Empty list = all sections. ADMIN is never restricted.
+export function assignedCategoriesOf(
+  user?: { assignedCategories?: string | null } | null,
+): string[] {
+  if (!user?.assignedCategories) return [];
+  return user.assignedCategories.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+export function canAccessCategory(
+  user: { role: string; assignedCategories?: string | null },
+  slug?: string | null,
+): boolean {
+  if (user.role === ROLES.ADMIN) return true;
+  const list = assignedCategoriesOf(user);
+  if (list.length === 0) return true;
+  return !!slug && list.includes(slug);
+}

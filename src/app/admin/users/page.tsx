@@ -23,10 +23,13 @@ export default async function UsersPage({
   const me = await getCurrentUser();
   if (!me || !can.manageUsers(me.role as Role)) redirect('/admin');
 
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'asc' },
-    include: { _count: { select: { submissions: true } } },
-  });
+  const [users, categories] = await Promise.all([
+    prisma.user.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: { _count: { select: { submissions: true } } },
+    }),
+    prisma.category.findMany({ orderBy: { order: 'asc' }, select: { slug: true, name: true } }),
+  ]);
 
   return (
     <div>
@@ -72,22 +75,55 @@ export default async function UsersPage({
                   <td className="px-4 py-3 text-muted">{u._count.submissions}</td>
                   <td className="px-4 py-3 text-muted">{formatDate(u.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <form action={changeRoleAction} className="flex items-center gap-2">
-                      <input type="hidden" name="id" value={u.id} />
-                      <select
-                        name="role"
-                        defaultValue={u.role}
-                        disabled={u.id === me.id}
-                        className="input w-40 py-1.5 text-sm disabled:opacity-60"
-                      >
-                        {Object.values(ROLES).map((r) => (
-                          <option key={r} value={r}>{ROLE_LABELS[r as Role]}</option>
-                        ))}
-                      </select>
-                      {u.id !== me.id && (
-                        <button className="btn-outline px-3 py-1.5 text-xs">حفظ</button>
-                      )}
-                    </form>
+                    {(() => {
+                      const assigned = (u.assignedCategories || '').split(',').map((s) => s.trim()).filter(Boolean);
+                      const isSelf = u.id === me.id;
+                      const staff = u.role !== 'CONTRIBUTOR' && u.role !== 'ADMIN';
+                      return (
+                        <form action={changeRoleAction} className="flex flex-col gap-2">
+                          <input type="hidden" name="id" value={u.id} />
+                          <div className="flex items-center gap-2">
+                            <select
+                              name="role"
+                              defaultValue={u.role}
+                              disabled={isSelf}
+                              className="input w-40 py-1.5 text-sm disabled:opacity-60"
+                            >
+                              {Object.values(ROLES).map((r) => (
+                                <option key={r} value={r}>{ROLE_LABELS[r as Role]}</option>
+                              ))}
+                            </select>
+                            {!isSelf && <button className="btn-outline px-3 py-1.5 text-xs">حفظ</button>}
+                          </div>
+                          {!isSelf && (
+                            <details open={assigned.length > 0}>
+                              <summary className="cursor-pointer text-xs text-muted hover:text-brand-700">
+                                الأقسام المخوّلة {assigned.length > 0 ? `(${assigned.length})` : '(كل الأقسام)'}
+                              </summary>
+                              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-ivory-50 p-2">
+                                {categories.map((c) => (
+                                  <label key={c.slug} className="flex items-center gap-1.5 text-xs text-brand-800">
+                                    <input
+                                      type="checkbox"
+                                      name="categories"
+                                      value={c.slug}
+                                      defaultChecked={assigned.includes(c.slug)}
+                                      className="rounded"
+                                    />
+                                    {c.name}
+                                  </label>
+                                ))}
+                              </div>
+                              <p className="mt-1 text-[11px] text-muted">
+                                {staff
+                                  ? 'اترك الكل فارغاً ليصل إلى جميع الأقسام.'
+                                  : 'تُطبَّق على المراجع/المحرر/مدير المحتوى فقط.'}
+                              </p>
+                            </details>
+                          )}
+                        </form>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     {u.id === me.id ? (
