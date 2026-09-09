@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler,
+  Platform, StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -16,6 +17,10 @@ import { getDownloads, addDownload, removeDownload } from './storage';
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
 const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة' };
+
+// Android's SafeAreaView doesn't inset the status bar; pad the top bars manually
+// so the header (and the back button) never hide under the status bar icons.
+const STATUSBAR_H = Platform.OS === 'android' ? RNStatusBar.currentHeight || 24 : 0;
 
 export default function App() {
   const [stack, setStack] = useState([{ name: 'home', params: {} }]);
@@ -69,7 +74,7 @@ function Feed({ push }) {
   return (
     <View style={{ flex: 1 }}>
       {/* Top bar */}
-      <View style={styles.topbar}>
+      <View style={[styles.topbar, { paddingTop: STATUSBAR_H + 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Image source={require('./assets/icon.png')} style={styles.topLogo} />
           <View>
@@ -190,12 +195,15 @@ function Account({ push, onBack }) {
 // ---------------- Header ----------------
 function Header({ title, onBack }) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} style={styles.backBtn}><Text style={styles.backTxt}>‹ رجوع</Text></TouchableOpacity>
-      ) : <View style={{ width: 70 }} />}
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}>
+          <Text style={styles.backChevron}>‹</Text>
+          <Text style={styles.backTxt}>رجوع</Text>
+        </TouchableOpacity>
+      ) : <View style={{ width: 92 }} />}
       <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-      <View style={{ width: 70 }} />
+      <View style={{ width: 92 }} />
     </View>
   );
 }
@@ -449,10 +457,11 @@ const styles = StyleSheet.create({
   acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' },
   footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },
 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingVertical: 14, paddingHorizontal: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingBottom: 12, paddingHorizontal: 12 },
   headerTitle: { color: C.white, fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' },
-  backBtn: { width: 70 },
-  backTxt: { color: C.gold300, fontSize: 15, fontWeight: '700' },
+  backBtn: { width: 92, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#ffffff22', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 },
+  backChevron: { color: C.white, fontSize: 20, fontWeight: '900', lineHeight: 22, marginTop: -2 },
+  backTxt: { color: C.white, fontSize: 15, fontWeight: '800' },
 
   detailTitle: { fontSize: 24, fontWeight: '900', color: C.brand, textAlign: 'right' },
   detailSub: { fontSize: 16, color: C.brand500, marginTop: 4, textAlign: 'right' },
