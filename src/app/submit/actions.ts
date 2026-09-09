@@ -10,20 +10,14 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { getCategoryForm } from '@/lib/fields';
 
-export interface SubmitState {
-  error?: string;
-}
+export interface SubmitState { error?: string; }
 
-const UNKNOWN = 'غير معروف';
-
-// Normalize a text field: empty or the "لا أعلم" marker becomes null.
 function clean(value?: string | null): string | null {
   if (!value) return null;
   const t = value.trim();
-  return t === '' || t === UNKNOWN ? null : t;
+  return t === '' ? null : t;
 }
 
-// Parse a date input safely — "لا أعلم"/invalid values become null.
 function parseDate(value?: string | null): Date | null {
   const c = clean(value);
   if (!c) return null;
@@ -31,63 +25,54 @@ function parseDate(value?: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-// Build the cleaned text fields shared by create/resubmit.
 function cleanFields(d: Record<string, unknown>) {
   const s = (k: string) => clean(d[k] as string | null | undefined);
   return {
-    title: (d.title as string).trim(),
+    title: String(d.title ?? '').trim(),
     subtitle: s('subtitle'),
-    bodyText: (d.bodyText as string | undefined)?.trim() || null,
-    description: s('description'),
-    lyrics: s('lyrics'),
-    summary: s('summary'),
-    performer: s('performer'),
-    narrator: s('narrator'),
-    speaker: s('speaker'),
-    host: s('host'),
-    participants: s('participants'),
-    occasion: s('occasion'),
-    topic: s('topic'),
-    place: s('place'),
-    city: s('city'),
-    organizer: s('organizer'),
-    keywords: s('keywords'),
+    bodyText: clean(d.bodyText as string | null | undefined),
+    description: s('description'), lyrics: s('lyrics'), summary: s('summary'),
+    performer: s('performer'), narrator: s('narrator'), speaker: s('speaker'),
+    host: s('host'), participants: s('participants'), occasion: s('occasion'),
+    topic: s('topic'), place: s('place'), city: s('city'), organizer: s('organizer'),
+    source: s('source'), author: s('author'), keywords: s('keywords'),
   };
 }
 
-export async function submitMaterialAction(
-  _prev: SubmitState,
-  formData: FormData,
-): Promise<SubmitState> {
+function validateCategoryFields(categorySlug: string, fields: Record<string, string | null>) {
+  const form = getCategoryForm(categorySlug);
+  if (!form) return 'نوع المادة غير مدعوم';
+  for (const field of form.fields) {
+    if (field.required && !fields[field.name]) return `الحقل «${field.label}» مطلوب`;
+  }
+  if (!fields.title) return `الحقل «${form.titleLabel}» مطلوب`;
+  return null;
+}
+
+export async function submitMaterialAction(_prev: SubmitState, formData: FormData): Promise<SubmitState> {
   const user = await getCurrentUser();
   if (!user) return { error: 'يجب تسجيل الدخول لإرسال مادة' };
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = submissionSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات قبل الإرسال' };
-  }
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات قبل الإرسال' };
   const d = parsed.data;
-
-  const category = await prisma.category.findUnique({
-    where: { slug: d.categorySlug },
-  });
+  const category = await prisma.category.findUnique({ where: { slug: d.categorySlug } });
   if (!category) return { error: 'التصنيف غير موجود' };
 
-  // Enforce the file requirement: a file must be uploaded before submitting,
-  // except in the readings "article" mode where a typed body is enough.
+  const f = cleanFields(d);
+  const fieldError = validateCategoryFields(d.categorySlug, f);
+  if (fieldError) return { error: fieldError };
+
   const form = getCategoryForm(d.categorySlug);
   const hasFile = !!d.fileUrl;
   const hasArticle = !!(d.bodyText && d.bodyText.trim());
   if (form?.article) {
-    if (!hasFile && !hasArticle) {
-      return { error: 'أرفق ملفاً أو اكتب مقالاً قبل الإرسال' };
-    }
+    if (!hasFile && !hasArticle) return { error: 'أرفق ملفاً أو اكتب مادة نصية قبل الإرسال' };
   } else if (!hasFile) {
     return { error: 'يجب رفع الملف واكتمال التحميل قبل الإرسال' };
   }
 
-  const f = cleanFields(d);
   const material = await prisma.material.create({
     data: {
       ...f,
@@ -101,78 +86,41 @@ export async function submitMaterialAction(
       fileSize: d.fileSize || null,
       durationSec: d.durationSec || null,
       coverImage: d.coverImage || null,
-      source: user.name,
+      source: f.source || user.name,
       submittedById: user.id,
       searchText: buildSearchText(f),
     },
   });
 
-  await prisma.notification.create({
-    data: {
-      userId: user.id,
-      title: 'تم استلام المادة',
-      body: `«${material.title}» قيد المراجعة الآن.`,
-      link: `/account`,
-    },
-  });
-
-  await logActivity({
-    userId: user.id,
-    action: 'submit',
-    entity: 'material',
-    entityId: material.id,
-    meta: { title: material.title },
-  });
-
+  await prisma.notification.create({ data: { userId: user.id, title: 'تم استلام المادة', body: `«${material.title}» قيد المراجعة الآن.`, link: '/account' } });
+  await logActivity({ userId: user.id, action: 'submit', entity: 'material', entityId: material.id, meta: { title: material.title } });
   redirect('/account?submitted=1');
 }
 
-// Contributor edits & resubmits a material that was returned for editing.
-export async function resubmitMaterialAction(
-  _prev: SubmitState,
-  formData: FormData,
-): Promise<SubmitState> {
+export async function resubmitMaterialAction(_prev: SubmitState, formData: FormData): Promise<SubmitState> {
   const user = await getCurrentUser();
   if (!user) return { error: 'يجب تسجيل الدخول' };
-
   const id = formData.get('id') as string;
-  const material = await prisma.material.findUnique({ where: { id } });
-  if (!material || material.submittedById !== user.id) {
-    return { error: 'لا تملك صلاحية تعديل هذه المادة' };
-  }
+  const material = await prisma.material.findUnique({ where: { id }, include: { category: true } });
+  if (!material || material.submittedById !== user.id) return { error: 'لا تملك صلاحية تعديل هذه المادة' };
 
   const raw = Object.fromEntries(formData.entries());
   const parsed = submissionSchema.safeParse(raw);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات' };
-  }
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات' };
   const d = parsed.data;
-
-  // Snapshot the current data before overwriting (edit history).
-  await snapshotMaterial(id, user.id, user.name, 'resubmit');
-
   const f = cleanFields(d);
+  const fieldError = validateCategoryFields(d.categorySlug, f);
+  if (fieldError) return { error: fieldError };
+
+  await snapshotMaterial(id, user.id, user.name, 'resubmit');
   await prisma.material.update({
     where: { id },
     data: {
-      ...f,
-      status: MATERIAL_STATUS.PENDING,
-      recordDate: parseDate(d.recordDate),
-      searchText: buildSearchText(f),
-      ...(d.fileUrl
-        ? {
-            fileUrl: d.fileUrl,
-            fileKind: d.fileKind || 'AUDIO',
-            fileType: d.fileType || null,
-            fileSize: d.fileSize || null,
-          }
-        : {}),
+      ...f, status: MATERIAL_STATUS.PENDING,
+      recordDate: parseDate(d.recordDate), searchText: buildSearchText(f),
+      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null } : {}),
     },
   });
-
-  await prisma.reviewNote.create({
-    data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' },
-  });
-
+  await prisma.reviewNote.create({ data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' } });
   redirect('/account?resubmitted=1');
 }
