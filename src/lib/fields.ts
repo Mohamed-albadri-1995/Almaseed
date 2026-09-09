@@ -1,24 +1,19 @@
-// Single source of truth for which fields belong to each category. Used by the
-// public submit form AND the admin edit/review form so both stay accurate and
-// never show irrelevant fields (e.g. "المادح" under محاضرات).
-
 export interface FieldDef {
-  name: string; // maps to a Material column
+  name: string;
   label: string;
   type?: 'text' | 'textarea' | 'date';
   hint?: string;
-  canBeUnknown?: boolean; // submit form shows a "لا أعلم" toggle
+  required?: boolean;
 }
 
 export interface CategoryForm {
   titleLabel: string;
-  subtitleLabel: string; // every category has an optional subtitle
-  fields: FieldDef[]; // excludes title & subtitle (handled separately)
-  file: 'required' | 'optional'; // whether an uploaded file is required
-  accept: string; // <input accept> for the file
-  article: boolean; // supports a typed article body (bodyText)
-  cover?: boolean; // offer a separate cover image; defaults to true. Set false
-                   // when the uploaded file IS an image (e.g. الصور).
+  subtitleLabel: string;
+  fields: FieldDef[];
+  file: 'required' | 'optional';
+  accept: string;
+  article: boolean;
+  cover?: boolean;
 }
 
 const AUDIO = '.mp3,.wav,.m4a,.ogg';
@@ -26,118 +21,82 @@ const VIDEO = '.mp4,.mov,.webm';
 const MEDIA = `${AUDIO},${VIDEO}`;
 const IMAGES = '.jpg,.jpeg,.png,.webp';
 const DOCS = '.pdf,.doc,.docx';
-// Every content section accepts all four forms — صوتيات، مرئيات، وثائق، صور —
-// and (via `article`) written مقالات. الصور stays image‑only as the gallery.
 const ALL = `${MEDIA},${DOCS},${IMAGES}`;
+
+const COMMON_OPTIONAL: FieldDef[] = [
+  { name: 'city', label: 'المكان أو المدينة' },
+  { name: 'recordDate', label: 'التاريخ', type: 'date' },
+  { name: 'description', label: 'الوصف', type: 'textarea' },
+];
 
 export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   madeeh: {
-    titleLabel: 'اسم المدحة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional',
-    accept: ALL,
-    article: true,
+    titleLabel: 'اسم المدحة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'performer', label: 'اسم المادح', canBeUnknown: true },
-      { name: 'narrator', label: 'اسم الراوي', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', hint: 'المسيد أو المسجد أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'تاريخ التسجيل', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف مختصر', type: 'textarea', canBeUnknown: true },
-      { name: 'lyrics', label: 'كلمات المدحة', type: 'textarea', canBeUnknown: true },
+      { name: 'performer', label: 'اسم المادح', required: true },
+      { name: 'narrator', label: 'اسم الراوي', required: true },
+      { name: 'occasion', label: 'المناسبة' },
+      ...COMMON_OPTIONAL,
+      { name: 'lyrics', label: 'كلمات المدحة', type: 'textarea' },
     ],
   },
   lectures: {
-    titleLabel: 'عنوان المحاضرة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional',
-    accept: ALL,
-    article: true,
+    titleLabel: 'عنوان المحاضرة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'speaker', label: 'اسم المحاضر', canBeUnknown: true },
-      { name: 'host', label: 'مقدم البرنامج', canBeUnknown: true },
-      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'summary', label: 'ملخص المحاضرة', type: 'textarea', canBeUnknown: true },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
+      { name: 'speaker', label: 'اسم المحاضر', required: true },
+      { name: 'topic', label: 'الموضوع' },
+      { name: 'occasion', label: 'المناسبة' },
+      ...COMMON_OPTIONAL,
+      { name: 'summary', label: 'ملخص المحاضرة', type: 'textarea' },
+      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة' },
     ],
   },
   sermons: {
-    titleLabel: 'عنوان الموعظة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional',
-    accept: ALL,
-    article: true,
+    titleLabel: 'عنوان الموعظة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'speaker', label: 'اسم الواعظ', canBeUnknown: true },
-      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'summary', label: 'ملخص الموعظة', type: 'textarea', canBeUnknown: true },
-      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
+      { name: 'speaker', label: 'اسم الواعظ', required: true },
+      { name: 'topic', label: 'الموضوع' },
+      { name: 'occasion', label: 'المناسبة' },
+      ...COMMON_OPTIONAL,
+      { name: 'summary', label: 'ملخص الموعظة', type: 'textarea' },
+      { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة' },
     ],
   },
   seminars: {
-    titleLabel: 'عنوان الندوة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional',
-    accept: ALL,
-    article: true,
+    titleLabel: 'عنوان الندوة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'topic', label: 'موضوع الندوة', canBeUnknown: true },
-      { name: 'occasion', label: 'اسم الندوة أو المناسبة', canBeUnknown: true },
-      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-      { name: 'host', label: 'مدير الندوة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف الندوة', type: 'textarea', canBeUnknown: true },
+      { name: 'topic', label: 'موضوع الندوة', required: true },
+      { name: 'occasion', label: 'اسم الندوة أو المناسبة' },
+      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة' },
+      { name: 'host', label: 'مدير الندوة' },
+      ...COMMON_OPTIONAL,
     ],
   },
   occasions: {
-    titleLabel: 'اسم المناسبة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional',
-    accept: ALL,
-    article: true,
+    titleLabel: 'اسم المناسبة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'occasion', label: 'نوع المناسبة', canBeUnknown: true },
-      { name: 'organizer', label: 'الجهة المنظمة', canBeUnknown: true },
-      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف المناسبة', type: 'textarea', canBeUnknown: true },
+      { name: 'occasion', label: 'اسم المناسبة', required: true },
+      { name: 'organizer', label: 'الجهة المنظمة' },
+      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة' },
+      ...COMMON_OPTIONAL,
     ],
   },
   images: {
-    titleLabel: 'عنوان الصورة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'required',
-    accept: IMAGES,
-    article: false,
-    cover: false, // the uploaded file is itself the image — no separate cover
+    titleLabel: 'عنوان الصورة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: IMAGES, article: false, cover: false,
     fields: [
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المدينة', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'وصف الصورة', type: 'textarea', canBeUnknown: true },
+      { name: 'description', label: 'وصف الصورة', type: 'textarea', required: true },
+      { name: 'occasion', label: 'المناسبة' },
+      ...COMMON_OPTIONAL.filter((f) => f.name !== 'description'),
     ],
   },
   readings: {
-    titleLabel: 'عنوان المادة',
-    subtitleLabel: 'عنوان فرعي (اختياري)',
-    file: 'optional', // may upload a file OR write an article
-    accept: ALL,
-    article: true,
+    titleLabel: 'عنوان الكتاب أو المادة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
-      { name: 'speaker', label: 'الكاتب أو المؤلف', canBeUnknown: true },
-      { name: 'topic', label: 'الموضوع', canBeUnknown: true },
-      { name: 'occasion', label: 'المناسبة', canBeUnknown: true },
-      { name: 'city', label: 'المكان أو المصدر', canBeUnknown: true },
-      { name: 'recordDate', label: 'التاريخ', type: 'date', canBeUnknown: true },
-      { name: 'description', label: 'نبذة مختصرة', type: 'textarea', canBeUnknown: true },
+      { name: 'source', label: 'اسم الكتاب أو المصدر', required: true },
+      { name: 'author', label: 'الكاتب / المؤلف', required: true },
+      { name: 'topic', label: 'الموضوع' },
+      { name: 'occasion', label: 'المناسبة' },
+      ...COMMON_OPTIONAL,
     ],
   },
 };
