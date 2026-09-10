@@ -4,16 +4,19 @@ const path = require('path');
 const file = path.join(__dirname, '..', 'App.js');
 let src = fs.readFileSync(file, 'utf8');
 
-// Fix Android physical seek direction: dragging right moves forward.
+// Keep the seek thumb physically aligned with the user's finger in RTL.
+// Dragging left moves the thumb left and advances playback; dragging right
+// moves the thumb right and rewinds playback.
 src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]*?\n\}\nfunction FullAudioPlayer\(/, `function SeekBar({ position, duration, onSeek }) {
   const wRef = useRef(1);
   const [drag, setDrag] = useState(null);
   const clamp = (x) => Math.max(0, Math.min(1, x));
-  const fractionFromEvent = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
+  const fractionFromEvent = (e) => clamp(1 - ((e.nativeEvent.locationX || 0) / wRef.current));
   const begin = (e) => setDrag(fractionFromEvent(e));
   const move = (e) => setDrag(fractionFromEvent(e));
   const finish = (e) => { const f = fractionFromEvent(e); setDrag(null); onSeek(f); };
   const frac = drag != null ? drag : duration ? Math.max(0, Math.min(1, position / duration)) : 0;
+  const thumbLeft = (1 - frac) * 100;
   return <View style={styles.seekWrap}>
     <View
       style={styles.seekHit}
@@ -28,7 +31,10 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
       onResponderRelease={finish}
       onResponderTerminate={() => setDrag(null)}
     >
-      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: \`\${frac * 100}%\` }]} /><View style={[styles.seekThumb, { left: \`\${frac * 100}%\` }]} /></View>
+      <View style={styles.seekTrack}>
+        <View style={[styles.seekFill, { width: frac * 100 + '%', right: 0, left: 'auto' }]} />
+        <View style={[styles.seekThumb, { left: thumbLeft + '%', right: 'auto' }]} />
+      </View>
     </View>
     <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
   </View>;
