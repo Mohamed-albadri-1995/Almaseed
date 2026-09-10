@@ -9,7 +9,7 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
   const wRef = useRef(1);
   const [drag, setDrag] = useState(null);
   const clamp = (x) => Math.max(0, Math.min(1, x));
-  const fractionFromEvent = (e) => clamp(1 - ((e.nativeEvent.locationX || 0) / wRef.current));
+  const fractionFromEvent = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
   const begin = (e) => setDrag(fractionFromEvent(e));
   const move = (e) => setDrag(fractionFromEvent(e));
   const finish = (e) => { const f = fractionFromEvent(e); setDrag(null); onSeek(f); };
@@ -34,8 +34,6 @@ src = src.replace(/function SeekBar\(\{ position, duration, onSeek \}\) \{[\s\S]
   </View>;
 }
 function FullAudioPlayer(`);
-
-// Keep the rest of the original Android preparation script unchanged.
 
 fs.writeFileSync(file, src);
 console.log('Almaseed Android preparation applied.');
