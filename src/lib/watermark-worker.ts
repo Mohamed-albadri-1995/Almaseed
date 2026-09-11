@@ -115,10 +115,14 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
 
     try {
       const done = await processMaterial(m, ff);
+      await prisma.material.update({ where: { id: m.id }, data: { watermarkError: null } }).catch(() => {});
       console.log(`[watermark] ${done.length ? 'stamped[' + done.join(',') + ']' : 'nothing'} ${m.id} ${m.title}`);
     } catch (e) {
-      // Already marked done to avoid a hot retry loop on a bad file.
-      console.error(`[watermark] failed ${m.id} ${m.title}:`, e instanceof Error ? e.message : e);
+      // Marked done to avoid a hot retry loop; the error is stored so it is
+      // visible in /api/watermark-status and can be requeued after a fix.
+      const msg = e instanceof Error ? e.message : String(e);
+      await prisma.material.update({ where: { id: m.id }, data: { watermarkError: msg.slice(0, 300) } }).catch(() => {});
+      console.error(`[watermark] failed ${m.id} ${m.title}:`, msg);
     }
     return 'processed';
   }
