@@ -36,6 +36,7 @@ function cleanFields(d: Record<string, unknown>) {
     host: s('host'), participants: s('participants'), occasion: s('occasion'),
     topic: s('topic'), place: s('place'), city: s('city'), organizer: s('organizer'),
     source: s('source'), author: s('author'), keywords: s('keywords'),
+    docType: s('docType'),
   };
 }
 

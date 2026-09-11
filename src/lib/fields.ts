@@ -1,11 +1,13 @@
 import type { FileKind } from './constants';
+import { DOC_TYPES } from './constants';
 
 export interface FieldDef {
   name: string;
   label: string;
-  type?: 'text' | 'textarea' | 'date';
+  type?: 'text' | 'textarea' | 'date' | 'select';
   hint?: string;
   required?: boolean;
+  options?: readonly { value: string; label: string }[];
 }
 
 export interface CategoryForm {
@@ -102,8 +104,9 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   readings: {
-    titleLabel: 'عنوان الكتاب', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'عنوان المادة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
     fields: [
+      { name: 'docType', label: 'نوع المادة المكتوبة', type: 'select', required: true, options: DOC_TYPES, hint: 'يُستخدم لتسهيل البحث والفرز' },
       { name: 'author', label: 'الكاتب / المؤلف', required: true },
       { name: 'source', label: 'المصدر', hint: 'اختياري، إذا كان الكتاب منقولاً أو من مصدر محدد' },
       { name: 'topic', label: 'الموضوع' },
@@ -135,7 +138,7 @@ const SECTION_FIELDS = new Set(['description', 'summary', 'lyrics', 'bodyText', 
 export function getInfoFields(slug: string): FieldDef[] {
   const form = CATEGORY_FORMS[slug];
   if (!form) return [];
-  return form.fields.filter((f) => !SECTION_FIELDS.has(f.name) && f.type !== 'textarea');
+  return form.fields.filter((f) => !SECTION_FIELDS.has(f.name) && f.type !== 'textarea' && f.type !== 'select');
 }
 
 // The single "headline" person/author shown under the title, chosen per type.

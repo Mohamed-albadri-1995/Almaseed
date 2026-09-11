@@ -149,6 +149,7 @@ export interface ArchiveFilters {
   categorySlug?: string;
   q?: string;
   fileKind?: string;
+  docType?: string;
   city?: string;
   person?: string;
   occasion?: string;
@@ -164,6 +165,7 @@ export async function searchMaterials(filters: ArchiveFilters) {
     categorySlug,
     q,
     fileKind,
+    docType,
     city,
     person,
     occasion,
@@ -179,6 +181,7 @@ export async function searchMaterials(filters: ArchiveFilters) {
   if (categorySlug) where.category = { slug: categorySlug };
   if (fileKind === 'ARTICLE') where.bodyText = { not: null };
   else if (fileKind) where.fileKind = fileKind;
+  if (docType) where.docType = docType;
   if (city) where.city = { contains: city };
   if (language) where.language = language;
   if (occasion) where.occasion = { contains: occasion };

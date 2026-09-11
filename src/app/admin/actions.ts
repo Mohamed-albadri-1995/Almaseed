@@ -161,6 +161,9 @@ export async function editMaterialAction(formData: FormData) {
     summary: get('summary'),
     lyrics: get('lyrics'),
     keywords: get('keywords'),
+    author: get('author'),
+    source: get('source'),
+    docType: get('docType'),
   };
 
   // Cover image: hidden field is always present; empty string clears it.

@@ -39,6 +39,11 @@ function Field({ field }: { field: FieldDef }) {
       </label>
       {field.type === 'textarea' ? (
         <textarea {...common} rows={3} />
+      ) : field.type === 'select' ? (
+        <select {...common} defaultValue="">
+          <option value="" disabled>اختر…</option>
+          {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
       ) : (
         <input {...common} type={field.type === 'date' ? 'date' : 'text'} />
       )}

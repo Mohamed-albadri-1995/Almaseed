@@ -26,6 +26,7 @@ interface MaterialData {
   organizer?: string | null;
   source?: string | null;
   author?: string | null;
+  docType?: string | null;
   description?: string | null;
   summary?: string | null;
   lyrics?: string | null;
@@ -80,7 +81,7 @@ export function MaterialEditForm({ material, categories, saved }: { material: Ma
 
         {form?.fields.map((f) => {
           const val = (material[f.name as keyof MaterialData] as string | null) ?? '';
-          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? ' *' : ''}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" />}{f.hint && <p className="field-hint">{f.hint}</p>}</div>;
+          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? ' *' : ''}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" />}{f.hint && <p className="field-hint">{f.hint}</p>}</div>;
         })}
 
         {form?.article && <div className="sm:col-span-2"><label className="label">النص المكتوب</label><input ref={bodyTextRef} type="hidden" name="bodyText" defaultValue={material.bodyText ?? ''} /><ArticleEditor value={material.bodyText ?? ''} onChange={(html) => { if (bodyTextRef.current) bodyTextRef.current.value = html; }} /></div>}

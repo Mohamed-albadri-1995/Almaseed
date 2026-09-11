@@ -26,6 +26,9 @@ interface MaterialData {
   place?: string | null;
   city?: string | null;
   organizer?: string | null;
+  author?: string | null;
+  source?: string | null;
+  docType?: string | null;
   description?: string | null;
   summary?: string | null;
   lyrics?: string | null;
@@ -104,6 +107,11 @@ export function ResubmitForm({ material }: { material: MaterialData }) {
               <label className="label" htmlFor={f.name}>{f.label}</label>
               {f.type === 'textarea' ? (
                 <textarea id={f.name} name={f.name} rows={3} defaultValue={val} className="input" />
+              ) : f.type === 'select' ? (
+                <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input">
+                  <option value="" disabled>اختر…</option>
+                  {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               ) : (
                 <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} className="input" />
               )}

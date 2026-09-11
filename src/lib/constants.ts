@@ -93,6 +93,20 @@ export const CONTENT_FORMS = [
   { value: 'IMAGE', label: 'صور' },
 ] as const;
 
+// Written-material sub-types for مكتبة المسيد (readings) — used to separate
+// written madeeh / sermons from articles and manuscripts in search.
+export const DOC_TYPES = [
+  { value: 'article', label: 'مقال' },
+  { value: 'manuscript', label: 'مخطوط' },
+  { value: 'written_madeeh', label: 'مدحة مكتوبة' },
+  { value: 'written_sermon', label: 'موعظة مكتوبة' },
+  { value: 'text', label: 'نص / وثيقة أخرى' },
+] as const;
+
+export const DOC_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  DOC_TYPES.map((d) => [d.value, d.label]),
+);
+
 // ---------------------------------------------------------------------------
 // Review actions & rejection reasons
 // ---------------------------------------------------------------------------

@@ -32,6 +32,7 @@ export const submissionSchema = z.object({
   organizer: z.string().optional(),
   source: z.string().optional(),
   author: z.string().optional(),
+  docType: z.string().optional(),
   language: z.string().optional(),
   recordDate: z.string().optional(),
   keywords: z.string().optional(),

@@ -8,7 +8,7 @@ import {
   getFilterFacets,
   searchMaterials,
 } from '@/lib/queries';
-import { CONTENT_FORMS, SORT_OPTIONS } from '@/lib/constants';
+import { CONTENT_FORMS, SORT_OPTIONS, DOC_TYPES, DOC_TYPE_LABELS } from '@/lib/constants';
 import { getPrimaryPerson } from '@/lib/fields';
 import { formatCount } from '@/lib/format';
 
@@ -18,6 +18,7 @@ interface SearchParams {
   category?: string;
   q?: string;
   kind?: string;
+  docType?: string;
   city?: string;
   person?: string;
   occasion?: string;
@@ -53,6 +54,7 @@ export default async function ArchivePage({
       categorySlug: isGallery ? undefined : searchParams.category,
       q: searchParams.q,
       fileKind: isGallery ? 'IMAGE' : searchParams.kind,
+      docType: searchParams.category === 'readings' ? searchParams.docType : undefined,
       city: searchParams.city,
       person: searchParams.person,
       occasion: searchParams.occasion,
@@ -93,6 +95,7 @@ export default async function ArchivePage({
   const activeChips = [
     searchParams.q && { key: 'q', label: `بحث: ${searchParams.q}` },
     kindLabel && { key: 'kind', label: kindLabel },
+    searchParams.docType && { key: 'docType', label: DOC_TYPE_LABELS[searchParams.docType] ?? searchParams.docType },
     searchParams.city && { key: 'city', label: searchParams.city },
     searchParams.year && { key: 'year', label: searchParams.year },
     searchParams.language && { key: 'language', label: searchParams.language },
@@ -166,6 +169,31 @@ export default async function ArchivePage({
               }`}
             >
               {f.label}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Written-material sub-type filter (مكتبة المسيد only) */}
+      {searchParams.category === 'readings' && (
+        <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+          <Link
+            href={buildQuery(searchParams, { docType: '', page: '' })}
+            className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
+              !searchParams.docType ? 'bg-brand-700 text-ivory-50' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+            }`}
+          >
+            كل المواد المكتوبة
+          </Link>
+          {DOC_TYPES.map((d) => (
+            <Link
+              key={d.value}
+              href={buildQuery(searchParams, { docType: d.value, page: '' })}
+              className={`shrink-0 rounded-lg px-3 py-1 text-xs font-bold transition ${
+                searchParams.docType === d.value ? 'bg-brand-700 text-ivory-50' : 'bg-white text-brand-700 ring-1 ring-ivory-300 hover:bg-ivory-100'
+              }`}
+            >
+              {d.label}
             </Link>
           ))}
         </div>
