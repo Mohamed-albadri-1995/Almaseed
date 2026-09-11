@@ -3,6 +3,12 @@ import { randomBytes } from 'crypto';
 import { getCurrentUser } from '@/lib/session';
 import { FILE_KINDS } from '@/lib/constants';
 import { saveUpload } from '@/lib/storage';
+import {
+  isWatermarkableImage,
+  isWatermarkablePdf,
+  watermarkImage,
+  watermarkPdf,
+} from '@/lib/watermark';
 
 const MAX_SIZE = 200 * 1024 * 1024; // 200MB
 
@@ -57,7 +63,19 @@ export async function POST(req: Request) {
   }
 
   const name = `${randomBytes(8).toString('hex')}.${ext}`;
-  const bytes = Buffer.from(await file.arrayBuffer());
+  let bytes: Buffer = Buffer.from(await file.arrayBuffer());
+
+  // Stamp a small السجادة emblem onto images and PDF pages at save time. Never
+  // fatal — on any failure the original bytes are kept so the upload succeeds.
+  try {
+    if (kind === FILE_KINDS.IMAGE && isWatermarkableImage(ext)) {
+      bytes = await watermarkImage(bytes, ext);
+    } else if (kind === FILE_KINDS.DOCUMENT && isWatermarkablePdf(ext)) {
+      bytes = await watermarkPdf(bytes);
+    }
+  } catch (e) {
+    console.error('Watermark skipped:', e instanceof Error ? e.message : e);
+  }
 
   try {
     const url = await saveUpload(name, bytes, file.type || 'application/octet-stream');
@@ -65,7 +83,7 @@ export async function POST(req: Request) {
       url,
       fileKind: kind,
       fileType: ext.toUpperCase(),
-      fileSize: file.size,
+      fileSize: bytes.length,
     });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
