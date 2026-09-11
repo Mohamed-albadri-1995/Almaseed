@@ -27,7 +27,7 @@ export default async function ReviewPage({ params, searchParams }: { params: { i
   if (!canAccessCategory(user, material.category.slug)) redirect('/admin/submissions');
   const categories = await prisma.category.findMany({ orderBy: { order: 'asc' }, select: { slug: true, name: true } });
   const similar = await getSimilarMaterials(material);
-  const canEdit = can.editContent(user.role as Role);
+  const canEdit = can.editSubmission(user.role as Role);
   const canRestore = material.status === 'REJECTED' || material.status === 'HIDDEN';
 
   // Category-aware info fields, so a reviewer without edit rights sees the

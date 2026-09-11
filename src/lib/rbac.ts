@@ -15,6 +15,13 @@ export const can = {
   editContent: (role: Role) =>
     has([ROLES.EDITOR, ROLES.CONTENT_MANAGER, ROLES.ADMIN], role),
 
+  // Edit a submission's details during review — reviewers included — so a
+  // reviewer can fix the data directly instead of returning it to the
+  // contributor (fewer rejected materials). Does NOT grant category/materials
+  // management (that stays on editContent).
+  editSubmission: (role: Role) =>
+    has([ROLES.REVIEWER, ROLES.EDITOR, ROLES.CONTENT_MANAGER, ROLES.ADMIN], role),
+
   // Manage all content, hide/merge/restore, manage contributors.
   manageContent: (role: Role) =>
     has([ROLES.CONTENT_MANAGER, ROLES.ADMIN], role),

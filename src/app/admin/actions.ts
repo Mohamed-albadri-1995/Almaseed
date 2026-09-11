@@ -117,7 +117,7 @@ export async function reviewDecisionAction(formData: FormData) {
 // ---- Edit material data ----------------------------------------------------
 export async function editMaterialAction(formData: FormData) {
   const user = await getCurrentUser();
-  if (!user || !can.editContent(user.role as Role)) throw new Error('غير مصرّح');
+  if (!user || !can.editSubmission(user.role as Role)) throw new Error('غير مصرّح');
 
   const id = formData.get('id') as string;
   const get = (k: string) => {
