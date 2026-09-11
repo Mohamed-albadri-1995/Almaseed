@@ -18,7 +18,8 @@
         "photosPermission": "لحفظ الصور والملفات في جهازك.",
         "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
         "isAccessMediaLocationEnabled": false
-      }]
+      }],
+      "./plugins/with-pdf-downloader"
     ],
     "assetBundlePatterns": ["**/*"],
     "ios": {
