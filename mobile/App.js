@@ -123,7 +123,7 @@ function Feed({ push }) {
     <View style={{ flex: 1 }}>
       <View style={[styles.topbar, { paddingTop: STATUSBAR_H + 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Image source={require('./assets/icon.png')} style={styles.topLogo} />
+          <Image source={require('./assets/emblem.png')} style={styles.topLogo} />
           <View><Text style={styles.topTitle}>الطريقة السمّانية</Text><Text style={styles.topSub}>السجادة السليمانية</Text></View>
         </View>
         <View style={{ flexDirection: 'row', gap: 8 }}><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
