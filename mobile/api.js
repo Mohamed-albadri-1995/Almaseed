@@ -121,10 +121,11 @@ export const api = {
 
   categories: () => getCached('/api/mobile/categories', () => j('/api/mobile/categories')),
 
-  materials: (category, q, page = 1) => {
+  materials: (category, q, page = 1, kind) => {
     const sp = new URLSearchParams();
     if (category) sp.set('category', category);
     if (q) sp.set('q', q);
+    if (kind) sp.set('kind', kind);
     sp.set('page', String(page));
     const path = `/api/mobile/materials?${sp.toString()}`;
     return getCached(path, () => j(path).then(decodeList));

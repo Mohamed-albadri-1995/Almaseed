@@ -9,6 +9,7 @@ export async function GET(req: Request) {
   const result = await searchMaterials({
     categorySlug: sp.get('category') || undefined,
     q: sp.get('q') || undefined,
+    fileKind: sp.get('kind') || undefined,
     page: Math.max(1, Number(sp.get('page')) || 1),
     perPage: 20,
   });

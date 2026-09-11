@@ -23,6 +23,15 @@ import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
 const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة', ARTICLE: 'مقال' };
+// Content-type filter shown as a second chip row: browse all of one kind.
+const CONTENT_TYPES = [
+  { value: '', label: 'كل الأنواع' },
+  { value: 'AUDIO', label: 'صوتيات' },
+  { value: 'VIDEO', label: 'مرئيات' },
+  { value: 'ARTICLE', label: 'مقالات' },
+  { value: 'DOCUMENT', label: 'وثائق' },
+  { value: 'IMAGE', label: 'صور' },
+];
 // Clean vector icon per media kind, used when a material has no cover image.
 // A material with no fileKind is written text (an article) → a pen.
 const KIND_ICON = { AUDIO: 'mic', VIDEO: 'videocam', IMAGE: 'image', DOCUMENT: 'document-text', ARTICLE: 'pencil' };
@@ -57,6 +66,10 @@ export default function App() {
   const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const top = stack[stack.length - 1];
+  // Feed filters live here (not in Feed) so they survive navigating into a
+  // material and back — otherwise returning always reset to «الكل».
+  const [feedCat, setFeedCat] = useState('');
+  const [feedKind, setFeedKind] = useState('');
   const [now, setNow] = useState(null);
   const play = useCallback((m) => {
     if (!m?.fileUrl || m.fileKind !== 'AUDIO') return;
@@ -101,7 +114,7 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <View style={{ flex: 1 }}>
-        {top.name === 'home' && <Feed push={push} />}
+        {top.name === 'home' && <Feed push={push} active={feedCat} setActive={setFeedCat} kind={feedKind} setKind={setFeedKind} />}
         {top.name === 'material' && <MaterialScreen id={top.params.id} push={push} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
         {top.name === 'notifications' && <NotificationsScreen push={push} onBack={pop} />}
         {top.name === 'googlelogin' && <GoogleLoginScreen onBack={pop} />}
@@ -116,9 +129,8 @@ export default function App() {
   );
 }
 
-function Feed({ push }) {
+function Feed({ push, active, setActive, kind, setKind }) {
   const [cats, setCats] = useState([]);
-  const [active, setActive] = useState('');
   const [items, setItems] = useState(null);
   const [q, setQ] = useState('');
   const [err, setErr] = useState('');
@@ -134,11 +146,11 @@ function Feed({ push }) {
       setUnread(n);
     } catch {}
   })(); }, []);
-  const load = useCallback((cat, query) => {
+  const load = useCallback((cat, query, k) => {
     setErr(''); setItems(null);
-    return api.materials(cat || undefined, query || undefined, 1).then((d) => setItems(d.items)).catch((e) => setErr(e.message));
+    return api.materials(cat || undefined, query || undefined, 1, k || undefined).then((d) => setItems(d.items)).catch((e) => setErr(e.message));
   }, []);
-  useEffect(() => { load(active, q); /* eslint-disable-next-line */ }, [active]);
+  useEffect(() => { load(active, q, kind); /* eslint-disable-next-line */ }, [active, kind]);
   return (
     <View style={{ flex: 1 }}>
       <View style={[styles.topbar, { paddingTop: STATUSBAR_H + 12 }]}>
@@ -149,12 +161,13 @@ function Feed({ push }) {
         <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
       </View>
       <View style={styles.searchWrap}>
-        <TextInput value={q} onChangeText={setQ} placeholder="ابحث في الأرشيف…" placeholderTextColor="#cbd5cf" style={styles.search} returnKeyType="search" onSubmitEditing={() => load(active, q)} />
-        <TouchableOpacity style={styles.searchGo} onPress={() => load(active, q)}><Text style={{ color: C.brand, fontWeight: '800' }}>بحث</Text></TouchableOpacity>
+        <TextInput value={q} onChangeText={setQ} placeholder="ابحث في الأرشيف…" placeholderTextColor="#cbd5cf" style={styles.search} returnKeyType="search" onSubmitEditing={() => load(active, q, kind)} />
+        <TouchableOpacity style={styles.searchGo} onPress={() => load(active, q, kind)}><Text style={{ color: C.brand, fontWeight: '800' }}>بحث</Text></TouchableOpacity>
       </View>
       <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}><Chip label="الكل" active={active === ''} onPress={() => setActive('')} />{cats.map((c) => <Chip key={c.slug} label={c.name} active={active === c.slug} onPress={() => setActive(c.slug)} />)}</ScrollView></View>
-      {err ? <ErrorBox msg={err} onRetry={() => load(active, q)} /> : !items ? <Loader /> : (
-        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q); setRefreshing(false); }} />}>
+      <View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeChips}>{CONTENT_TYPES.map((t) => <Chip key={t.value || 'all'} label={t.label} active={kind === t.value} onPress={() => setKind(t.value)} />)}</ScrollView></View>
+      {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
+        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
         </ScrollView>
       )}
@@ -417,7 +430,7 @@ function ErrorBox({ msg, onRetry }) { return <View style={styles.center}><Text s
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ivory }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' },
-  searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, search: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, chips: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
+  searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, search: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, chips: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, typeChips: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
   acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, authInput: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, fontSize: 15, color: C.ink, textAlign: 'right', backgroundColor: C.ivory50 }, authBtn: { backgroundColor: C.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 }, authBtnTxt: { color: C.white, fontWeight: '800', fontSize: 15 }, orRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }, orLine: { flex: 1, height: 1, backgroundColor: C.line }, orTxt: { color: C.muted, fontSize: 12, fontWeight: '700' }, googleBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingVertical: 11 }, googleG: { color: '#4285F4', fontSize: 18, fontWeight: '900' }, googleTxt: { color: C.ink, fontWeight: '800', fontSize: 14 }, guestBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line }, guestTxt: { color: C.brand, fontWeight: '800', fontSize: 14 }, logoutBtn: { marginTop: 12, alignSelf: 'flex-start', backgroundColor: '#f3e6e6', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 }, logoutTxt: { color: '#b23b3b', fontWeight: '800', fontSize: 13 }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingBottom: 12, paddingHorizontal: 12 }, headerTitle: { color: C.white, fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' }, backBtn: { width: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, backgroundColor: '#ffffff22', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 }, backChevron: { color: C.white, fontSize: 20, fontWeight: '900', lineHeight: 22, marginTop: -2 }, backTxt: { color: C.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },

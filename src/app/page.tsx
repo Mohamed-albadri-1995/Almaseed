@@ -103,6 +103,37 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ---------------- Browse by type ---------------- */}
+      <section className="container-page pb-4">
+        <div className="mb-6">
+          <p className="eyebrow">تصفّح حسب النوع</p>
+          <h2 className="section-title mt-1">كل نوع في مكان واحد</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {[
+            { kind: 'AUDIO', label: 'صوتيات', icon: 'headphones' },
+            { kind: 'VIDEO', label: 'مرئيات', icon: 'video' },
+            { kind: 'ARTICLE', label: 'مقالات', icon: 'edit' },
+            { kind: 'DOCUMENT', label: 'وثائق', icon: 'file' },
+            { kind: 'IMAGE', label: 'صور', icon: 'image' },
+          ].map((t) => {
+            const I = Icon[t.icon as keyof typeof Icon];
+            return (
+              <Link
+                key={t.kind}
+                href={`/archive?kind=${t.kind}`}
+                className="group flex flex-col items-center gap-2 rounded-2xl bg-white p-5 shadow-card ring-1 ring-black/5 transition hover:shadow-card-hover hover:ring-brand-200"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-700 transition group-hover:bg-brand-700 group-hover:text-ivory-50">
+                  <I width={22} height={22} />
+                </span>
+                <span className="text-sm font-bold text-brand-800">{t.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
       {/* ---------------- Interactive media carousel ---------------- */}
       {showcase.length > 0 && <MediaCarousel items={showcase} />}
 
