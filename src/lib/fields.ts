@@ -75,18 +75,19 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     titleLabel: 'عنوان الندوة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'topic', label: 'موضوع الندوة', required: true },
-      { name: 'occasion', label: 'اسم الندوة أو المناسبة' },
-      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بينها بفاصلة' },
+      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بين الأسماء بفاصلة' },
       { name: 'host', label: 'مدير الندوة' },
+      { name: 'occasion', label: 'المناسبة المرتبطة', hint: 'اختياري' },
       ...COMMON_OPTIONAL,
     ],
   },
   occasions: {
+    // The title IS the occasion's name (titleLabel below), so we don't ask for
+    // it again as a separate field.
     titleLabel: 'اسم المناسبة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
-      { name: 'occasion', label: 'اسم المناسبة', required: true },
       { name: 'organizer', label: 'الجهة المنظمة' },
-      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بينها بفاصلة' },
+      { name: 'participants', label: 'أسماء المشاركين', hint: 'افصل بين الأسماء بفاصلة' },
       ...COMMON_OPTIONAL,
     ],
   },
