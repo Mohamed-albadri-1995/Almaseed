@@ -17,8 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
-import { getDownloads, addDownload, removeDownload } from './storage';
-import { registerForPush, attachNotificationTap } from './push';
+import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen } from './storage';
 
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
@@ -65,12 +64,6 @@ export default function App() {
       fileUrl: m.fileUrl, fileKind: m.fileKind, poster: m.coverImage || null });
   }, []);
   useEffect(() => { ensureTrackPlayer(); }, []);
-  // Register for push notifications and open the material when one is tapped.
-  useEffect(() => {
-    registerForPush();
-    const detach = attachNotificationTap((materialId) => push('material', { id: materialId }));
-    return detach;
-  }, []);
   useEffect(() => {
     if (!now) return;
     let cancelled = false;
@@ -103,6 +96,7 @@ export default function App() {
       <View style={{ flex: 1 }}>
         {top.name === 'home' && <Feed push={push} />}
         {top.name === 'material' && <MaterialScreen id={top.params.id} push={push} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
+        {top.name === 'notifications' && <NotificationsScreen push={push} onBack={pop} />}
         {top.name === 'library' && <Library push={push} onBack={pop} />}
         {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
         {top.name === 'account' && <Account push={push} onBack={pop} />}
@@ -121,7 +115,17 @@ function Feed({ push }) {
   const [q, setQ] = useState('');
   const [err, setErr] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [unread, setUnread] = useState(0);
   useEffect(() => { api.categories().then((d) => setCats(d.items)).catch(() => {}); }, []);
+  // Count how many materials were published since the user last opened the bell.
+  useEffect(() => { (async () => {
+    try {
+      const seen = await getNotifSeen();
+      const d = await api.notifications();
+      const n = (d.items || []).filter((x) => x.publishedAt && new Date(x.publishedAt).getTime() > seen).length;
+      setUnread(n);
+    } catch {}
+  })(); }, []);
   const load = useCallback((cat, query) => {
     setErr(''); setItems(null);
     return api.materials(cat || undefined, query || undefined, 1).then((d) => setItems(d.items)).catch((e) => setErr(e.message));
@@ -134,7 +138,7 @@ function Feed({ push }) {
           <Image source={require('./assets/emblem.png')} style={styles.topLogo} />
           <View><Text style={styles.topTitle}>الطريقة السمّانية</Text><Text style={styles.topSub}>السجادة السليمانية</Text></View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
+        <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
       </View>
       <View style={styles.searchWrap}>
         <TextInput value={q} onChangeText={setQ} placeholder="ابحث في الأرشيف…" placeholderTextColor="#cbd5cf" style={styles.search} returnKeyType="search" onSubmitEditing={() => load(active, q)} />
@@ -156,6 +160,60 @@ function FeedCard({ m, onPress }) {
 }
 function Chip({ label, active, onPress }) { return <TouchableOpacity onPress={onPress} style={[styles.chip, active && styles.chipActive]}><Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{label}</Text></TouchableOpacity>; }
 function IconBtn({ label, onPress }) { return <TouchableOpacity onPress={onPress} style={styles.iconBtn}><Text style={styles.iconBtnTxt}>{label}</Text></TouchableOpacity>; }
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return 'الآن';
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'الآن';
+  if (min < 60) return `قبل ${min} دقيقة`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `قبل ${hr} ساعة`;
+  const days = Math.floor(hr / 24);
+  if (days < 30) return `قبل ${days} يوم`;
+  try { return new Date(iso).toLocaleDateString('ar'); } catch { return ''; }
+}
+function NotificationsScreen({ push, onBack }) {
+  const [items, setItems] = useState(null);
+  const [err, setErr] = useState('');
+  const [seen, setSeen] = useState(0);
+  const load = useCallback(() => {
+    setErr('');
+    return api.notifications().then((d) => setItems(d.items || [])).catch((e) => setErr(e.message));
+  }, []);
+  useEffect(() => { (async () => {
+    setSeen(await getNotifSeen());
+    await load();
+    // Opening the screen marks everything up to now as seen (clears the badge).
+    await setNotifSeen(Date.now());
+  })(); }, [load]);
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title="الإشعارات" onBack={onBack} />
+      {err ? <ErrorBox msg={err} onRetry={load} /> : !items ? <Loader /> : items.length === 0 ? (
+        <Text style={styles.empty}>لا توجد إشعارات بعد.</Text>
+      ) : (
+        <ScrollView contentContainerStyle={{ padding: 12 }}>
+          {items.map((m) => {
+            const isNew = m.publishedAt && new Date(m.publishedAt).getTime() > seen;
+            return (
+              <TouchableOpacity key={m.id} style={styles.notifItem} activeOpacity={0.85} onPress={() => push('material', { id: m.id })}>
+                <View style={styles.notifThumb}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileKind} size={22} />}</View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.notifLead}>إضافة جديدة{m.category ? ` · ${m.category.name}` : ''}</Text>
+                  <Text style={styles.notifTitle} numberOfLines={2}>{m.title}</Text>
+                  <Text style={styles.notifTime}>{timeAgo(m.publishedAt)}</Text>
+                </View>
+                {isNew && <View style={styles.newDot} />}
+              </TouchableOpacity>
+            );
+          })}
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      )}
+    </View>
+  );
+}
 function Account({ push, onBack }) { return <View style={{ flex: 1 }}><Header title="الدخول والإدارة" onBack={onBack} /><View style={{ padding: 20 }}><TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: CONTRIBUTOR_URL, title: 'حسابي' })}><Text style={styles.acctTitle}>دخول كمساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity><TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: ADMIN_URL, title: 'لوحة الإشراف' })}><Text style={styles.acctTitle}>دخول كمشرف نظام</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity><TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity><Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text><Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text></View></View>; }
 function Header({ title, onBack }) { return <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}><View style={{ width: 92 }} /><Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>{onBack ? <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}><Text style={[styles.backTxt, { writingDirection: 'ltr', flex: 1 }]}>‹ رجوع</Text></TouchableOpacity> : <View style={{ width: 92 }} />}</View>; }
 function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} /></View>; }
@@ -247,7 +305,7 @@ function Loader() { return <View style={styles.center}><ActivityIndicator color=
 function ErrorBox({ msg, onRetry }) { return <View style={styles.center}><Text style={{ color: C.danger, textAlign: 'center', marginBottom: 12 }}>{msg}</Text>{onRetry && <TouchableOpacity style={styles.searchGo} onPress={onRetry}><Text style={{ color: C.brand, fontWeight: '800' }}>إعادة المحاولة</Text></TouchableOpacity>}</View>; }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ivory }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' },
+  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' },
   searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, search: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, chips: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
   acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },

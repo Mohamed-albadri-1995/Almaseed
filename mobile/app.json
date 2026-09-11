@@ -19,9 +19,6 @@
         "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
         "isAccessMediaLocationEnabled": false
       }],
-      ["expo-notifications", {
-        "color": "#1f3d33"
-      }],
       "./plugins/with-pdf-downloader"
     ],
     "assetBundlePatterns": ["**/*"],
@@ -34,7 +31,7 @@
     },
     "android": {
       "package": "app.almaseed.archive",
-      "versionCode": 40,
+      "versionCode": 41,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"

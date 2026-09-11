@@ -9,7 +9,7 @@ import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { getCategoryForm, isFileKindAllowed } from '@/lib/fields';
-import { notifyReviewersNewSubmission } from '@/lib/push';
+import { notifyReviewersNewSubmission } from '@/lib/notify';
 
 export interface SubmitState { error?: string; }
 

@@ -35,3 +35,22 @@ export async function isDownloaded(id) {
   const list = await getDownloads();
   return list.some((x) => x.id === id);
 }
+
+// In-app notifications: remember when the user last opened the bell, so we can
+// mark newer published materials as unread.
+const SEEN_KEY = 'almaseed.notifSeen.v1';
+
+export async function getNotifSeen() {
+  try {
+    const raw = await AsyncStorage.getItem(SEEN_KEY);
+    return raw ? Number(raw) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function setNotifSeen(ts) {
+  try {
+    await AsyncStorage.setItem(SEEN_KEY, String(ts || Date.now()));
+  } catch {}
+}
