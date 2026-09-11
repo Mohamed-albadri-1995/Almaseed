@@ -147,6 +147,12 @@ export default async function MaterialPage({
               {primaryPersonValue}
             </p>
           )}
+          {material.submittedBy?.name && (
+            <p className="mt-1 text-sm text-muted">
+              <span className="text-muted/70">شاركها: </span>
+              {material.submittedBy.name}
+            </p>
+          )}
 
           {material.fileKind === 'IMAGE' && material.fileUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
