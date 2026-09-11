@@ -32,42 +32,54 @@ export default async function HomePage() {
   return (
     <>
       {/* ---------------- Hero ---------------- */}
-      <section className="relative overflow-hidden bg-brand-800 text-ivory-50">
-        <div className="pointer-events-none absolute inset-0 opacity-30">
-          <div className="absolute -left-24 top-10 h-72 w-72 rounded-full border border-gold-400/30" />
-          <div className="absolute right-10 top-24 h-96 w-96 rounded-full border border-gold-400/20" />
-        </div>
-        <div className="container-page relative py-16 sm:py-24">
-          <div className="mx-auto max-w-3xl text-center">
+      <section className="relative overflow-hidden bg-brand-900 text-ivory-50">
+        {/* Banner: mosque photo + emblem + name */}
+        <div className="relative min-h-[240px] sm:min-h-[320px]">
+          <div className="absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/hero-mosque.jpg" alt="مسجد المسيد" className="h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-l from-brand-900/90 via-brand-900/65 to-brand-900/35" />
+          </div>
+          <div className="container-page relative flex min-h-[240px] flex-col items-center justify-center gap-6 py-10 text-center sm:min-h-[320px] md:flex-row-reverse md:justify-between md:gap-8 md:text-right">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.png"
               alt="شعار الطريقة السمّانية — السجادة السليمانية"
-              width={124}
-              height={124}
-              className="mx-auto mb-6 h-28 w-28 drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)] sm:h-32 sm:w-32"
+              width={224}
+              height={224}
+              className="h-36 w-36 shrink-0 drop-shadow-[0_6px_24px_rgba(0,0,0,0.55)] sm:h-52 sm:w-52"
             />
-            <p className="inline-flex items-center gap-2 text-sm font-bold text-gold-300">
-              <Icon.sparkle width={16} height={16} />
-              من ذاكرة المسيد
-            </p>
-            <h1 className="font-display mt-4 text-4xl font-extrabold leading-tight text-ivory-50 sm:text-6xl">
-              الطريقة السمّانية
-              <span className="mt-1 block text-gold-300">السجادة السليمانية</span>
-            </h1>
-            <p className="mt-5 font-display text-xl text-ivory-100/90 sm:text-2xl">
+            <div className="max-w-xl">
+              <h1 className="font-display text-4xl font-extrabold leading-tight text-ivory-50 drop-shadow-[0_2px_12px_rgba(0,0,0,0.65)] sm:text-6xl">
+                الطريقة السمّانية
+              </h1>
+              <p className="mt-2 font-display text-2xl font-bold text-gold-300 drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] sm:text-3xl">
+                السجادة السليمانية
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-3 md:justify-start">
+                <span className="h-px w-8 bg-gold-400/70" />
+                <span className="text-sm font-bold tracking-wide text-ivory-100 drop-shadow sm:text-base">
+                  علم · ذكر · سلوك · نور
+                </span>
+                <span className="h-px w-8 bg-gold-400/70" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Intro + search + actions */}
+        <div className="border-t border-white/10 bg-brand-800">
+          <div className="container-page py-10 text-center">
+            <p className="font-display text-xl text-ivory-100/90 sm:text-2xl">
               صوتٌ يُحفظ، وأثرٌ لا يغيب.
             </p>
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-ivory-100/85 sm:text-lg">
+            <p className="mx-auto mt-3 max-w-2xl text-base leading-8 text-ivory-100/85 sm:text-lg">
               أرشيف مفتوح للمدائح والمحاضرات والندوات والمواعظ والمناسبات، نجمع فيه
               ما يستحق أن يبقى قريباً من القلب.
             </p>
-
-            {/* Search */}
-            <div className="mx-auto mt-8 max-w-xl">
+            <div className="mx-auto mt-7 max-w-xl">
               <SearchBox />
             </div>
-
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link href="/archive" className="btn-gold btn-lg">
                 استكشف الأرشيف
