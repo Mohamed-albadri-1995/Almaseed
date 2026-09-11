@@ -1,0 +1,95 @@
+'use client';
+
+import { useState } from 'react';
+import { Icon } from './icons';
+
+export type Uploaded = {
+  url: string;
+  fileKind: string;
+  fileType: string;
+  fileSize: number;
+  durationSec?: number;
+};
+
+export function readMediaDuration(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const isVideo = /video/.test(file.type) || /\.(mp4|mov|webm|m4v|3gp)$/i.test(file.name);
+    if (!isVideo && !/audio/.test(file.type) && !/\.(mp3|wav|m4a|ogg|aac|opus|amr)$/i.test(file.name)) return resolve(undefined);
+    const el = document.createElement(isVideo ? 'video' : 'audio');
+    el.preload = 'metadata';
+    const done = (v?: number) => { try { URL.revokeObjectURL(el.src); } catch {} resolve(v); };
+    el.onloadedmetadata = () => done(Number.isFinite(el.duration) ? Math.round(el.duration) : undefined);
+    el.onerror = () => done(undefined);
+    setTimeout(() => done(undefined), 8000);
+    el.src = URL.createObjectURL(file);
+  });
+}
+
+/**
+ * Upload control shared by the submit and resubmit flows. When `capture` is
+ * on (media sections), it offers the file manager AND in-app recording
+ * (studio) for video and audio.
+ */
+export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار ملف (حتى 200 ميجابايت)', capture = false }: {
+  onUploaded: (d: Uploaded | null) => void;
+  accept: string;
+  label: string;
+  idle?: string;
+  capture?: boolean;
+}) {
+  const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+
+  const upload = async (file: File) => {
+    setState('uploading'); setName(file.name); setError('');
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const text = await res.text();
+      let data: Partial<Uploaded> & { error?: string } = {};
+      try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) || `خطأ ${res.status}` }; }
+      if (!res.ok || !data.url) {
+        setState('error'); setError(data.error || `فشل الرفع (${res.status})`); onUploaded(null); return;
+      }
+      const durationSec = await readMediaDuration(file);
+      setState('done'); onUploaded({ ...(data as Uploaded), durationSec });
+    } catch (err) {
+      setState('error'); setError(err instanceof Error ? err.message : 'تعذّر رفع الملف'); onUploaded(null);
+    }
+  };
+
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f);
+  };
+
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8 text-center hover:bg-brand-50">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600"><Icon.download width={24} height={24} className="rotate-180" /></span>
+        {state === 'idle' && <span className="text-sm text-muted">{capture ? 'اختر من مدير الملفات (صوت أو فيديو فقط)' : idle}</span>}
+        {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
+        {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
+        {state === 'error' && <span className="text-sm text-danger">{error}</span>}
+        <input type="file" className="hidden" accept={accept} onChange={pick} />
+      </label>
+
+      {capture && (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="btn-outline flex cursor-pointer items-center justify-center gap-2 text-sm">
+              <Icon.video width={18} height={18} /> تسجيل فيديو
+              <input type="file" className="hidden" accept="video/*" capture="environment" onChange={pick} />
+            </label>
+            <label className="btn-outline flex cursor-pointer items-center justify-center gap-2 text-sm">
+              <Icon.mic width={18} height={18} /> تسجيل صوت
+              <input type="file" className="hidden" accept="audio/*" capture onChange={pick} />
+            </label>
+          </div>
+          <p className="field-hint mt-2">اختر ملفًا من جهازك، أو سجّل مباشرةً من الكاميرا أو الميكروفون. المسموح: ملفات الصوت والفيديو فقط.</p>
+        </>
+      )}
+    </div>
+  );
+}

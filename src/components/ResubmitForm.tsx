@@ -5,12 +5,16 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { resubmitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS } from '@/lib/fields';
 import { ArticleEditor } from './ArticleEditor';
+import { MediaUpload, type Uploaded } from './MediaUpload';
 
 interface MaterialData {
   id: string;
   categorySlug: string;
   title: string;
   subtitle?: string | null;
+  fileUrl?: string | null;
+  fileType?: string | null;
+  fileKind?: string | null;
   bodyText?: string | null;
   performer?: string | null;
   narrator?: string | null;
@@ -43,6 +47,7 @@ export function ResubmitForm({ material }: { material: MaterialData }) {
   const [state, action] = useFormState(resubmitMaterialAction, initial);
   const form = CATEGORY_FORMS[material.categorySlug];
   const [bodyText, setBodyText] = useState(material.bodyText ?? '');
+  const [file, setFile] = useState<Uploaded | null>(null);
 
   return (
     <form action={action} className="space-y-4">
@@ -64,6 +69,32 @@ export function ResubmitForm({ material }: { material: MaterialData }) {
         <label className="label" htmlFor="subtitle">عنوان فرعي</label>
         <input id="subtitle" name="subtitle" defaultValue={material.subtitle ?? ''} className="input" />
       </div>
+
+      {form && (
+        <div>
+          {material.fileUrl && !file && (
+            <p className="mb-2 text-sm text-muted">
+              الملف الحالي: {material.fileType || 'ملف'}{' '}—{' '}
+              <a href={material.fileUrl} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">استماع / عرض</a>
+            </p>
+          )}
+          {file && (
+            <>
+              <input type="hidden" name="fileUrl" value={file.url} />
+              <input type="hidden" name="fileKind" value={file.fileKind} />
+              <input type="hidden" name="fileType" value={file.fileType} />
+              <input type="hidden" name="fileSize" value={file.fileSize} />
+              {file.durationSec ? <input type="hidden" name="durationSec" value={file.durationSec} /> : null}
+            </>
+          )}
+          <MediaUpload
+            onUploaded={setFile}
+            accept={form.accept}
+            capture={!!form.capture}
+            label={material.fileUrl ? 'استبدال الملف (اختياري)' : `رفع الملف (${form.file === 'required' ? 'مطلوب' : 'اختياري'})`}
+          />
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {form?.fields.map((f) => {

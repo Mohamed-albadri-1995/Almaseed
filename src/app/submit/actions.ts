@@ -124,7 +124,7 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
     data: {
       ...f, status: MATERIAL_STATUS.PENDING,
       recordDate: parseDate(d.recordDate), searchText: buildSearchText(f),
-      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null } : {}),
+      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null, durationSec: d.durationSec || null } : {}),
     },
   });
   await prisma.reviewNote.create({ data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' } });
