@@ -33,39 +33,13 @@ export default async function HomePage() {
     <>
       {/* ---------------- Hero ---------------- */}
       <section className="relative overflow-hidden bg-brand-900 text-ivory-50">
-        {/* Banner: mosque photo + emblem + name */}
-        <div className="relative min-h-[240px] sm:min-h-[320px]">
-          <div className="absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/hero-mosque.jpg" alt="مسجد المسيد" className="h-full w-full object-cover object-center" />
-            <div className="absolute inset-0 bg-gradient-to-l from-brand-900/90 via-brand-900/65 to-brand-900/35" />
-          </div>
-          <div className="container-page relative flex min-h-[240px] flex-col items-center justify-center gap-6 py-10 text-center sm:min-h-[320px] md:flex-row-reverse md:justify-between md:gap-8 md:text-right">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="شعار الطريقة السمّانية — السجادة السليمانية"
-              width={224}
-              height={224}
-              className="h-36 w-36 shrink-0 drop-shadow-[0_6px_24px_rgba(0,0,0,0.55)] sm:h-52 sm:w-52"
-            />
-            <div className="max-w-xl">
-              <h1 className="font-display text-4xl font-extrabold leading-tight text-ivory-50 drop-shadow-[0_2px_12px_rgba(0,0,0,0.65)] sm:text-6xl">
-                الطريقة السمّانية
-              </h1>
-              <p className="mt-2 font-display text-2xl font-bold text-gold-300 drop-shadow-[0_2px_10px_rgba(0,0,0,0.6)] sm:text-3xl">
-                السجادة السليمانية
-              </p>
-              <div className="mt-4 flex items-center justify-center gap-3 md:justify-start">
-                <span className="h-px w-8 bg-gold-400/70" />
-                <span className="text-sm font-bold tracking-wide text-ivory-100 drop-shadow sm:text-base">
-                  علم · ذكر · سلوك · نور
-                </span>
-                <span className="h-px w-8 bg-gold-400/70" />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Cover banner (emblem + name + tagline are part of the artwork) */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero-banner.jpg"
+          alt="الطريقة السمّانية — السجادة السليمانية · علم · ذكر · سلوك · نور"
+          className="block h-auto w-full"
+        />
 
         {/* Intro + search + actions */}
         <div className="border-t border-white/10 bg-brand-800">
