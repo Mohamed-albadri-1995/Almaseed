@@ -259,6 +259,7 @@ function Account({ push, onBack }) {
             <TextInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" placeholderTextColor="#9aa4a0" autoCapitalize="none" keyboardType="email-address" style={styles.authInput} />
             <TextInput value={pass} onChangeText={setPass} placeholder="كلمة المرور" placeholderTextColor="#9aa4a0" secureTextEntry style={styles.authInput} />
             <TouchableOpacity style={styles.authBtn} onPress={doLogin} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>دخول</Text>}</TouchableOpacity>
+            <TouchableOpacity onPress={() => push('web', { url: `${API_BASE}/forgot-password`, title: 'استعادة كلمة المرور' })} style={{ marginTop: 12 }} activeOpacity={0.7}><Text style={{ color: C.gold, textAlign: 'center', fontWeight: '700', fontSize: 13 }}>نسيت كلمة المرور؟</Text></TouchableOpacity>
             <Text style={[styles.acctDesc, { marginTop: 12 }]}>التصفّح متاح للجميع دون حساب — التسجيل اختياري وهو للمشرفين والمساهمين.</Text>
             <TouchableOpacity style={styles.guestBtn} onPress={onBack} activeOpacity={0.85}><Text style={styles.guestTxt}>متابعة كزائر</Text></TouchableOpacity>
           </View>
