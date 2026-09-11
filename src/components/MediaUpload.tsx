@@ -11,8 +11,15 @@ export type Uploaded = {
   durationSec?: number;
 };
 
-const AV_EXT = /\.(mp3|wav|m4a|ogg|aac|opus|amr|oga|weba|mp4|m4v|mov|webm|3gp|3gpp|mkv|avi)$/i;
-const isAudioVideo = (f: File) => /^audio\//.test(f.type) || /^video\//.test(f.type) || AV_EXT.test(f.name);
+// For media sections: reject only clearly non-audio/video files (images/documents);
+// allow everything else (incl. m4a with a generic MIME) — the server is the final gate.
+const BLOCK_EXT = /\.(pdf|docx?|jpe?g|png|webp|gif|bmp|heic|heif|txt|rtf|xlsx?|pptx?)$/i;
+const isNotMedia = (f: File) => {
+  const t = (f.type || '').toLowerCase();
+  if (t.startsWith('image/')) return true;
+  if (t === 'application/pdf' || t.startsWith('application/msword') || t.includes('officedocument') || t === 'text/plain') return true;
+  return BLOCK_EXT.test(f.name);
+};
 
 export function readMediaDuration(file: File): Promise<number | undefined> {
   return new Promise((resolve) => {
@@ -64,7 +71,7 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
-    if (capture && !isAudioVideo(f)) { setState('error'); setError('يُسمح بملفات الصوت والفيديو فقط'); onUploaded(null); return; }
+    if (capture && isNotMedia(f)) { setState('error'); setError('هذا القسم للصوت والفيديو فقط — اختر ملفًا صوتيًا أو مرئيًا.'); onUploaded(null); return; }
     upload(f);
   };
 
