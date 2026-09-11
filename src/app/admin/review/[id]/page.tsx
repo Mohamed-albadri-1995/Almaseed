@@ -14,6 +14,7 @@ import { getCurrentUser } from '@/lib/session';
 import { can, canAccessCategory } from '@/lib/rbac';
 import { REVIEW_ACTION_LABELS, type Role, type ReviewAction } from '@/lib/constants';
 import { formatDateTime, formatFileSize } from '@/lib/format';
+import { getInfoFields } from '@/lib/fields';
 
 export const metadata: Metadata = { title: 'مراجعة مادة' };
 export const dynamic = 'force-dynamic';
@@ -29,9 +30,13 @@ export default async function ReviewPage({ params, searchParams }: { params: { i
   const canEdit = can.editContent(user.role as Role);
   const canRestore = material.status === 'REJECTED' || material.status === 'HIDDEN';
 
-  const details = material.category.slug === 'readings'
-    ? [['الكاتب / المؤلف', material.author], ['المصدر', material.source], ['الموضوع', material.topic], ['المناسبة', material.occasion], ['المكان', material.place], ['المدينة', material.city]]
-    : [['المادح', material.performer], ['الراوي', material.narrator], ['المحاضر', material.speaker], ['المناسبة', material.occasion], ['المكان', material.place], ['المدينة', material.city], ['الموضوع', material.topic]];
+  // Category-aware info fields, so a reviewer without edit rights sees the
+  // right labels per section (a lecture never shows «المادح», etc.).
+  const rec = material as unknown as Record<string, unknown>;
+  const details: [string, string][] = getInfoFields(material.category.slug)
+    .filter((f) => f.type !== 'date')
+    .map((f) => [f.label, rec[f.name]] as [string, unknown])
+    .filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].trim().length > 0);
 
   return (
     <div>

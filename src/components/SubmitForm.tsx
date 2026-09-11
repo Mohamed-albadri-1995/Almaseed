@@ -63,11 +63,13 @@ function readMediaDuration(file: File): Promise<number | undefined> {
   });
 }
 
-function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار ملف (حتى 200 ميجابايت)' }: {
+function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار ملف (حتى 200 ميجابايت)', capture = false }: {
   onUploaded: (d: Uploaded | null) => void;
   accept: string;
   label: string;
   idle?: string;
+  /** Media categories: also offer in-app recording (studio) options. */
+  capture?: boolean;
 }) {
   const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
@@ -91,17 +93,38 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
     }
   };
 
+  // Reset the input value after each pick so choosing the same file again re-fires.
+  const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f);
+  };
+
   return (
     <div>
       <label className="label">{label}</label>
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8 text-center hover:bg-brand-50">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600"><Icon.download width={24} height={24} className="rotate-180" /></span>
-        {state === 'idle' && <span className="text-sm text-muted">{idle}</span>}
+        {state === 'idle' && <span className="text-sm text-muted">{capture ? 'اختر من مدير الملفات (صوت أو فيديو فقط)' : idle}</span>}
         {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
-        <input type="file" className="hidden" accept={accept} onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
+        <input type="file" className="hidden" accept={accept} onChange={pick} />
       </label>
+
+      {capture && (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="btn-outline flex cursor-pointer items-center justify-center gap-2 text-sm">
+              <Icon.video width={18} height={18} /> تسجيل فيديو
+              <input type="file" className="hidden" accept="video/*" capture="environment" onChange={pick} />
+            </label>
+            <label className="btn-outline flex cursor-pointer items-center justify-center gap-2 text-sm">
+              <Icon.mic width={18} height={18} /> تسجيل صوت
+              <input type="file" className="hidden" accept="audio/*" capture onChange={pick} />
+            </label>
+          </div>
+          <p className="field-hint mt-2">اختر ملفًا من جهازك، أو سجّل مباشرةً من الكاميرا أو الميكروفون. المسموح: ملفات الصوت والفيديو فقط.</p>
+        </>
+      )}
     </div>
   );
 }
@@ -152,7 +175,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
           <div className={step === 2 ? 'block' : 'hidden'}>
             <div className="mb-6 flex items-center justify-between"><div><h2 className="text-xl font-bold text-brand-800">ملف {activeCat?.name}</h2><p className="text-sm text-muted">ارفع الملف أولاً — لا يمكن الإرسال دون اكتمال الرفع.</p></div><button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">تغيير النوع</button></div>
             {isReadings && <div className="mb-5 flex gap-2"><button type="button" onClick={() => setReadingMode('file')} className={readingMode === 'file' ? 'btn-primary' : 'btn-outline'}>رفع ملف</button><button type="button" onClick={() => setReadingMode('article')} className={readingMode === 'article' ? 'btn-primary' : 'btn-outline'}>كتابة مقال</button></div>}
-            {articleMode ? <div><label className="label">نص المقال</label><ArticleEditor value={articleText} onChange={setArticleText} /><p className="field-hint">يمكنك أيضاً إرفاق صورة غلاف في الخطوة التالية.</p></div> : <FileUpload onUploaded={setFile} accept={config.accept} label={`رفع الملف (${config.file === 'required' ? 'مطلوب' : 'اختياري'})`} />}
+            {articleMode ? <div><label className="label">نص المقال</label><ArticleEditor value={articleText} onChange={setArticleText} /><p className="field-hint">يمكنك أيضاً إرفاق صورة غلاف في الخطوة التالية.</p></div> : <FileUpload onUploaded={setFile} accept={config.accept} capture={!!config.capture} label={`رفع الملف (${config.file === 'required' ? 'مطلوب' : 'اختياري'})`} />}
             <div className="mt-8 flex justify-between"><button type="button" onClick={() => setStep(1)} className="btn-outline">السابق</button><button type="button" onClick={() => setStep(3)} disabled={!fileSatisfied} className="btn-primary disabled:opacity-50">التالي</button></div>
             {!fileSatisfied && <p className="mt-2 text-left text-xs text-muted">{articleMode ? 'اكتب نص المقال للمتابعة.' : 'أكمل رفع الملف للمتابعة.'}</p>}
           </div>

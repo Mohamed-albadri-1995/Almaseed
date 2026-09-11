@@ -1,3 +1,5 @@
+import type { FileKind } from './constants';
+
 export interface FieldDef {
   name: string;
   label: string;
@@ -14,6 +16,10 @@ export interface CategoryForm {
   accept: string;
   article: boolean;
   cover?: boolean;
+  /** Show in-app recording (studio) options alongside the file manager. */
+  capture?: boolean;
+  /** Allowed uploaded file kinds; undefined = all kinds allowed. */
+  kinds?: FileKind[];
 }
 
 const AUDIO = '.mp3,.wav,.m4a,.ogg';
@@ -22,6 +28,9 @@ const MEDIA = `${AUDIO},${VIDEO}`;
 const IMAGES = '.jpg,.jpeg,.png,.webp';
 const DOCS = '.pdf,.doc,.docx';
 const ALL = `${MEDIA},${DOCS},${IMAGES}`;
+// Audio + video only. MIME wildcards first so mobile offers both the file
+// manager AND the camera/recorder (studio); extensions kept as a fallback.
+const MEDIA_ONLY = `audio/*,video/*,${MEDIA}`;
 
 const COMMON_OPTIONAL: FieldDef[] = [
   { name: 'city', label: 'المكان أو المدينة' },
@@ -31,7 +40,7 @@ const COMMON_OPTIONAL: FieldDef[] = [
 
 export const CATEGORY_FORMS: Record<string, CategoryForm> = {
   madeeh: {
-    titleLabel: 'اسم المدحة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'اسم المدحة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'performer', label: 'اسم المادح', required: true },
       { name: 'narrator', label: 'اسم الراوي', required: true },
@@ -41,7 +50,7 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   lectures: {
-    titleLabel: 'عنوان المحاضرة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'عنوان المحاضرة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'speaker', label: 'اسم المحاضر', required: true },
       { name: 'topic', label: 'الموضوع' },
@@ -63,7 +72,7 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   seminars: {
-    titleLabel: 'عنوان الندوة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'عنوان الندوة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'topic', label: 'موضوع الندوة', required: true },
       { name: 'occasion', label: 'اسم الندوة أو المناسبة' },
@@ -73,7 +82,7 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   occasions: {
-    titleLabel: 'اسم المناسبة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'اسم المناسبة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'occasion', label: 'اسم المناسبة', required: true },
       { name: 'organizer', label: 'الجهة المنظمة' },
@@ -103,6 +112,14 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
 
 export function getCategoryForm(slug: string): CategoryForm | null {
   return CATEGORY_FORMS[slug] ?? null;
+}
+
+// Whether an uploaded file of the given kind is allowed for a category.
+// Categories without an explicit `kinds` list accept every kind.
+export function isFileKindAllowed(slug: string, kind?: string | null): boolean {
+  const kinds = CATEGORY_FORMS[slug]?.kinds;
+  if (!kinds) return true;
+  return !!kind && kinds.includes(kind as FileKind);
 }
 
 // Fields rendered as their own full-width sections on the detail page, so they

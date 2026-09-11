@@ -8,7 +8,7 @@ import { MATERIAL_STATUS } from '@/lib/constants';
 import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
-import { getCategoryForm } from '@/lib/fields';
+import { getCategoryForm, isFileKindAllowed } from '@/lib/fields';
 
 export interface SubmitState { error?: string; }
 
@@ -72,6 +72,9 @@ export async function submitMaterialAction(_prev: SubmitState, formData: FormDat
   } else if (!hasFile) {
     return { error: 'يجب رفع الملف واكتمال التحميل قبل الإرسال' };
   }
+  if (hasFile && !isFileKindAllowed(d.categorySlug, d.fileKind)) {
+    return { error: 'نوع الملف غير مسموح لهذا القسم — يُقبل الصوت والفيديو فقط.' };
+  }
 
   const material = await prisma.material.create({
     data: {
@@ -111,6 +114,9 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
   const f = cleanFields(d);
   const fieldError = validateCategoryFields(d.categorySlug, f);
   if (fieldError) return { error: fieldError };
+  if (d.fileUrl && !isFileKindAllowed(d.categorySlug, d.fileKind)) {
+    return { error: 'نوع الملف غير مسموح لهذا القسم — يُقبل الصوت والفيديو فقط.' };
+  }
 
   await snapshotMaterial(id, user.id, user.name, 'resubmit');
   await prisma.material.update({

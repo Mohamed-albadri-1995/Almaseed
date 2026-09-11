@@ -7,13 +7,25 @@ import { saveUpload } from '@/lib/storage';
 const MAX_SIZE = 200 * 1024 * 1024; // 200MB
 
 const EXT_KIND: Record<string, string> = {
+  // Audio (incl. common device-recorder outputs)
   mp3: FILE_KINDS.AUDIO,
   wav: FILE_KINDS.AUDIO,
   m4a: FILE_KINDS.AUDIO,
   ogg: FILE_KINDS.AUDIO,
+  oga: FILE_KINDS.AUDIO,
+  aac: FILE_KINDS.AUDIO,
+  opus: FILE_KINDS.AUDIO,
+  amr: FILE_KINDS.AUDIO,
+  weba: FILE_KINDS.AUDIO,
+  // Video (incl. common device-recorder outputs)
   mp4: FILE_KINDS.VIDEO,
+  m4v: FILE_KINDS.VIDEO,
   mov: FILE_KINDS.VIDEO,
   webm: FILE_KINDS.VIDEO,
+  '3gp': FILE_KINDS.VIDEO,
+  '3gpp': FILE_KINDS.VIDEO,
+  mkv: FILE_KINDS.VIDEO,
+  avi: FILE_KINDS.VIDEO,
   pdf: FILE_KINDS.DOCUMENT,
   doc: FILE_KINDS.DOCUMENT,
   docx: FILE_KINDS.DOCUMENT,
