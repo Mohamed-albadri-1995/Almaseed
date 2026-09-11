@@ -91,6 +91,9 @@ export async function submitMaterialAction(_prev: SubmitState, formData: FormDat
       fileSize: d.fileSize || null,
       durationSec: d.durationSec || null,
       coverImage: d.coverImage || null,
+      // Files uploaded via /api/upload are already watermarked (images/PDF), so
+      // mark this material processed — the backfill script then skips it.
+      watermarkedAt: d.fileUrl || d.coverImage ? new Date() : null,
       source: f.source || user.name,
       submittedById: user.id,
       searchText: buildSearchText(f),
@@ -132,7 +135,7 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
     data: {
       ...f, status: MATERIAL_STATUS.PENDING,
       recordDate: parseDate(d.recordDate), searchText: buildSearchText(f),
-      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null, durationSec: d.durationSec || null } : {}),
+      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null, durationSec: d.durationSec || null, watermarkedAt: new Date() } : {}),
     },
   });
   await prisma.reviewNote.create({ data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' } });

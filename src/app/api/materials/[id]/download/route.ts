@@ -6,11 +6,14 @@ export const dynamic = 'force-dynamic';
 
 // Build a clean download filename: «title.ext». Arabic titles are preserved via
 // RFC 5987 (filename*), with an ASCII fallback for older clients.
+const SOURCE_TAG = 'أرشيف المسيد';
+
 function fileNameFor(title: string, fileUrl: string, fileType?: string | null): string {
   const urlExt = (fileUrl.split('?')[0].split('.').pop() || '').toLowerCase();
   const ext = (fileType || urlExt || 'dat').toLowerCase().replace(/[^a-z0-9]/g, '');
   const base = (title || 'material').replace(/[\\/:*?"<>|\n\r\t]+/g, ' ').trim().slice(0, 80) || 'material';
-  return `${base}.${ext}`;
+  // Tag the source in the filename so a shared file is traceable to the archive.
+  return `${base} - ${SOURCE_TAG}.${ext}`;
 }
 
 // Streams the actual file back to the browser with an attachment header, so the

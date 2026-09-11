@@ -55,6 +55,27 @@ export async function saveUpload(
   return `/uploads/${name}`;
 }
 
+// The storage key for a previously saved public URL (S3 key, or local filename).
+export function keyForUrl(url: string): string | null {
+  if (storageConfigured() && S3.publicUrl && url.startsWith(S3.publicUrl)) {
+    return url.slice(S3.publicUrl.replace(/\/$/, '').length + 1);
+  }
+  if (url.startsWith('/uploads/')) return url.slice('/uploads/'.length);
+  return null;
+}
+
+// Overwrites an existing stored file in place, keeping the same public URL.
+// Used by the watermark backfill so material URLs never change.
+export async function overwriteUpload(
+  url: string,
+  bytes: Buffer,
+  contentType: string,
+): Promise<string> {
+  const key = keyForUrl(url);
+  if (!key) throw new Error(`unknown storage url: ${url}`);
+  return saveUpload(key, bytes, contentType);
+}
+
 // Deletes a previously stored file by its public URL. Best-effort: never throws.
 export async function deleteUpload(url?: string | null): Promise<void> {
   if (!url) return;

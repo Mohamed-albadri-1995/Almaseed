@@ -107,6 +107,9 @@ model Material {
   fileSize    Int?
   durationSec Int?
   coverImage  String?
+  // Set when the file/cover has had the السجادة watermark applied, so the
+  // one-time backfill script never stamps the same material twice.
+  watermarkedAt DateTime?
 
   downloads Int @default(0)
   plays     Int @default(0)
