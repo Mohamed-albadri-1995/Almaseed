@@ -22,15 +22,17 @@ export interface CategoryForm {
   kinds?: FileKind[];
 }
 
-const AUDIO = '.mp3,.wav,.m4a,.ogg';
-const VIDEO = '.mp4,.mov,.webm';
+const AUDIO = '.mp3,.wav,.m4a,.ogg,.aac,.opus,.amr,.oga,.weba';
+const VIDEO = '.mp4,.mov,.webm,.m4v,.3gp,.mkv';
 const MEDIA = `${AUDIO},${VIDEO}`;
 const IMAGES = '.jpg,.jpeg,.png,.webp';
 const DOCS = '.pdf,.doc,.docx';
 const ALL = `${MEDIA},${DOCS},${IMAGES}`;
-// Audio + video only. MIME wildcards first so mobile offers both the file
-// manager AND the camera/recorder (studio); extensions kept as a fallback.
-const MEDIA_ONLY = `audio/*,video/*,${MEDIA}`;
+// Audio + video only — EXTENSIONS ONLY (no `audio/*,video/*` MIME wildcards):
+// on Android the wildcards make the picker open the media chooser
+// (camera / recorder / gallery) and hide the file manager. Listing extensions
+// opens the Files/Documents app; the studio (record) buttons are separate.
+const MEDIA_ONLY = MEDIA;
 
 const COMMON_OPTIONAL: FieldDef[] = [
   { name: 'city', label: 'المكان أو المدينة' },
