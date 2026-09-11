@@ -35,7 +35,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 48,
+      "versionCode": 49,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"

@@ -135,6 +135,9 @@ export const api = {
   // Recent published materials, newest first — the in-app notifications feed.
   notifications: () => j('/api/mobile/notifications').then(decodeList),
 
+  // Resolve the signed-in user for a token (used after the Google web flow).
+  me: (token) => j('/api/mobile/me', { headers: { Authorization: `Bearer ${token}` } }),
+
   // Register this device's FCM token so it receives push. When a staff member is
   // signed in, the bearer token tags the device with their role/id on the server.
   registerPush: (token, platform, authToken) =>
