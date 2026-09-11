@@ -256,6 +256,12 @@ function Account({ push, onBack }) {
     } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); } finally { setBusy(false); }
   };
   const doLogout = async () => { await clearAuth(); setAuthState(null); reregisterPush(); };
+  // One login: when signed in, open the web pages through the SSO bridge so they
+  // are already authenticated (no second login). Otherwise open them normally.
+  const openWeb = (to, title) => push('web', {
+    url: auth?.token ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(auth.token)}` : `${API_BASE}${to}`,
+    title,
+  });
   return (
     <View style={{ flex: 1 }}>
       <Header title="الدخول والإدارة" onBack={onBack} />
@@ -280,8 +286,8 @@ function Account({ push, onBack }) {
             <TouchableOpacity style={styles.guestBtn} onPress={onBack} activeOpacity={0.85}><Text style={styles.guestTxt}>متابعة كزائر</Text></TouchableOpacity>
           </View>
         )}
-        <TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: CONTRIBUTOR_URL, title: 'حسابي' })}><Text style={styles.acctTitle}>صفحة المساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: ADMIN_URL, title: 'لوحة الإشراف' })}><Text style={styles.acctTitle}>لوحة الإشراف</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/account', 'حسابي')}><Text style={styles.acctTitle}>صفحة المساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/admin', 'لوحة الإشراف')}><Text style={styles.acctTitle}>لوحة الإشراف</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity>
         <Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text>
         <Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text>
