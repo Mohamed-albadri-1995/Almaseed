@@ -11,6 +11,9 @@ export type Uploaded = {
   durationSec?: number;
 };
 
+const AV_EXT = /\.(mp3|wav|m4a|ogg|aac|opus|amr|oga|weba|mp4|m4v|mov|webm|3gp|3gpp|mkv|avi)$/i;
+const isAudioVideo = (f: File) => /^audio\//.test(f.type) || /^video\//.test(f.type) || AV_EXT.test(f.name);
+
 export function readMediaDuration(file: File): Promise<number | undefined> {
   return new Promise((resolve) => {
     const isVideo = /video/.test(file.type) || /\.(mp4|mov|webm|m4v|3gp)$/i.test(file.name);
@@ -60,7 +63,9 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
   };
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f);
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+    if (capture && !isAudioVideo(f)) { setState('error'); setError('يُسمح بملفات الصوت والفيديو فقط'); onUploaded(null); return; }
+    upload(f);
   };
 
   return (
@@ -72,7 +77,7 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
         {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
-        <input type="file" className="hidden" accept={accept} onChange={pick} />
+        <input type="file" className="hidden" accept={capture ? undefined : accept} onChange={pick} />
       </label>
 
       {capture && (

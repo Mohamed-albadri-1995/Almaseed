@@ -16,6 +16,9 @@ interface CategoryOption {
 
 const initial: SubmitState = {};
 
+const AV_EXT = /\.(mp3|wav|m4a|ogg|aac|opus|amr|oga|weba|mp4|m4v|mov|webm|3gp|3gpp|mkv|avi)$/i;
+const isAudioVideo = (f: File) => /^audio\//.test(f.type) || /^video\//.test(f.type) || AV_EXT.test(f.name);
+
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
@@ -100,7 +103,9 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
 
   // Reset the input value after each pick so choosing the same file again re-fires.
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]; e.target.value = ''; if (f) upload(f);
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+    if (capture && !isAudioVideo(f)) { setState('error'); setError('يُسمح بملفات الصوت والفيديو فقط'); onUploaded(null); return; }
+    upload(f);
   };
 
   return (
@@ -112,7 +117,9 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
         {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
-        <input type="file" className="hidden" accept={accept} onChange={pick} />
+        {/* Media categories: no `accept` so Android opens the file manager (not just
+            the gallery/camera); the type is validated on pick + on the server. */}
+        <input type="file" className="hidden" accept={capture ? undefined : accept} onChange={pick} />
       </label>
 
       {capture && (
