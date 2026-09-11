@@ -21,7 +21,7 @@ import { getDownloads, addDownload, removeDownload } from './storage';
 
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
-const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة' };
+const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة', ARTICLE: 'مقال' };
 // Clean vector icon per media kind, used when a material has no cover image.
 // A material with no fileKind is written text (an article) → a pen.
 const KIND_ICON = { AUDIO: 'mic', VIDEO: 'videocam', IMAGE: 'image', DOCUMENT: 'document-text', ARTICLE: 'pencil' };
@@ -145,7 +145,7 @@ function Feed({ push }) {
 function FeedCard({ m, onPress }) {
   const isVideo = m.fileKind === 'VIDEO';
   const person = m.category?.slug === 'readings' ? m.author : (m.performer || m.speaker || m.host);
-  return <TouchableOpacity style={styles.feedCard} onPress={onPress} activeOpacity={0.85}><View style={[styles.thumb, isVideo && styles.thumbVideo]}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileKind} />}<View style={styles.kindBadge}><Text style={styles.kindBadgeTxt}>{KIND_LABEL[m.fileKind] || 'مادة'}</Text></View></View><View style={{ flex: 1 }}><Text style={styles.feedTitle} numberOfLines={2}>{m.title}</Text>{!!person && <Text style={styles.feedPerson} numberOfLines={1}>{person}</Text>}{!!m.category && <Text style={styles.feedCat}>{m.category.name}</Text>}</View></TouchableOpacity>;
+  return <TouchableOpacity style={styles.feedCard} onPress={onPress} activeOpacity={0.85}><View style={[styles.thumb, isVideo && styles.thumbVideo]}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileKind} />}<View style={styles.kindBadge}><Text style={styles.kindBadgeTxt}>{KIND_LABEL[m.fileKind] || 'مقال'}</Text></View></View><View style={{ flex: 1 }}><Text style={styles.feedTitle} numberOfLines={2}>{m.title}</Text>{!!person && <Text style={styles.feedPerson} numberOfLines={1}>{person}</Text>}{!!m.category && <Text style={styles.feedCat}>{m.category.name}</Text>}</View></TouchableOpacity>;
 }
 function Chip({ label, active, onPress }) { return <TouchableOpacity onPress={onPress} style={[styles.chip, active && styles.chipActive]}><Text style={[styles.chipTxt, active && styles.chipTxtActive]}>{label}</Text></TouchableOpacity>; }
 function IconBtn({ label, onPress }) { return <TouchableOpacity onPress={onPress} style={styles.iconBtn}><Text style={styles.iconBtnTxt}>{label}</Text></TouchableOpacity>; }
