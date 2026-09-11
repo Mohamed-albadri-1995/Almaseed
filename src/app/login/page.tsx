@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'تسجيل الدخول' };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { redirect?: string };
+  searchParams: { redirect?: string; reset?: string };
 }) {
   const user = await getCurrentUser();
   if (user) redirect(searchParams.redirect || '/account');
@@ -17,6 +17,11 @@ export default async function LoginPage({
   return (
     <div className="container-page flex justify-center py-16">
       <div className="w-full max-w-md">
+        {searchParams.reset && (
+          <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+            تم تغيير كلمة المرور بنجاح — يمكنك الآن تسجيل الدخول بكلمتك الجديدة.
+          </div>
+        )}
         <div className="card p-8">
           <h1 className="text-2xl font-extrabold text-brand-800">تسجيل الدخول</h1>
           <p className="mt-1 text-sm text-muted">

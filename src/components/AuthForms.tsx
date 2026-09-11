@@ -50,7 +50,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
             <input type="checkbox" name="remember" className="rounded" defaultChecked />
             تذكرني
           </label>
-          <Link href="#" className="text-brand-600 hover:underline">نسيت كلمة المرور؟</Link>
+          <Link href="/forgot-password" className="text-brand-600 hover:underline">نسيت كلمة المرور؟</Link>
         </div>
         <SubmitButton label="دخول" />
       </form>
