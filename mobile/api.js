@@ -106,4 +106,12 @@ export const api = {
 
   // Recent published materials, newest first — the in-app notifications feed.
   notifications: () => j('/api/mobile/notifications'),
+
+  // Register this device's Expo push token so it receives «new content» alerts.
+  registerPush: (token, platform) =>
+    j('/api/mobile/push/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, platform }),
+    }),
 };

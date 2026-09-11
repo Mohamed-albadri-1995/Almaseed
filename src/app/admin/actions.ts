@@ -17,6 +17,7 @@ import {
   type Role,
   ROLES,
 } from '@/lib/constants';
+import { notifyAllNewMaterial } from '@/lib/push';
 
 async function requireReviewer() {
   const user = await getCurrentUser();
@@ -39,6 +40,7 @@ export async function reviewDecisionAction(formData: FormData) {
     include: { category: { select: { slug: true, name: true } } },
   });
   if (!material) throw new Error('المادة غير موجودة');
+  const wasPublishedBefore = !!material.publishedAt;
   if (!canAccessCategory(user, material.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
 
   // Reason is mandatory for edit-requests and rejections.
@@ -108,6 +110,16 @@ export async function reviewDecisionAction(formData: FormData) {
     entityId: materialId,
     meta: { title: material.title, reason },
   });
+
+  // First publication → OS push to every registered device. Guarded on
+  // publishedAt so re-approving an already-published material doesn't re-notify.
+  if (action === REVIEW_ACTIONS.APPROVE && !wasPublishedBefore) {
+    await notifyAllNewMaterial({
+      id: material.id,
+      title: material.title,
+      category: material.category ? { name: material.category.name } : null,
+    }).catch(() => {});
+  }
 
   revalidatePath('/admin');
   revalidatePath('/admin/submissions');
