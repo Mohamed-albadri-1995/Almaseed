@@ -107,11 +107,15 @@ export const api = {
   // Recent published materials, newest first — the in-app notifications feed.
   notifications: () => j('/api/mobile/notifications'),
 
-  // Register this device's Expo push token so it receives «new content» alerts.
-  registerPush: (token, platform) =>
+  // Register this device's FCM token so it receives push. When a staff member is
+  // signed in, the bearer token tags the device with their role/id on the server.
+  registerPush: (token, platform, authToken) =>
     j('/api/mobile/push/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify({ token, platform }),
     }),
 };

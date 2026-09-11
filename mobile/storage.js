@@ -54,3 +54,24 @@ export async function setNotifSeen(ts) {
     await AsyncStorage.setItem(SEEN_KEY, String(ts || Date.now()));
   } catch {}
 }
+
+// Native sign-in state, used to tag this device's push token with the user's
+// role so reviewers/admins receive «مادة بانتظار المراجعة» notifications.
+const AUTH_KEY = 'almaseed.auth.v1';
+
+export async function getAuth() {
+  try {
+    const raw = await AsyncStorage.getItem(AUTH_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setAuth(auth) {
+  try { await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(auth)); } catch {}
+}
+
+export async function clearAuth() {
+  try { await AsyncStorage.removeItem(AUTH_KEY); } catch {}
+}

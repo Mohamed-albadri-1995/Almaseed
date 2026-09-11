@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
-import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen } from './storage';
-import { registerForPush, attachNotificationTap } from './push';
+import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
+import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
@@ -221,7 +221,52 @@ function NotificationsScreen({ push, onBack }) {
     </View>
   );
 }
-function Account({ push, onBack }) { return <View style={{ flex: 1 }}><Header title="الدخول والإدارة" onBack={onBack} /><View style={{ padding: 20 }}><TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: CONTRIBUTOR_URL, title: 'حسابي' })}><Text style={styles.acctTitle}>دخول كمساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity><TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: ADMIN_URL, title: 'لوحة الإشراف' })}><Text style={styles.acctTitle}>دخول كمشرف نظام</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity><TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity><Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text><Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text></View></View>; }
+function Account({ push, onBack }) {
+  const [auth, setAuthState] = useState(null);
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getAuth().then((a) => setAuthState(a)).catch(() => {}); }, []);
+  const doLogin = async () => {
+    if (!email.trim() || !pass) { Alert.alert('بيانات ناقصة', 'أدخل البريد وكلمة المرور.'); return; }
+    try {
+      setBusy(true);
+      const r = await api.login(email.trim().toLowerCase(), pass);
+      await setAuth(r); setAuthState(r); setPass('');
+      // Refresh this device's role on the server so staff get review alerts.
+      reregisterPush();
+      Alert.alert('تم الدخول', r.user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك.');
+    } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); } finally { setBusy(false); }
+  };
+  const doLogout = async () => { await clearAuth(); setAuthState(null); reregisterPush(); };
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title="الدخول والإدارة" onBack={onBack} />
+      <ScrollView contentContainerStyle={{ padding: 20 }}>
+        {auth ? (
+          <View style={styles.acctCard}>
+            <Text style={styles.acctTitle}>مرحبًا، {auth.user?.name}</Text>
+            <Text style={styles.acctDesc}>{auth.user?.roleLabel || ''}{auth.user?.isStaff ? ' — تصلك إشعارات المراجعة' : ''}</Text>
+            <TouchableOpacity style={styles.logoutBtn} onPress={doLogout} activeOpacity={0.85}><Text style={styles.logoutTxt}>تسجيل الخروج</Text></TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.acctCard}>
+            <Text style={styles.acctTitle}>تسجيل الدخول</Text>
+            <Text style={styles.acctDesc}>للمشرفين والمراجعين: سجّل دخولك ليصلك إشعار فور وصول مادة تنتظر المراجعة.</Text>
+            <TextInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" placeholderTextColor="#9aa4a0" autoCapitalize="none" keyboardType="email-address" style={styles.authInput} />
+            <TextInput value={pass} onChangeText={setPass} placeholder="كلمة المرور" placeholderTextColor="#9aa4a0" secureTextEntry style={styles.authInput} />
+            <TouchableOpacity style={styles.authBtn} onPress={doLogin} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>دخول</Text>}</TouchableOpacity>
+          </View>
+        )}
+        <TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: CONTRIBUTOR_URL, title: 'حسابي' })}><Text style={styles.acctTitle}>صفحة المساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.acctCard} onPress={() => push('web', { url: ADMIN_URL, title: 'لوحة الإشراف' })}><Text style={styles.acctTitle}>لوحة الإشراف</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity>
+        <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity>
+        <Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text>
+        <Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text>
+      </ScrollView>
+    </View>
+  );
+}
 function Header({ title, onBack }) { return <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}><View style={{ width: 92 }} /><Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>{onBack ? <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}><Text style={[styles.backTxt, { writingDirection: 'ltr', flex: 1 }]}>‹ رجوع</Text></TouchableOpacity> : <View style={{ width: 92 }} />}</View>; }
 function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} /></View>; }
 // In-app document viewer. Android's WebView can't render PDFs on its own, so we
@@ -325,7 +370,7 @@ const styles = StyleSheet.create({
   topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' },
   searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, search: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, chips: { paddingHorizontal: 12, paddingVertical: 10, gap: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
-  acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },
+  acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, authInput: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, fontSize: 15, color: C.ink, textAlign: 'right', backgroundColor: C.ivory50 }, authBtn: { backgroundColor: C.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 }, authBtnTxt: { color: C.white, fontWeight: '800', fontSize: 15 }, logoutBtn: { marginTop: 12, alignSelf: 'flex-start', backgroundColor: '#f3e6e6', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 }, logoutTxt: { color: '#b23b3b', fontWeight: '800', fontSize: 13 }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingBottom: 12, paddingHorizontal: 12 }, headerTitle: { color: C.white, fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' }, backBtn: { width: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, backgroundColor: '#ffffff22', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 }, backChevron: { color: C.white, fontSize: 20, fontWeight: '900', lineHeight: 22, marginTop: -2 }, backTxt: { color: C.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   detailTitle: { fontSize: 24, fontWeight: '900', color: C.brand, textAlign: 'right' }, detailSub: { fontSize: 16, color: C.brand500, marginTop: 4, textAlign: 'right' }, detailPerson: { fontSize: 15, color: C.muted, marginTop: 4, textAlign: 'right' }, image: { width: '100%', height: 260, borderRadius: 16, marginTop: 16, backgroundColor: '#000' }, video: { width: '100%', height: 220, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
   documentCard: { marginTop: 16, backgroundColor: C.ivory50, borderRadius: 18, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: C.line }, documentIcon: { fontSize: 42, marginBottom: 8 }, documentTitle: { color: C.brand, fontSize: 18, fontWeight: '900' }, documentHint: { color: C.muted, fontSize: 12, lineHeight: 20, textAlign: 'center', marginTop: 6 },

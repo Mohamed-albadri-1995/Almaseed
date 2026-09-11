@@ -10,6 +10,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
+import { getAuth } from './storage';
 
 const LAST_TOKEN_KEY = 'almaseed:pushToken';
 
@@ -50,11 +51,14 @@ export async function registerForPush() {
     const token = resp?.data;
     if (!token) return null;
 
-    // Only hit the server when the token is new/changed.
+    // Re-register when the device token OR the signed-in user changes, so the
+    // server always has the current role for this device.
+    const auth = await getAuth().catch(() => null);
+    const marker = `${token}|${auth?.user?.id || 'anon'}`;
     const last = await AsyncStorage.getItem(LAST_TOKEN_KEY).catch(() => null);
-    if (last !== token) {
-      await api.registerPush(token, Platform.OS).catch(() => {});
-      await AsyncStorage.setItem(LAST_TOKEN_KEY, token).catch(() => {});
+    if (last !== marker) {
+      await api.registerPush(token, Platform.OS, auth?.token).catch(() => {});
+      await AsyncStorage.setItem(LAST_TOKEN_KEY, marker).catch(() => {});
     }
     return token;
   } catch (e) {
@@ -62,6 +66,12 @@ export async function registerForPush() {
     console.warn('[push] register skipped:', e?.message || e);
     return null;
   }
+}
+
+// Re-register after a sign-in/sign-out so the device's role is refreshed.
+export async function reregisterPush() {
+  try { await AsyncStorage.removeItem(LAST_TOKEN_KEY); } catch {}
+  return registerForPush();
 }
 
 // Wire tap-to-open: when the user taps a «new material» notification, call

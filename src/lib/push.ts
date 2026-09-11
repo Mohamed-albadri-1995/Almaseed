@@ -10,6 +10,7 @@
 
 import { SignJWT, importPKCS8 } from 'jose';
 import { prisma } from '@/lib/prisma';
+import { STAFF_ROLES } from '@/lib/constants';
 
 interface ServiceAccount {
   client_email: string;
@@ -172,5 +173,43 @@ export async function notifyAllNewMaterial(material: {
     title: 'إضافة جديدة في أرشيف المسيد',
     body: `${section}${material.title}`,
     data: { materialId: material.id, type: 'new_material' },
+  });
+}
+
+// Notify reviewers/admins that a new submission is waiting — only devices where
+// a staff member is signed in (userId set + live role is staff). Respects each
+// reviewer's assigned-section scoping. Keeps reviewers alert without email.
+export async function notifyReviewersNewSubmission(material: {
+  id: string;
+  title: string;
+  category?: { slug?: string | null; name?: string | null } | null;
+}): Promise<void> {
+  let rows: { token: string; user: { assignedCategories: string | null } | null }[] = [];
+  try {
+    rows = await prisma.pushToken.findMany({
+      where: { user: { is: { role: { in: STAFF_ROLES }, active: true } } },
+      select: { token: true, user: { select: { assignedCategories: true } } },
+    });
+  } catch (e) {
+    console.error('[push] reviewer token lookup failed:', e instanceof Error ? e.message : e);
+    return;
+  }
+
+  const slug = material.category?.slug ?? '';
+  const tokens = rows
+    .filter((r) => {
+      const ac = r.user?.assignedCategories;
+      if (!ac) return true; // no scoping → covers every section
+      const sections = ac.split(',').map((s) => s.trim()).filter(Boolean);
+      return sections.length === 0 || sections.includes(slug);
+    })
+    .map((r) => r.token);
+  if (tokens.length === 0) return;
+
+  const section = material.category?.name ? `${material.category.name} · ` : '';
+  await pushToTokens(tokens, {
+    title: 'مادة جديدة بانتظار المراجعة',
+    body: `${section}${material.title}`,
+    data: { materialId: material.id, type: 'review_pending' },
   });
 }
