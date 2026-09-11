@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "app.almaseed.archive",
-      "versionCode": 38,
+      "versionCode": 39,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
