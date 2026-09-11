@@ -1,5 +1,33 @@
 import { API_HOST } from './config';
 
+// Server text can contain HTML entities (e.g. «&nbsp;» from the rich editor).
+// Decode them for plain-text display. bodyText is intentionally NOT touched —
+// it is rendered as HTML by ArticleHtml.
+const PLAIN_FIELDS = ['title', 'subtitle', 'description', 'summary', 'lyrics', 'performer', 'speaker', 'host', 'narrator', 'author', 'occasion', 'organizer', 'participants', 'place', 'city', 'topic', 'source', 'contributor'];
+function decodeEntities(s) {
+  if (typeof s !== 'string') return s;
+  return s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .trim();
+}
+function decodeItem(o) {
+  if (!o || typeof o !== 'object') return o;
+  for (const k of PLAIN_FIELDS) if (k in o) o[k] = decodeEntities(o[k]);
+  if (o.category && o.category.name) o.category.name = decodeEntities(o.category.name);
+  return o;
+}
+function decodeList(d) {
+  if (d && Array.isArray(d.items)) d.items = d.items.map(decodeItem);
+  return d;
+}
+
 // Network request timeout (milliseconds)
 const REQUEST_TIMEOUT = 10000;
 const CACHE_TTL = 30000;
@@ -99,13 +127,13 @@ export const api = {
     if (q) sp.set('q', q);
     sp.set('page', String(page));
     const path = `/api/mobile/materials?${sp.toString()}`;
-    return getCached(path, () => j(path));
+    return getCached(path, () => j(path).then(decodeList));
   },
 
-  material: (id) => getCached(`/api/mobile/materials/${id}`, () => j(`/api/mobile/materials/${id}`)),
+  material: (id) => getCached(`/api/mobile/materials/${id}`, () => j(`/api/mobile/materials/${id}`).then(decodeItem)),
 
   // Recent published materials, newest first — the in-app notifications feed.
-  notifications: () => j('/api/mobile/notifications'),
+  notifications: () => j('/api/mobile/notifications').then(decodeList),
 
   // Register this device's FCM token so it receives push. When a staff member is
   // signed in, the bearer token tags the device with their role/id on the server.

@@ -2,6 +2,22 @@
 
 const AR = 'ar-EG';
 
+// Decode HTML entities (e.g. «&nbsp;») that can leak into plain-text fields from
+// the rich editor, so they don't show as raw text.
+export function decodeEntities(s?: string | null): string {
+  if (!s) return '';
+  return s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .trim();
+}
+
 export function formatNumber(n: number | null | undefined): string {
   if (n == null) return '0';
   return new Intl.NumberFormat(AR).format(n);

@@ -23,6 +23,7 @@ import {
   formatDurationLabel,
   formatFileSize,
   splitKeywords,
+  decodeEntities,
 } from '@/lib/format';
 
 export async function generateMetadata({
@@ -139,12 +140,12 @@ export default async function MaterialPage({
             {material.title}
           </h1>
           {material.subtitle && (
-            <p className="mt-1 text-lg text-brand-600">{material.subtitle}</p>
+            <p className="mt-1 text-lg text-brand-600">{decodeEntities(material.subtitle)}</p>
           )}
           {primaryPersonValue && (
             <p className="mt-2 text-lg text-muted">
               <span className="text-muted/70">{primaryPerson!.label}: </span>
-              {primaryPersonValue}
+              {decodeEntities(primaryPersonValue)}
             </p>
           )}
           {material.submittedBy?.name && (
@@ -241,14 +242,14 @@ export default async function MaterialPage({
           {material.description && (
             <section className="mt-8">
               <h2 className="mb-2 text-lg font-bold text-brand-800">الوصف</h2>
-              <p className="whitespace-pre-line leading-8 text-ink/90">{material.description}</p>
+              <p className="whitespace-pre-line leading-8 text-ink/90">{decodeEntities(material.description)}</p>
             </section>
           )}
 
           {material.summary && (
             <section className="mt-6">
               <h2 className="mb-2 text-lg font-bold text-brand-800">ملخص</h2>
-              <p className="whitespace-pre-line leading-8 text-ink/90">{material.summary}</p>
+              <p className="whitespace-pre-line leading-8 text-ink/90">{decodeEntities(material.summary)}</p>
             </section>
           )}
 
@@ -256,7 +257,7 @@ export default async function MaterialPage({
             <section className="mt-6">
               <h2 className="mb-2 text-lg font-bold text-brand-800">الكلمات</h2>
               <div className="rounded-2xl bg-ivory-50 p-5">
-                <p className="whitespace-pre-line leading-9 text-ink/90">{material.lyrics}</p>
+                <p className="whitespace-pre-line leading-9 text-ink/90">{decodeEntities(material.lyrics)}</p>
               </div>
             </section>
           )}
