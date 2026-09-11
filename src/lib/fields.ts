@@ -61,7 +61,7 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
     ],
   },
   sermons: {
-    titleLabel: 'عنوان الموعظة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'optional', accept: ALL, article: true,
+    titleLabel: 'عنوان الموعظة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
       { name: 'speaker', label: 'اسم الواعظ', required: true },
       { name: 'topic', label: 'الموضوع' },
