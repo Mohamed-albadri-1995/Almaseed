@@ -18,6 +18,7 @@ import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
 import { getDownloads, addDownload, removeDownload } from './storage';
+import { registerForPush, attachNotificationTap } from './push';
 
 try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
 
@@ -64,6 +65,12 @@ export default function App() {
       fileUrl: m.fileUrl, fileKind: m.fileKind, poster: m.coverImage || null });
   }, []);
   useEffect(() => { ensureTrackPlayer(); }, []);
+  // Register for push notifications and open the material when one is tapped.
+  useEffect(() => {
+    registerForPush();
+    const detach = attachNotificationTap((materialId) => push('material', { id: materialId }));
+    return detach;
+  }, []);
   useEffect(() => {
     if (!now) return;
     let cancelled = false;

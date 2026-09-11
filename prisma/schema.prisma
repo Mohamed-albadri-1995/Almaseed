@@ -47,6 +47,7 @@ model User {
   activityLogs  ActivityLog[]
   ratings       Rating[]
   comments      Comment[]
+  pushTokens    PushToken[]
 }
 
 model Category {
@@ -197,6 +198,22 @@ model Notification {
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   @@index([userId, read])
+}
+
+// Expo push tokens for the mobile app. A device may register anonymously
+// (userId null) — every registered device receives «new content published»
+// notifications. userId/role are filled in when a signed-in staff member
+// registers, so targeted pushes are possible later.
+model PushToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  role      String?
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
 }
 
 model ContentReport {

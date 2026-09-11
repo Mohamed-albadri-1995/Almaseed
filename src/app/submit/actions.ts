@@ -9,6 +9,7 @@ import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { getCategoryForm, isFileKindAllowed } from '@/lib/fields';
+import { notifyReviewersNewSubmission } from '@/lib/push';
 
 export interface SubmitState { error?: string; }
 
@@ -97,6 +98,14 @@ export async function submitMaterialAction(_prev: SubmitState, formData: FormDat
   });
 
   await prisma.notification.create({ data: { userId: user.id, title: 'تم استلام المادة', body: `«${material.title}» قيد المراجعة الآن.`, link: '/account' } });
+  // Alert reviewers/admins that a new submission is waiting (email — reliable
+  // regardless of whether they use the app). Never let this block submission.
+  await notifyReviewersNewSubmission({
+    id: material.id,
+    title: material.title,
+    category: { slug: category.slug, name: category.name },
+    contributorName: user.name,
+  }).catch(() => {});
   await logActivity({ userId: user.id, action: 'submit', entity: 'material', entityId: material.id, meta: { title: material.title } });
   redirect('/account?submitted=1');
 }

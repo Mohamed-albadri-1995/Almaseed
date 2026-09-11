@@ -103,4 +103,12 @@ export const api = {
   },
 
   material: (id) => getCached(`/api/mobile/materials/${id}`, () => j(`/api/mobile/materials/${id}`)),
+
+  // Register this device's Expo push token so it receives «new content» alerts.
+  registerPush: (token, platform) =>
+    j('/api/mobile/push/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, platform }),
+    }),
 };
