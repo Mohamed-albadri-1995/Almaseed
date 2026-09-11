@@ -23,6 +23,7 @@ export function ReviewInsights({
   similar: SimilarMaterial[];
 }) {
   const a = assessFile(fileKind, fileSize, durationSec);
+  const hasExactFile = similar.some((s) => s.exactFile);
 
   return (
     <div className="card p-5">
@@ -53,6 +54,13 @@ export function ReviewInsights({
           محتوى مشابه أو مكرّر
           {similar.length > 0 && <span className="mr-1 text-xs font-normal text-muted">({similar.length})</span>}
         </p>
+
+        {hasExactFile && (
+          <p className="mb-2 rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold leading-6 text-red-700 ring-1 ring-red-200">
+            ⚠️ يوجد ملف يبدو مطابقًا تمامًا في الأرشيف (نفس الملف أو نفس الحجم والمدة). تحقّق قبل النشر لتفادي التكرار.
+          </p>
+        )}
+
         {similar.length === 0 ? (
           <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs text-emerald-700 ring-1 ring-emerald-200">
             لم يُعثر على محتوى مشابه — يبدو أنه غير مكرّر.
@@ -60,7 +68,7 @@ export function ReviewInsights({
         ) : (
           <ul className="space-y-2">
             {similar.map((s) => (
-              <li key={s.id} className="rounded-xl border border-ivory-300 bg-ivory-50/60 p-3">
+              <li key={s.id} className={`rounded-xl border p-3 ${s.exactFile ? 'border-red-200 bg-red-50/60' : 'border-ivory-300 bg-ivory-50/60'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <Link href={`/admin/review/${s.id}`} className="line-clamp-1 text-sm font-semibold text-brand-800 hover:text-brand-600">
                     {s.title}
@@ -69,7 +77,7 @@ export function ReviewInsights({
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {s.reasons.map((r) => (
-                    <span key={r} className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                    <span key={r} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${s.exactFile ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
                       {r}
                     </span>
                   ))}

@@ -88,19 +88,24 @@ export interface SimilarMaterial {
   publishedAt: Date | null;
   category: { name: string } | null;
   reasons: string[];
+  /** True when this looks like the very same file (same URL, or same size+duration). */
+  exactFile: boolean;
 }
 
 export async function getSimilarMaterials(m: {
   id: string;
   title: string;
   searchText?: string | null;
+  fileUrl?: string | null;
   fileSize?: number | null;
+  durationSec?: number | null;
   performer?: string | null;
   speaker?: string | null;
 }): Promise<SimilarMaterial[]> {
   const normTitle = normalizeArabic(m.title || '');
   const or: Prisma.MaterialWhereInput[] = [{ title: { contains: m.title } }];
   if (normTitle) or.push({ searchText: { contains: normTitle } });
+  if (m.fileUrl) or.push({ fileUrl: m.fileUrl });
   if (m.fileSize) or.push({ fileSize: m.fileSize });
   if (m.performer) or.push({ performer: m.performer });
   if (m.speaker) or.push({ speaker: m.speaker });
@@ -111,23 +116,31 @@ export async function getSimilarMaterials(m: {
     take: 6,
     select: {
       id: true, title: true, status: true, fileSize: true, durationSec: true,
-      performer: true, speaker: true, publishedAt: true, searchText: true,
+      performer: true, speaker: true, publishedAt: true, searchText: true, fileUrl: true,
       category: { select: { name: true } },
     },
   });
 
-  return rows.map((r) => {
+  const scored = rows.map((r) => {
     const reasons: string[] = [];
-    if (m.fileSize && r.fileSize === m.fileSize) reasons.push('نفس حجم الملف');
+    // Strongest first: the same stored file, then identical size AND duration.
+    const sameUrl = !!m.fileUrl && r.fileUrl === m.fileUrl;
+    const sameSizeDur = !!m.fileSize && !!m.durationSec && r.fileSize === m.fileSize && r.durationSec === m.durationSec;
+    const exactFile = sameUrl || sameSizeDur;
+    if (sameUrl) reasons.push('نفس الملف تمامًا');
+    else if (sameSizeDur) reasons.push('نفس الحجم والمدة');
+    else if (m.fileSize && r.fileSize === m.fileSize) reasons.push('نفس حجم الملف');
     if (normTitle && r.searchText && r.searchText.includes(normTitle)) reasons.push('تطابق العنوان');
     else if (r.title === m.title) reasons.push('نفس العنوان');
     if (m.performer && r.performer === m.performer) reasons.push('نفس المادح');
     if (m.speaker && r.speaker === m.speaker) reasons.push('نفس المحاضر');
     if (reasons.length === 0) reasons.push('عنوان مشابه');
-    const { searchText: _omit, ...rest } = r;
-    void _omit;
-    return { ...rest, reasons };
+    const { searchText: _omit, fileUrl: _omit2, ...rest } = r;
+    void _omit; void _omit2;
+    return { ...rest, reasons, exactFile };
   });
+  // Show exact-file matches first so the reviewer sees the strongest signal.
+  return scored.sort((a, b) => Number(b.exactFile) - Number(a.exactFile));
 }
 
 // Latest images and videos that actually have a viewable file — for the
