@@ -10,6 +10,7 @@ export interface MaterialCardData {
   title: string;
   status?: string;
   fileKind?: string | null;
+  fileUrl?: string | null;
   fileType?: string | null;
   durationSec?: number | null;
   performer?: string | null;
@@ -48,8 +49,11 @@ export function MaterialCard({
   material: MaterialCardData;
   showStatus?: boolean;
 }) {
+  // A material with no file is a written article (مقال) — never audio. Detect it
+  // by the absence of a file so even an old row with a stray fileKind is right.
+  const isWritten = !material.fileUrl;
   const kind = material.fileKind ?? 'AUDIO';
-  const KindIcon = Icon[KIND_ICON[kind] ?? 'headphones'];
+  const KindIcon = isWritten ? Icon.edit : Icon[KIND_ICON[kind] ?? 'headphones'];
   const person = personLabel(material);
 
   return (
@@ -94,7 +98,7 @@ export function MaterialCard({
             </span>
           ) : null}
           <span className="inline-flex items-center gap-1">
-            {kind ? FILE_KIND_LABELS[kind as FileKind] : 'مقال'}
+            {isWritten ? 'مقال' : FILE_KIND_LABELS[kind as FileKind]}
           </span>
           {typeof material.plays === 'number' && material.plays > 0 && (
             <span className="inline-flex items-center gap-1">

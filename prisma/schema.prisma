@@ -100,7 +100,9 @@ model Material {
   mergedFrom   Material[] @relation("merge")
 
   fileUrl     String?
-  fileKind    String?  @default("AUDIO")
+  // No default: a written article legitimately has no fileKind. Defaulting to
+  // AUDIO mislabeled articles as صوت. Kind is set explicitly when a file exists.
+  fileKind    String?
   fileType    String?
   fileSize    Int?
   durationSec Int?
