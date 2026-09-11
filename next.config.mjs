@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Enables src/instrumentation.ts (starts the background watermark worker).
+  experimental: { instrumentationHook: true },
   async headers() {
     return [
       {

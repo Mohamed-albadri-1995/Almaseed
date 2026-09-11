@@ -76,6 +76,47 @@ export async function overwriteUpload(
   return saveUpload(key, bytes, contentType);
 }
 
+// Overwrites an existing stored file from a file on disk, STREAMING the bytes so
+// large media never sit in memory. Keeps the same public URL. For the watermark
+// worker (video especially).
+export async function overwriteUploadFromFile(
+  url: string,
+  filePath: string,
+  contentType: string,
+): Promise<void> {
+  const key = keyForUrl(url);
+  if (!key) throw new Error(`unknown storage url: ${url}`);
+  const { createReadStream } = await import('fs');
+  const { stat } = await import('fs/promises');
+  const size = (await stat(filePath)).size;
+
+  if (storageConfigured()) {
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const client = new S3Client({
+      region: S3.region,
+      endpoint: S3.endpoint,
+      credentials: { accessKeyId: S3.accessKeyId!, secretAccessKey: S3.secretAccessKey! },
+    });
+    await client.send(
+      new PutObjectCommand({
+        Bucket: S3.bucket!,
+        Key: key,
+        Body: createReadStream(filePath),
+        ContentLength: size,
+        ContentType: contentType,
+      }),
+    );
+    return;
+  }
+
+  // Local volume: copy the file into place.
+  const { copyFile, mkdir } = await import('fs/promises');
+  const { join } = await import('path');
+  const dir = uploadsDir();
+  await mkdir(dir, { recursive: true });
+  await copyFile(filePath, join(dir, key));
+}
+
 // Deletes a previously stored file by its public URL. Best-effort: never throws.
 export async function deleteUpload(url?: string | null): Promise<void> {
   if (!url) return;

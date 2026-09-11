@@ -2,7 +2,8 @@
 FROM node:22-slim AS base
 WORKDIR /app
 # Prisma needs OpenSSL at runtime on slim (Debian) images.
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl \
+# openssl: Prisma runtime. ffmpeg: background video/audio watermarking worker.
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies (uses the committed lockfile). The prisma schema is
