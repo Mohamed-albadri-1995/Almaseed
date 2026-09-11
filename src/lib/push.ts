@@ -1,85 +1,147 @@
-// OS push notifications (Expo) for أرشيف المسيد.
+// OS push notifications via Firebase Cloud Messaging (FCM HTTP v1).
 //
 // When new content is published, every registered device receives an OS push.
-// Degrades gracefully: when no tokens are registered (or Expo can't be reached)
-// this logs and returns, so publishing never fails because of a notification.
+// Sending goes straight to FCM using a Firebase service account — no Expo
+// account/projectId needed. Configure once in the server env:
+//   FCM_SERVICE_ACCOUNT = the full service-account JSON (as a string)
 //
-// Android delivery additionally requires Firebase (google-services.json) and an
-// Expo projectId to be configured in the build before devices can obtain tokens.
+// Degrades gracefully: when the service account isn't configured, or no tokens
+// are registered, this logs and returns so publishing never fails on a push.
 
+import { SignJWT, importPKCS8 } from 'jose';
 import { prisma } from '@/lib/prisma';
 
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+interface ServiceAccount {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+}
 
 export interface PushMessage {
   title: string;
   body: string;
-  // Delivered to the app so a tap can deep-link to the material.
-  data?: Record<string, unknown>;
+  data?: Record<string, string>;
 }
 
-// Expo tokens look like ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx].
-function isExpoToken(token: string): boolean {
-  return /^Expo(nent)?PushToken\[/.test(token);
-}
-
-// POST a batch of messages to Expo. Returns the tokens Expo reports as
-// permanently invalid (DeviceNotRegistered), so the caller can prune them.
-async function sendExpoBatch(
-  messages: { to: string; title: string; body: string; data?: Record<string, unknown> }[],
-): Promise<string[]> {
-  const dead: string[] = [];
+function serviceAccount(): ServiceAccount | null {
+  const raw = process.env.FCM_SERVICE_ACCOUNT;
+  if (!raw) return null;
   try {
-    const res = await fetch(EXPO_PUSH_URL, {
+    const sa = JSON.parse(raw) as ServiceAccount;
+    if (!sa.client_email || !sa.private_key || !sa.project_id) return null;
+    // Env vars often store the private key with literal "\n" — normalize it.
+    sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+    return sa;
+  } catch (e) {
+    console.error('[push] FCM_SERVICE_ACCOUNT is not valid JSON:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+// Cache the OAuth access token (valid ~1h) so we don't re-mint per send.
+let cachedToken: { token: string; exp: number } | null = null;
+
+async function accessToken(sa: ServiceAccount): Promise<string | null> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedToken && cachedToken.exp - 60 > now) return cachedToken.token;
+
+  try {
+    const key = await importPKCS8(sa.private_key, 'RS256');
+    const assertion = await new SignJWT({
+      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    })
+      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+      .setIssuer(sa.client_email)
+      .setSubject(sa.client_email)
+      .setAudience('https://oauth2.googleapis.com/token')
+      .setIssuedAt(now)
+      .setExpirationTime(now + 3600)
+      .sign(key);
+
+    const res = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(
-        messages.map((m) => ({
-          to: m.to,
-          title: m.title,
-          body: m.body,
-          data: m.data,
-          sound: 'default',
-          priority: 'high',
-          channelId: 'default',
-        })),
-      ),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion,
+      }),
     });
     if (!res.ok) {
-      console.error('[push] Expo send failed:', res.status, await res.text().catch(() => ''));
-      return dead;
+      console.error('[push] token exchange failed:', res.status, await res.text().catch(() => ''));
+      return null;
     }
-    const json = (await res.json().catch(() => null)) as
-      | { data?: { status: string; details?: { error?: string } }[] }
-      | null;
-    const tickets = json?.data ?? [];
-    tickets.forEach((ticket, i) => {
-      if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
-        dead.push(messages[i].to);
-      }
-    });
+    const json = (await res.json()) as { access_token?: string; expires_in?: number };
+    if (!json.access_token) return null;
+    cachedToken = { token: json.access_token, exp: now + (json.expires_in ?? 3600) };
+    return json.access_token;
   } catch (e) {
-    console.error('[push] Expo send error:', e instanceof Error ? e.message : e);
+    console.error('[push] access token error:', e instanceof Error ? e.message : e);
+    return null;
   }
-  return dead;
 }
 
-// Send a push to an explicit list of device tokens (chunked at 100, Expo's
-// per-request limit). Prunes tokens Expo reports as unregistered.
+// Send one message to one device. Returns 'ok' | 'dead' (token unregistered) |
+// 'error'. 'dead' tokens are pruned by the caller.
+async function sendOne(
+  token: string,
+  bearer: string,
+  projectId: string,
+  msg: PushMessage,
+): Promise<'ok' | 'dead' | 'error'> {
+  try {
+    const res = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: { title: msg.title, body: msg.body },
+            data: msg.data ?? {},
+            android: {
+              priority: 'HIGH',
+              notification: { channel_id: 'default', sound: 'default' },
+            },
+          },
+        }),
+      },
+    );
+    if (res.ok) return 'ok';
+    const text = await res.text().catch(() => '');
+    // A token that's no longer valid → prune it.
+    if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT|NOT_FOUND/.test(text)) {
+      return 'dead';
+    }
+    console.error('[push] FCM send failed:', res.status, text.slice(0, 300));
+    return 'error';
+  } catch (e) {
+    console.error('[push] FCM send error:', e instanceof Error ? e.message : e);
+    return 'error';
+  }
+}
+
 async function pushToTokens(tokens: string[], msg: PushMessage): Promise<void> {
-  const valid = Array.from(new Set(tokens.filter(isExpoToken)));
-  if (valid.length === 0) return;
+  const sa = serviceAccount();
+  if (!sa) {
+    console.warn('[push] FCM not configured — OS push skipped.');
+    return;
+  }
+  const unique = Array.from(new Set(tokens.filter(Boolean)));
+  if (unique.length === 0) return;
+
+  const bearer = await accessToken(sa);
+  if (!bearer) return;
 
   const dead: string[] = [];
-  for (let i = 0; i < valid.length; i += 100) {
-    const chunk = valid.slice(i, i + 100);
-    const gone = await sendExpoBatch(
-      chunk.map((to) => ({ to, title: msg.title, body: msg.body, data: msg.data })),
+  // Modest concurrency so a large audience doesn't open hundreds of sockets.
+  const CONCURRENCY = 20;
+  for (let i = 0; i < unique.length; i += CONCURRENCY) {
+    const batch = unique.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((t) => sendOne(t, bearer, sa.project_id, msg)),
     );
-    dead.push(...gone);
+    results.forEach((r, idx) => { if (r === 'dead') dead.push(batch[idx]); });
   }
 
   if (dead.length) {

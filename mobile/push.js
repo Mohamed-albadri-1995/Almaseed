@@ -1,13 +1,11 @@
-// Push notifications for the أرشيف المسيد app.
+// OS push notifications for the أرشيف المسيد app (Firebase Cloud Messaging).
 //
-// Registers the device's Expo push token with the backend so it receives a
-// notification whenever new content is published. Everything is wrapped
-// defensively: on a device/emulator without push support (or before the FCM
-// credentials are configured in the build) this simply no-ops and the app keeps
-// working normally.
+// Gets the device's native FCM token and registers it with the backend, which
+// sends pushes straight through FCM. Everything is wrapped defensively: on a
+// device/emulator without push support (or before google-services.json is in
+// the build) this simply no-ops and the app keeps working normally.
 
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,16 +22,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-function projectId() {
-  return (
-    Constants?.expoConfig?.extra?.eas?.projectId ||
-    Constants?.easConfig?.projectId ||
-    undefined
-  );
-}
-
-// Ask for permission, get the Expo push token, and register it with the server.
-// Returns the token string, or null if unavailable.
+// Ask for permission, get the native FCM token, and register it with the server.
 export async function registerForPush() {
   try {
     if (!Device.isDevice) return null; // no push on simulators/emulators
@@ -55,11 +44,10 @@ export async function registerForPush() {
     }
     if (status !== 'granted') return null;
 
-    const pid = projectId();
-    const tokenResp = await Notifications.getExpoPushTokenAsync(
-      pid ? { projectId: pid } : undefined,
-    );
-    const token = tokenResp?.data;
+    // Native FCM (Android) / APNs (iOS) token — needs only google-services.json,
+    // no Expo account or projectId.
+    const resp = await Notifications.getDevicePushTokenAsync();
+    const token = resp?.data;
     if (!token) return null;
 
     // Only hit the server when the token is new/changed.

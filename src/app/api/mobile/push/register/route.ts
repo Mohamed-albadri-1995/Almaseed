@@ -14,7 +14,8 @@ export async function POST(req: Request) {
     platform?: string;
   };
   const token = (body.token || '').trim();
-  if (!token || !/^Expo(nent)?PushToken\[/.test(token)) {
+  // FCM registration tokens are long opaque strings — accept any non-trivial token.
+  if (!token || token.length < 20) {
     return NextResponse.json({ error: 'رمز غير صالح' }, { status: 400 });
   }
 
