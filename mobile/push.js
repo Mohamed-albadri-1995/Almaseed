@@ -74,12 +74,14 @@ export async function reregisterPush() {
   return registerForPush();
 }
 
-// Wire tap-to-open: when the user taps a «new material» notification, call
-// onOpenMaterial(materialId). Returns a cleanup function.
+// Wire tap-to-open: when the user taps a notification, call
+// onOpenMaterial(materialId, type). `type` is 'new_material' or 'review_pending'
+// so the caller can open the material detail vs. the web review page. Returns a
+// cleanup function.
 export function attachNotificationTap(onOpenMaterial) {
   const handle = (response) => {
     const data = response?.notification?.request?.content?.data || {};
-    if (data.materialId) onOpenMaterial(String(data.materialId));
+    if (data.materialId) onOpenMaterial(String(data.materialId), data.type ? String(data.type) : undefined);
   };
 
   // Cold start: app opened by tapping a notification.

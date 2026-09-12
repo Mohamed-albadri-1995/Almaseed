@@ -81,10 +81,24 @@ export default function App() {
       fileUrl: m.fileUrl, fileKind: m.fileKind, poster: m.coverImage || null });
   }, []);
   useEffect(() => { ensureTrackPlayer(); }, []);
-  // Register for OS push notifications and open the material when one is tapped.
+  // Register for OS push notifications and route a tap by its type: a review
+  // notification opens the (signed-in) web review page — the material is still
+  // pending, so the public detail screen would 404 («غير موجودة»); a new-content
+  // notification opens the material detail.
   useEffect(() => {
     registerForPush();
-    const detach = attachNotificationTap((materialId) => push('material', { id: materialId }));
+    const detach = attachNotificationTap(async (materialId, type) => {
+      if (type === 'review_pending') {
+        const a = await getAuth().catch(() => null);
+        const to = `/admin/review/${materialId}`;
+        const url = a?.token
+          ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(a.token)}`
+          : `${API_BASE}${to}`;
+        push('web', { url, title: 'مراجعة المادة' });
+      } else {
+        push('material', { id: materialId });
+      }
+    });
     return detach;
   }, []);
   useEffect(() => {
