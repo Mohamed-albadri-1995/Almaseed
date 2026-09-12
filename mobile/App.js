@@ -22,10 +22,21 @@ import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
+import * as Updates from 'expo-updates';
 
-// Force right-to-left layout (same as the proven build 60): set the native flag
-// on every launch. It is idempotent once applied.
-try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
+// Force right-to-left layout. forceRTL only takes effect AFTER a restart, so on
+// the very first launch (or right after a reinstall) the app would otherwise
+// render left-to-right — that is the "the writing is on the wrong side
+// sometimes" flip. We set the native flag once and reload immediately so RTL is
+// applied from the first screen. This is self-limiting: after the reload
+// I18nManager.isRTL is already true, so the branch never runs again (no loop).
+try {
+  I18nManager.allowRTL(true);
+  if (!I18nManager.isRTL) {
+    I18nManager.forceRTL(true);
+    Updates.reloadAsync().catch(() => {});
+  }
+} catch {}
 
 const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة', ARTICLE: 'مقال' };
 // Content-type filter shown as a second chip row: browse all of one kind.
