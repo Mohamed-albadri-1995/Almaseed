@@ -1,8 +1,9 @@
 name: Build Android APK
 
-# Legacy debug-APK builder. Superseded by EAS builds (Expo cloud) for SDK 54+.
-# Manual-only now, so it no longer auto-fails on every mobile push. It may need
-# updating before it works again on SDK 54.
+# Builds an installable APK and an AAB on GitHub's runners and uploads both as
+# downloadable artifacts. Manual only (Run workflow button). The AAB here is
+# debug-signed, so it is fine for testing but NOT valid to upload to Google Play
+# — the Play build must be produced and signed by EAS.
 on:
   workflow_dispatch: {} # manual "Run workflow" button only
 
@@ -18,7 +19,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Java (JDK 17)
         uses: actions/setup-java@v4
@@ -27,7 +28,7 @@ jobs:
           java-version: 17
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --non-interactive
@@ -43,11 +44,18 @@ jobs:
           fi
           echo "----- colors.xml -----"; cat "$COLORS"
 
-      - name: Build debug APK
+      - name: Build release APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease -x lint || ./gradlew assembleDebug -x lint
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+
+      - name: Build release AAB (debug-signed — testing only)
+        run: |
+          cd android
+          ./gradlew bundleRelease -x lint || true
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
 
@@ -57,3 +65,10 @@ jobs:
           name: almaseed-apk
           path: mobile/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: almaseed-aab
+          path: mobile/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: warn
