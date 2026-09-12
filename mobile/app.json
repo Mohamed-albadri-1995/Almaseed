@@ -2,8 +2,10 @@
   "expo": {
     "name": "الطريقة السمّانية",
     "slug": "almaseed",
+    "owner": "mohamedalbadri",
     "scheme": "almaseed",
     "version": "1.0.0",
+    "newArchEnabled": false,
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#1f3d33",
@@ -26,6 +28,11 @@
       "./plugins/with-pdf-downloader"
     ],
     "assetBundlePatterns": ["**/*"],
+    "extra": {
+      "eas": {
+        "projectId": "6ef6d279-0b1b-417f-af4f-d44b0237aa3a"
+      }
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.almaseed.archive",
@@ -36,7 +43,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 59,
+      "versionCode": 60,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
