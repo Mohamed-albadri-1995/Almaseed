@@ -10,6 +10,7 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { deleteUpload } from '@/lib/storage';
 import { hashPassword } from '@/lib/auth';
+import { decodeEntities } from '@/lib/format';
 import {
   MATERIAL_STATUS,
   REVIEW_ACTIONS,
@@ -136,6 +137,12 @@ export async function editMaterialAction(formData: FormData) {
     const v = formData.get(k);
     return v == null || v === '' ? null : String(v);
   };
+  // Plain-text getter: also strips HTML entities the editor can leak in (e.g.
+  // «&nbsp;»), so edits never re-introduce them. bodyText keeps get() (HTML).
+  const getText = (k: string) => {
+    const v = get(k);
+    return v == null ? null : decodeEntities(v);
+  };
 
   const categorySlug = get('categorySlug');
   const category = categorySlug
@@ -156,26 +163,26 @@ export async function editMaterialAction(formData: FormData) {
   await snapshotMaterial(id, user.id, user.name, 'edit');
 
   const fields = {
-    title: get('title') ?? undefined,
-    subtitle: get('subtitle'),
+    title: getText('title') ?? undefined,
+    subtitle: getText('subtitle'),
     bodyText: get('bodyText'),
-    performer: get('performer'),
-    narrator: get('narrator'),
-    speaker: get('speaker'),
-    host: get('host'),
-    participants: get('participants'),
-    occasion: get('occasion'),
-    topic: get('topic'),
-    place: get('place'),
-    city: get('city'),
-    organizer: get('organizer'),
-    description: get('description'),
-    summary: get('summary'),
-    lyrics: get('lyrics'),
-    keywords: get('keywords'),
-    author: get('author'),
-    source: get('source'),
-    docType: get('docType'),
+    performer: getText('performer'),
+    narrator: getText('narrator'),
+    speaker: getText('speaker'),
+    host: getText('host'),
+    participants: getText('participants'),
+    occasion: getText('occasion'),
+    topic: getText('topic'),
+    place: getText('place'),
+    city: getText('city'),
+    organizer: getText('organizer'),
+    description: getText('description'),
+    summary: getText('summary'),
+    lyrics: getText('lyrics'),
+    keywords: getText('keywords'),
+    author: getText('author'),
+    source: getText('source'),
+    docType: getText('docType'),
   };
 
   // Cover image: hidden field is always present; empty string clears it.

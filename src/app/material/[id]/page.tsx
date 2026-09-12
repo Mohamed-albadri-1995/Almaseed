@@ -93,7 +93,9 @@ export default async function MaterialPage({
   const getVal = (name: string): string | null => {
     if (name === 'recordDate') return material.recordDate ? formatDate(material.recordDate) : null;
     const v = mat[name];
-    return typeof v === 'string' ? v : null;
+    // Decode entities here so every consumer (info table + primary person) is
+    // clean, not just the ones wrapped in decodeEntities at the call site.
+    return typeof v === 'string' ? decodeEntities(v) : null;
   };
 
   // Type-specific fields come from the category form, so each material type

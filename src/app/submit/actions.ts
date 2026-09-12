@@ -10,6 +10,7 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { getCategoryForm, isFileKindAllowed } from '@/lib/fields';
 import { notifyReviewersNewSubmission } from '@/lib/push';
+import { decodeEntities } from '@/lib/format';
 
 export interface SubmitState { error?: string; }
 
@@ -17,6 +18,13 @@ function clean(value?: string | null): string | null {
   if (!value) return null;
   const t = value.trim();
   return t === '' ? null : t;
+}
+
+// Plain-text fields: also strip HTML entities (e.g. «&nbsp;») that the rich
+// editor can leak in, so they are never stored raw. bodyText stays HTML.
+function cleanText(value?: string | null): string | null {
+  const c = clean(value);
+  return c == null ? null : decodeEntities(c);
 }
 
 function parseDate(value?: string | null): Date | null {
@@ -27,9 +35,9 @@ function parseDate(value?: string | null): Date | null {
 }
 
 function cleanFields(d: Record<string, unknown>) {
-  const s = (k: string) => clean(d[k] as string | null | undefined);
+  const s = (k: string) => cleanText(d[k] as string | null | undefined);
   return {
-    title: String(d.title ?? '').trim(),
+    title: decodeEntities(String(d.title ?? '').trim()),
     subtitle: s('subtitle'),
     bodyText: clean(d.bodyText as string | null | undefined),
     description: s('description'), lyrics: s('lyrics'), summary: s('summary'),
