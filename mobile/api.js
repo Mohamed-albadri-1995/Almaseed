@@ -143,6 +143,11 @@ export const api = {
 
   material: (id) => getCached(`/api/mobile/materials/${id}`, () => j(`/api/mobile/materials/${id}`).then(decodeItem)),
 
+  // Search autocomplete suggestions (title + subtitle) for a partial query.
+  suggest: (q) => j(`/api/mobile/search/suggest?q=${encodeURIComponent(q)}`).then((d) => ({
+    items: (d.items || []).map((s) => ({ ...s, title: decodeEntities(s.title), subtitle: decodeEntities(s.subtitle) })),
+  })),
+
   // Recent published materials, newest first — the in-app notifications feed.
   notifications: () => j('/api/mobile/notifications').then(decodeList),
 
