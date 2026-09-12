@@ -117,6 +117,45 @@ export async function overwriteUploadFromFile(
   await copyFile(filePath, join(dir, key));
 }
 
+// Saves a file on disk to a NEW key (streamed, low memory) and returns its
+// public URL. Used by the watermark worker so a stamped file gets a fresh URL —
+// this sidesteps any CDN/browser caching of the old (unstamped) object.
+export async function saveUploadFromFile(
+  name: string,
+  filePath: string,
+  contentType: string,
+): Promise<string> {
+  const { createReadStream } = await import('fs');
+  const { stat } = await import('fs/promises');
+  const size = (await stat(filePath)).size;
+
+  if (storageConfigured()) {
+    const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const client = new S3Client({
+      region: S3.region,
+      endpoint: S3.endpoint,
+      credentials: { accessKeyId: S3.accessKeyId!, secretAccessKey: S3.secretAccessKey! },
+    });
+    await client.send(
+      new PutObjectCommand({
+        Bucket: S3.bucket!,
+        Key: name,
+        Body: createReadStream(filePath),
+        ContentLength: size,
+        ContentType: contentType,
+      }),
+    );
+    return `${S3.publicUrl!.replace(/\/$/, '')}/${name}`;
+  }
+
+  const { copyFile, mkdir } = await import('fs/promises');
+  const { join } = await import('path');
+  const dir = uploadsDir();
+  await mkdir(dir, { recursive: true });
+  await copyFile(filePath, join(dir, name));
+  return `/uploads/${name}`;
+}
+
 // Deletes a previously stored file by its public URL. Best-effort: never throws.
 export async function deleteUpload(url?: string | null): Promise<void> {
   if (!url) return;

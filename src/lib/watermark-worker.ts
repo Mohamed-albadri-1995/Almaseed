@@ -7,6 +7,7 @@
 // streams to disk, memory stays flat regardless of file size — a slow, steady
 // drain, exactly as intended.
 
+import { randomBytes } from 'crypto';
 import { prisma } from './prisma';
 import {
   watermarkImage,
@@ -14,7 +15,7 @@ import {
   isWatermarkableImage,
   isWatermarkablePdf,
 } from './watermark';
-import { overwriteUpload, overwriteUploadFromFile } from './storage';
+import { saveUpload, saveUploadFromFile } from './storage';
 import {
   hasFfmpeg,
   watermarkVideoInPlace,
@@ -24,6 +25,12 @@ import {
 const IMG_MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
 };
+
+// A fresh storage key for the stamped file. Writing to a NEW url (instead of
+// overwriting) sidesteps any CDN/browser caching of the old unstamped object.
+function newName(ext: string): string {
+  return `${randomBytes(8).toString('hex')}.${(ext || 'dat').toLowerCase()}`;
+}
 
 function extOf(url: string, fileType?: string | null): string {
   const t = (fileType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -43,13 +50,12 @@ async function readBytes(url: string): Promise<Buffer> {
   return readFile(join(uploadsDir(), basename(url)));
 }
 
-// Watermark a plain image URL (used for image materials and cover art).
-async function stampImage(url: string): Promise<boolean> {
+// Watermark a plain image URL (image materials + cover art) → new URL, or null.
+async function stampImageNew(url: string): Promise<string | null> {
   const ext = extOf(url);
-  if (!isWatermarkableImage(ext)) return false;
+  if (!isWatermarkableImage(ext)) return null;
   const w = await watermarkImage(await readBytes(url), ext);
-  await overwriteUpload(url, w, IMG_MIME[ext] || 'image/jpeg');
-  return true;
+  return saveUpload(newName(ext), w, IMG_MIME[ext] || 'image/jpeg');
 }
 
 type PendingRow = {
@@ -63,29 +69,37 @@ type PendingRow = {
 
 async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   const done: string[] = [];
+  const updates: { fileUrl?: string; coverImage?: string } = {};
 
   if (m.fileUrl) {
     const ext = extOf(m.fileUrl, m.fileType);
     if (m.fileKind === 'IMAGE' && isWatermarkableImage(ext)) {
-      if (await stampImage(m.fileUrl)) done.push('image');
+      const u = await stampImageNew(m.fileUrl);
+      if (u) { updates.fileUrl = u; done.push('image'); }
     } else if (m.fileKind === 'DOCUMENT' && isWatermarkablePdf(ext)) {
       const w = await watermarkPdf(await readBytes(m.fileUrl));
-      await overwriteUpload(m.fileUrl, w, 'application/pdf');
+      updates.fileUrl = await saveUpload(newName('pdf'), w, 'application/pdf');
       done.push('pdf');
     } else if (m.fileKind === 'VIDEO' && ff) {
-      await watermarkVideoInPlace(m.fileUrl, ext, (p, ct) => overwriteUploadFromFile(m.fileUrl!, p, ct));
+      updates.fileUrl = await watermarkVideoInPlace(m.fileUrl, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct));
       done.push('video');
     } else if (m.fileKind === 'AUDIO' && ff && ext === 'mp3') {
-      const ok = await watermarkMp3ArtworkInPlace(m.fileUrl, (p, ct) => overwriteUploadFromFile(m.fileUrl!, p, ct));
-      if (ok) done.push('audio-art');
+      const u = await watermarkMp3ArtworkInPlace(m.fileUrl, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct));
+      if (u) { updates.fileUrl = u; done.push('audio-art'); }
     }
   }
 
   // Cover image / thumbnail (album art shown in our player) — any material kind.
   if (m.coverImage) {
-    try { if (await stampImage(m.coverImage)) done.push('cover'); } catch { /* ignore cover errors */ }
+    try {
+      const u = await stampImageNew(m.coverImage);
+      if (u) { updates.coverImage = u; done.push('cover'); }
+    } catch { /* ignore cover errors */ }
   }
 
+  if (Object.keys(updates).length) {
+    await prisma.material.update({ where: { id: m.id }, data: updates });
+  }
   return done;
 }
 

@@ -71,9 +71,9 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 export async function watermarkVideoInPlace(
   url: string,
   ext: string,
-  save: (localPath: string, contentType: string) => Promise<void>,
-): Promise<void> {
-  await withTempDir(async (dir) => {
+  save: (localPath: string, contentType: string) => Promise<string>,
+): Promise<string> {
+  return withTempDir(async (dir) => {
     const inPath = join(dir, `in.${ext || 'mp4'}`);
     const outPath = join(dir, `out.${ext || 'mp4'}`);
     await localCopy(url, inPath);
@@ -90,7 +90,7 @@ export async function watermarkVideoInPlace(
       outPath,
     ]);
     const ct = ext === 'webm' ? 'video/webm' : ext === 'mkv' ? 'video/x-matroska' : 'video/mp4';
-    await save(outPath, ct);
+    return save(outPath, ct);
   });
 }
 
@@ -98,8 +98,8 @@ export async function watermarkVideoInPlace(
 // has any. Best-effort and mp3-only; returns true if art was stamped.
 export async function watermarkMp3ArtworkInPlace(
   url: string,
-  save: (localPath: string, contentType: string) => Promise<void>,
-): Promise<boolean> {
+  save: (localPath: string, contentType: string) => Promise<string>,
+): Promise<string | null> {
   return withTempDir(async (dir) => {
     const inPath = join(dir, 'in.mp3');
     const artPath = join(dir, 'art.jpg');
@@ -111,10 +111,10 @@ export async function watermarkMp3ArtworkInPlace(
     try {
       await runFfmpeg(['-y', '-i', inPath, '-an', '-frames:v', '1', artPath]);
     } catch {
-      return false;
+      return null;
     }
     const raw = await readFile(artPath).catch(() => null);
-    if (!raw || raw.length === 0) return false;
+    if (!raw || raw.length === 0) return null;
 
     const stamped = await watermarkImage(raw, 'jpg');
     await writeFile(artWm, stamped);
@@ -133,7 +133,6 @@ export async function watermarkMp3ArtworkInPlace(
       '-disposition:v:0', 'attached_pic',
       outPath,
     ]);
-    await save(outPath, 'audio/mpeg');
-    return true;
+    return save(outPath, 'audio/mpeg');
   });
 }
