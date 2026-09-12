@@ -27,11 +27,13 @@ export async function GET(req: Request) {
   }
 
   const requeue = new URL(req.url).searchParams.get('requeue');
-  if (requeue === 'all' || requeue === 'failed') {
+  if (requeue === 'all' || requeue === 'failed' || requeue === 'audio') {
     const where: Prisma.MaterialWhereInput =
       requeue === 'failed'
         ? { watermarkError: { not: null } }
-        : { AND: [WATERMARKABLE] };
+        : requeue === 'audio'
+          ? { fileKind: 'AUDIO' }
+          : { AND: [WATERMARKABLE] };
     const r = await prisma.material.updateMany({
       where,
       data: { watermarkedAt: null, watermarkError: null },

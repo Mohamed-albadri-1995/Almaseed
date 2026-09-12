@@ -17,6 +17,25 @@ import { watermarkImage } from './watermark';
 
 const EMBLEM = () => join(process.cwd(), 'public', 'logo.png');
 
+// A branded square cover (emblem centered on the brand green) — embedded into
+// audio files that have no artwork, so the emblem shows in external players. It
+// is written INTO the audio file only; the material's coverImage in the DB is
+// left untouched, so the app's card/kind icons are unaffected.
+let coverPromise: Promise<Buffer> | null = null;
+async function brandCover(): Promise<Buffer> {
+  if (!coverPromise) {
+    coverPromise = (async () => {
+      const sharpMod = (await import('sharp')).default;
+      const logo = await sharpMod(await readFile(EMBLEM())).resize({ width: 460 }).png().toBuffer();
+      return sharpMod({ create: { width: 640, height: 640, channels: 3, background: '#1f3d33' } })
+        .composite([{ input: logo, gravity: 'center' }])
+        .jpeg({ quality: 88 })
+        .toBuffer();
+    })();
+  }
+  return coverPromise;
+}
+
 let ffmpegChecked = false;
 let ffmpegOk = false;
 export async function hasFfmpeg(): Promise<boolean> {
@@ -107,17 +126,16 @@ export async function watermarkMp3ArtworkInPlace(
     const outPath = join(dir, 'out.mp3');
     await localCopy(url, inPath);
 
-    // Extract existing cover art; if the file has none, ffmpeg fails → skip.
+    // If the mp3 already has cover art, stamp it; otherwise embed the branded
+    // emblem cover — either way the emblem ends up in the player.
+    let art: Buffer | null = null;
     try {
       await runFfmpeg(['-y', '-i', inPath, '-an', '-frames:v', '1', artPath]);
-    } catch {
-      return null;
-    }
-    const raw = await readFile(artPath).catch(() => null);
-    if (!raw || raw.length === 0) return null;
-
-    const stamped = await watermarkImage(raw, 'jpg');
-    await writeFile(artWm, stamped);
+      const raw = await readFile(artPath).catch(() => null);
+      if (raw && raw.length > 0) art = await watermarkImage(raw, 'jpg');
+    } catch { /* no embedded art */ }
+    if (!art) art = await brandCover();
+    await writeFile(artWm, art);
 
     await runFfmpeg([
       '-y',
