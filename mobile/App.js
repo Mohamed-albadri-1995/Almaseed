@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import TrackPlayer, {
@@ -64,6 +65,15 @@ function ensureTrackPlayer() {
 }
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppInner />
+    </SafeAreaProvider>
+  );
+}
+
+function AppInner() {
+  const insets = useSafeAreaInsets();
   const [stack, setStack] = useState([{ name: 'home', params: {} }]);
   const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
@@ -131,7 +141,7 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, paddingBottom: (now && !hideMini) ? 0 : insets.bottom }}>
         {top.name === 'home' && <Feed push={push} active={feedCat} setActive={setFeedCat} kind={feedKind} setKind={setFeedKind} q={feedQ} setQ={setFeedQ} />}
         {top.name === 'material' && <MaterialScreen id={top.params.id} push={push} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
         {top.name === 'notifications' && <NotificationsScreen push={push} onBack={pop} />}
@@ -142,7 +152,7 @@ export default function App() {
         {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
         {top.name === 'pdf' && <PdfScreen url={top.params.url} title={top.params.title} onBack={pop} />}
       </View>
-      {now && !hideMini && <MiniPlayer item={now} onClose={stopNow} onOpen={openNow} />}
+      {now && !hideMini && <MiniPlayer item={now} onClose={stopNow} onOpen={openNow} bottomInset={insets.bottom} />}
     </SafeAreaView>
   );
 }
@@ -458,9 +468,9 @@ function InlineVideo({ url }) {
   return <View style={styles.videoWrap}><VideoView ref={ref} player={player} style={styles.videoInline} contentFit="contain" nativeControls allowsFullscreen /><View style={styles.videoBtns}><TouchableOpacity style={[styles.fsBtn, styles.fsBtnAlt]} onPress={fullscreen} activeOpacity={0.85}><Text style={styles.fsIcon}>⛶</Text><Text style={styles.fsTxt}>ملء الشاشة</Text></TouchableOpacity></View></View>;
 }
 function MiniPlayer(props) { return <MiniAudio {...props} />; }
-function MiniShell({ children, onClose, onOpen, item, pct, leading }) { return <View style={styles.mini}><View style={styles.miniProgress}><View style={[styles.miniProgressFill, { width: `${pct}%` }]} /></View><View style={styles.miniRow}>{leading}<TouchableOpacity style={{ flex: 1 }} onPress={onOpen} activeOpacity={0.8}><Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>{!!item.person && <Text style={styles.miniPerson} numberOfLines={1}>{item.person}</Text>}</TouchableOpacity>{children}<TouchableOpacity onPress={onClose} style={styles.miniClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.miniCloseIcon}>✕</Text></TouchableOpacity></View></View>; }
+function MiniShell({ children, onClose, onOpen, item, pct, leading, bottomInset = 0 }) { return <View style={[styles.mini, { paddingBottom: bottomInset }]}><View style={styles.miniProgress}><View style={[styles.miniProgressFill, { width: `${pct}%` }]} /></View><View style={styles.miniRow}>{leading}<TouchableOpacity style={{ flex: 1 }} onPress={onOpen} activeOpacity={0.8}><Text style={styles.miniTitle} numberOfLines={1}>{item.title}</Text>{!!item.person && <Text style={styles.miniPerson} numberOfLines={1}>{item.person}</Text>}</TouchableOpacity>{children}<TouchableOpacity onPress={onClose} style={styles.miniClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={styles.miniCloseIcon}>✕</Text></TouchableOpacity></View></View>; }
 const AUDIO_BUSY = (s) => s === State.Buffering || s === State.Loading || s === State.Connecting || s === State.None || s == null;
-function MiniAudio({ item, onClose, onOpen }) { const playback = usePlaybackState(); const { position, duration } = useProgress(500); const state = playback?.state; const isPlaying = state === State.Playing; const toggle = () => { isPlaying ? TrackPlayer.pause() : TrackPlayer.play(); }; const pct = duration ? Math.min(100, Math.round((position / duration) * 100)) : 0; return <MiniShell item={item} onClose={onClose} onOpen={onOpen} pct={pct} leading={<TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>{item.poster ? <Image source={{ uri: item.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Image source={require('./assets/emblem.png')} style={{ width: 30, height: 30 }} resizeMode="contain" />}</TouchableOpacity>}><TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>{AUDIO_BUSY(state) ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}</TouchableOpacity></MiniShell>; }
+function MiniAudio({ item, onClose, onOpen, bottomInset }) { const playback = usePlaybackState(); const { position, duration } = useProgress(500); const state = playback?.state; const isPlaying = state === State.Playing; const toggle = () => { isPlaying ? TrackPlayer.pause() : TrackPlayer.play(); }; const pct = duration ? Math.min(100, Math.round((position / duration) * 100)) : 0; return <MiniShell item={item} onClose={onClose} onOpen={onOpen} bottomInset={bottomInset} pct={pct} leading={<TouchableOpacity onPress={onOpen} activeOpacity={0.9} style={styles.miniThumb}>{item.poster ? <Image source={{ uri: item.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <Image source={require('./assets/emblem.png')} style={{ width: 30, height: 30 }} resizeMode="contain" />}</TouchableOpacity>}><TouchableOpacity onPress={toggle} style={styles.miniBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>{AUDIO_BUSY(state) ? <ActivityIndicator color={C.brand} /> : <Text style={styles.miniBtnIcon}>{isPlaying ? '❚❚' : '▶'}</Text>}</TouchableOpacity></MiniShell>; }
 const fmtTime = (sec) => { const s = Math.max(0, Math.floor(sec || 0)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
 
