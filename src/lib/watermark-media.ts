@@ -126,21 +126,33 @@ export async function watermarkVideoInPlace(
   });
 }
 
-// Watermark the embedded cover art of an mp3 (what external players show), if it
-// has any. Best-effort and mp3-only; returns true if art was stamped.
-export async function watermarkMp3ArtworkInPlace(
+function metaArg(key: string, value?: string | null): string[] {
+  const v = (value || '').replace(/[\r\n]+/g, ' ').trim();
+  return v ? ['-metadata', `${key}=${v}`] : [];
+}
+
+// Embed the branded cover (+ title/artist tags) into an audio file so external
+// players show the emblem and a proper name instead of «Unknown artist».
+//
+// The output is ALWAYS mp3: mp3's ID3 cover art is the one format every phone
+// player reliably renders. If the source is already mp3 the audio is copied
+// (lossless, fast); otherwise it is transcoded to mp3 (VBR ~165kbps). Returns
+// the new URL, or null if nothing could be produced.
+export async function watermarkAudioInPlace(
   url: string,
+  ext: string,
   save: (localPath: string, contentType: string) => Promise<string>,
-  contributor?: string | null,
+  meta?: { contributor?: string | null; title?: string | null },
 ): Promise<string | null> {
+  const contributor = meta?.contributor ?? null;
   return withTempDir(async (dir) => {
-    const inPath = join(dir, 'in.mp3');
+    const inPath = join(dir, `in.${ext || 'mp3'}`);
     const artPath = join(dir, 'art.jpg');
     const artWm = join(dir, 'art_wm.jpg');
     const outPath = join(dir, 'out.mp3');
     await localCopy(url, inPath);
 
-    // If the mp3 already has cover art, stamp the label on it; otherwise embed
+    // If the file already has cover art, stamp the label on it; otherwise embed
     // the branded cover — either way the brand ends up in the player.
     let art: Buffer | null = null;
     try {
@@ -151,13 +163,18 @@ export async function watermarkMp3ArtworkInPlace(
     if (!art) art = await brandCover(contributor);
     await writeFile(artWm, art);
 
+    const isMp3 = (ext || '').toLowerCase() === 'mp3';
     await runFfmpeg([
       '-y',
       '-i', inPath,
       '-i', artWm,
       '-map', '0:a',
       '-map', '1:0',
-      '-c:a', 'copy',
+      // Copy when already mp3; otherwise transcode to mp3 so the cover sticks.
+      '-c:a', ...(isMp3 ? ['copy'] : ['libmp3lame', '-q:a', '4']),
+      ...metaArg('title', meta?.title),
+      ...metaArg('artist', contributor || 'الطريقة السمّانية — السجادة السليمانية'),
+      ...metaArg('album', 'أرشيف المسيد'),
       '-c:v', 'mjpeg',
       '-id3v2_version', '3',
       '-metadata:s:v', 'title=Album cover',

@@ -19,7 +19,7 @@ import { saveUpload, saveUploadFromFile, deleteUpload } from './storage';
 import {
   hasFfmpeg,
   watermarkVideoInPlace,
-  watermarkMp3ArtworkInPlace,
+  watermarkAudioInPlace,
 } from './watermark-media';
 import { buildBrandLabel } from './brand-label';
 
@@ -74,7 +74,7 @@ type PendingRow = {
 async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   const done: string[] = [];
   const updates: {
-    fileUrl?: string; coverImage?: string;
+    fileUrl?: string; coverImage?: string; fileType?: string;
     originalFileUrl?: string; originalCoverImage?: string;
   } = {};
   // Pre-render the brand label once (emblem + المساهم name + site) so every
@@ -99,9 +99,12 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
     } else if (m.fileKind === 'VIDEO' && ff) {
       updates.fileUrl = await watermarkVideoInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct), contributor);
       done.push('video');
-    } else if (m.fileKind === 'AUDIO' && ff && ext === 'mp3') {
-      const u = await watermarkMp3ArtworkInPlace(srcFile, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), contributor);
-      if (u) { updates.fileUrl = u; done.push('audio-art'); }
+    } else if (m.fileKind === 'AUDIO' && ff) {
+      // Any audio → mp3 with the embedded branded cover (+ title/artist tags), so
+      // the emblem shows in every external player. Non-mp3 is transcoded; the
+      // original stays in originalFileUrl.
+      const u = await watermarkAudioInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), { contributor, title: m.title });
+      if (u) { updates.fileUrl = u; updates.fileType = 'mp3'; done.push('audio-art'); }
     }
     // Preserve the original once (only when we actually produced a stamped copy).
     if (updates.fileUrl && !m.originalFileUrl && m.fileUrl) updates.originalFileUrl = m.fileUrl;
@@ -149,7 +152,9 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
   });
 
   for (const m of candidates) {
-    if (m.fileKind === 'VIDEO' && !ff) continue; // leave for when ffmpeg exists
+    // Video + audio both need ffmpeg (overlay / mp3 cover). Leave them pending
+    // when it's unavailable rather than marking them done without the emblem.
+    if ((m.fileKind === 'VIDEO' || m.fileKind === 'AUDIO') && !ff) continue;
     // Claim atomically: only one worker/instance wins the null → now transition.
     const claim = await prisma.material.updateMany({
       where: { id: m.id, watermarkedAt: null },
