@@ -14,26 +14,35 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { uploadsDir } from './uploads';
 import { watermarkImage } from './watermark';
+import { buildBrandLabel } from './brand-label';
 
 const EMBLEM = () => join(process.cwd(), 'public', 'logo.png');
 
-// A branded square cover (emblem centered on the brand green) — embedded into
-// audio files that have no artwork, so the emblem shows in external players. It
-// is written INTO the audio file only; the material's coverImage in the DB is
+// A branded square cover (emblem + المساهم name + site on the brand green) —
+// embedded into audio files so the brand shows in external players. It is
+// written INTO the audio file only; the material's coverImage in the DB is
 // left untouched, so the app's card/kind icons are unaffected.
-let coverPromise: Promise<Buffer> | null = null;
-async function brandCover(): Promise<Buffer> {
-  if (!coverPromise) {
-    coverPromise = (async () => {
-      const sharpMod = (await import('sharp')).default;
-      const logo = await sharpMod(await readFile(EMBLEM())).resize({ width: 460 }).png().toBuffer();
-      return sharpMod({ create: { width: 640, height: 640, channels: 3, background: '#1f3d33' } })
-        .composite([{ input: logo, gravity: 'center' }])
-        .jpeg({ quality: 88 })
-        .toBuffer();
-    })();
-  }
-  return coverPromise;
+async function brandCover(contributor?: string | null): Promise<Buffer> {
+  const sharpMod = (await import('sharp')).default;
+  const logo = await sharpMod(await readFile(EMBLEM())).resize({ width: 380 }).png().toBuffer();
+  const name = (contributor || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+  const site = 'almaseeed.com';
+  const textSvg = Buffer.from(
+    `<svg width="600" height="200" xmlns="http://www.w3.org/2000/svg">` +
+      (name
+        ? `<text x="300" y="72" font-size="52" fill="#ffffff" text-anchor="middle" direction="rtl" font-family="'Noto Naskh Arabic','Noto Sans Arabic','Amiri','DejaVu Sans',sans-serif" font-weight="600">${name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`
+        : '') +
+      `<text x="300" y="${name ? 150 : 110}" font-size="42" fill="#e8d9a0" text-anchor="middle" font-family="'DejaVu Sans','Noto Sans',sans-serif" letter-spacing="1">${site}</text>` +
+      `</svg>`,
+  );
+  const text = await sharpMod(textSvg).png().toBuffer();
+  return sharpMod({ create: { width: 640, height: 640, channels: 3, background: '#1f3d33' } })
+    .composite([
+      { input: logo, top: 70, left: (640 - 380) / 2 },
+      { input: text, top: 480, left: 20 },
+    ])
+    .jpeg({ quality: 88 })
+    .toBuffer();
 }
 
 let ffmpegChecked = false;
@@ -91,18 +100,22 @@ export async function watermarkVideoInPlace(
   url: string,
   ext: string,
   save: (localPath: string, contentType: string) => Promise<string>,
+  contributor?: string | null,
 ): Promise<string> {
   return withTempDir(async (dir) => {
     const inPath = join(dir, `in.${ext || 'mp4'}`);
     const outPath = join(dir, `out.${ext || 'mp4'}`);
+    const labelPath = join(dir, 'label.png');
     await localCopy(url, inPath);
+    // The brand label (emblem + المساهم name + site) already carries its own
+    // faint alpha, so ffmpeg just scales and overlays it bottom-right.
+    await writeFile(labelPath, await buildBrandLabel(contributor));
     await runFfmpeg([
       '-y',
       '-i', inPath,
-      '-i', EMBLEM(),
+      '-i', labelPath,
       '-filter_complex',
-      // logo → 45% opacity, scaled to 140px wide, overlaid 20px from bottom-right
-      '[1:v]format=rgba,colorchannelmixer=aa=0.45,scale=140:-1[lg];[0:v][lg]overlay=W-w-20:H-h-20[v]',
+      '[1:v]format=rgba,scale=200:-1[lg];[0:v][lg]overlay=W-w-20:H-h-20[v]',
       '-map', '[v]',
       '-map', '0:a?',
       '-c:a', 'copy',
@@ -118,6 +131,7 @@ export async function watermarkVideoInPlace(
 export async function watermarkMp3ArtworkInPlace(
   url: string,
   save: (localPath: string, contentType: string) => Promise<string>,
+  contributor?: string | null,
 ): Promise<string | null> {
   return withTempDir(async (dir) => {
     const inPath = join(dir, 'in.mp3');
@@ -126,15 +140,15 @@ export async function watermarkMp3ArtworkInPlace(
     const outPath = join(dir, 'out.mp3');
     await localCopy(url, inPath);
 
-    // If the mp3 already has cover art, stamp it; otherwise embed the branded
-    // emblem cover — either way the emblem ends up in the player.
+    // If the mp3 already has cover art, stamp the label on it; otherwise embed
+    // the branded cover — either way the brand ends up in the player.
     let art: Buffer | null = null;
     try {
       await runFfmpeg(['-y', '-i', inPath, '-an', '-frames:v', '1', artPath]);
       const raw = await readFile(artPath).catch(() => null);
-      if (raw && raw.length > 0) art = await watermarkImage(raw, 'jpg');
+      if (raw && raw.length > 0) art = await watermarkImage(raw, 'jpg', await buildBrandLabel(contributor));
     } catch { /* no embedded art */ }
-    if (!art) art = await brandCover();
+    if (!art) art = await brandCover(contributor);
     await writeFile(artWm, art);
 
     await runFfmpeg([

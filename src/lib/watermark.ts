@@ -1,24 +1,15 @@
-// Small, non-destructive السجادة watermark applied to uploads at save time.
+// Small, non-destructive السجادة watermark applied by the background worker.
 //
-// • Images  → a small semi-transparent emblem in the bottom corner (sharp).
-// • PDFs    → the same emblem drawn small in the corner of every page (pdf-lib).
+// • Images  → the brand label (emblem + المساهم name + site) in the bottom
+//             corner (sharp).
+// • PDFs    → the same label drawn small in the corner of every page (pdf-lib).
 //
 // Both are wrapped by the caller in try/catch: if watermarking ever fails the
-// original file is used, so an upload never breaks because of the stamp.
-// Audio has no visual surface — it shows the emblem as artwork in the app's
-// player instead (handled on the mobile side), so it isn't touched here.
+// original file is used, so an upload never breaks because of the stamp. The
+// label is pre-rendered once per material (see brand-label.ts) so Arabic text
+// is shaped correctly and reused across images, PDFs, video, and audio art.
 
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-
-// The gold emblem, transparent PNG (same asset used across web + app).
-let emblemPromise: Promise<Buffer> | null = null;
-function emblem(): Promise<Buffer> {
-  if (!emblemPromise) {
-    emblemPromise = readFile(join(process.cwd(), 'public', 'logo.png'));
-  }
-  return emblemPromise;
-}
+import { buildBrandLabel } from './brand-label';
 
 // Which upload kinds get a burned-in visual stamp.
 export function isWatermarkableImage(ext: string): boolean {
@@ -28,11 +19,13 @@ export function isWatermarkablePdf(ext: string): boolean {
   return ext.toLowerCase() === 'pdf';
 }
 
-const IMG_OPACITY = 0.42; // faint enough not to distort the material
-const IMG_SCALE = 0.14; // logo width as a fraction of the image's short side
+const IMG_SCALE = 0.30; // label width as a fraction of the image's short side
 const IMG_MARGIN = 0.03; // corner padding as a fraction of the short side
 
-export async function watermarkImage(input: Buffer, ext: string): Promise<Buffer> {
+// Stamp the brand label (emblem + المساهم name + site) in the bottom corner.
+// `label` is the pre-rendered, already-faint PNG from buildBrandLabel; when
+// omitted a site-only label is built.
+export async function watermarkImage(input: Buffer, ext: string, label?: Buffer): Promise<Buffer> {
   const sharpMod = (await import('sharp')).default;
   const src = sharpMod(input, { failOn: 'none' });
   const meta = await src.metadata();
@@ -40,33 +33,18 @@ export async function watermarkImage(input: Buffer, ext: string): Promise<Buffer
   const height = meta.height ?? 0;
   if (!width || !height) return input;
 
+  const brand = label ?? (await buildBrandLabel(null));
   const shortSide = Math.min(width, height);
-  const logoW = Math.max(48, Math.min(260, Math.round(shortSide * IMG_SCALE)));
+  const stampW = Math.max(120, Math.min(400, Math.round(shortSide * IMG_SCALE)));
+  const stamp = await sharpMod(brand).resize({ width: stampW }).png().toBuffer();
 
-  // Resize the emblem and knock its opacity down to IMG_OPACITY. 'dest-in'
-  // multiplies the emblem's alpha by the (uniform, low-alpha) mask.
-  const alpha = Math.round(255 * IMG_OPACITY);
-  const logo = await sharpMod(await emblem())
-    .resize({ width: logoW })
-    .ensureAlpha()
-    .composite([
-      {
-        input: Buffer.from([255, 255, 255, alpha]),
-        raw: { width: 1, height: 1, channels: 4 },
-        tile: true,
-        blend: 'dest-in',
-      },
-    ])
-    .png()
-    .toBuffer();
-
-  const logoMeta = await sharpMod(logo).metadata();
-  const logoH = logoMeta.height ?? logoW;
+  const stampMeta = await sharpMod(stamp).metadata();
+  const stampH = stampMeta.height ?? stampW;
   const margin = Math.round(shortSide * IMG_MARGIN);
-  const left = Math.max(0, width - logoW - margin);
-  const top = Math.max(0, height - logoH - margin);
+  const left = Math.max(0, width - stampW - margin);
+  const top = Math.max(0, height - stampH - margin);
 
-  let out = src.composite([{ input: logo, left, top }]);
+  let out = src.composite([{ input: stamp, left, top }]);
   const fmt = ext.toLowerCase();
   if (fmt === 'png') out = out.png();
   else if (fmt === 'webp') out = out.webp({ quality: 90 });
@@ -74,27 +52,15 @@ export async function watermarkImage(input: Buffer, ext: string): Promise<Buffer
   return out.toBuffer();
 }
 
-// A small emblem for PDF embedding — keeps documents from growing by the full
-// ~460KB source PNG when we only draw it a few dozen points wide.
-let pdfEmblemPromise: Promise<Buffer> | null = null;
-function pdfEmblem(): Promise<Buffer> {
-  if (!pdfEmblemPromise) {
-    pdfEmblemPromise = (async () => {
-      const sharpMod = (await import('sharp')).default;
-      return sharpMod(await emblem()).resize({ width: 160 }).png().toBuffer();
-    })();
-  }
-  return pdfEmblemPromise;
-}
-
-export async function watermarkPdf(input: Buffer): Promise<Buffer> {
+export async function watermarkPdf(input: Buffer, label?: Buffer): Promise<Buffer> {
   const { PDFDocument } = await import('pdf-lib');
+  const brand = label ?? (await buildBrandLabel(null));
   const pdf = await PDFDocument.load(input, { ignoreEncryption: true });
-  const png = await pdf.embedPng(await pdfEmblem());
+  const png = await pdf.embedPng(brand);
   const ratio = png.height / png.width;
   for (const page of pdf.getPages()) {
     const { width, height } = page.getSize();
-    const w = Math.max(28, Math.min(72, width * 0.09));
+    const w = Math.max(70, Math.min(150, width * 0.2));
     const h = w * ratio;
     const margin = Math.max(10, width * 0.02);
     page.drawImage(png, {
@@ -102,7 +68,6 @@ export async function watermarkPdf(input: Buffer): Promise<Buffer> {
       y: margin,
       width: w,
       height: h,
-      opacity: 0.35,
     });
   }
   const bytes = await pdf.save();

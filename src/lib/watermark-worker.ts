@@ -21,6 +21,7 @@ import {
   watermarkVideoInPlace,
   watermarkMp3ArtworkInPlace,
 } from './watermark-media';
+import { buildBrandLabel } from './brand-label';
 
 const IMG_MIME: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
@@ -51,10 +52,10 @@ async function readBytes(url: string): Promise<Buffer> {
 }
 
 // Watermark a plain image URL (image materials + cover art) → new URL, or null.
-async function stampImageNew(url: string): Promise<string | null> {
+async function stampImageNew(url: string, label: Buffer): Promise<string | null> {
   const ext = extOf(url);
   if (!isWatermarkableImage(ext)) return null;
-  const w = await watermarkImage(await readBytes(url), ext);
+  const w = await watermarkImage(await readBytes(url), ext, label);
   return saveUpload(newName(ext), w, IMG_MIME[ext] || 'image/jpeg');
 }
 
@@ -65,26 +66,31 @@ type PendingRow = {
   fileKind: string | null;
   fileType: string | null;
   coverImage: string | null;
+  submittedBy: { name: string | null } | null;
 };
 
 async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   const done: string[] = [];
   const updates: { fileUrl?: string; coverImage?: string } = {};
+  // Pre-render the brand label once (emblem + المساهم name + site) so every
+  // stamp on this material carries the same, correctly-shaped text.
+  const contributor = m.submittedBy?.name ?? null;
+  const label = await buildBrandLabel(contributor);
 
   if (m.fileUrl) {
     const ext = extOf(m.fileUrl, m.fileType);
     if (m.fileKind === 'IMAGE' && isWatermarkableImage(ext)) {
-      const u = await stampImageNew(m.fileUrl);
+      const u = await stampImageNew(m.fileUrl, label);
       if (u) { updates.fileUrl = u; done.push('image'); }
     } else if (m.fileKind === 'DOCUMENT' && isWatermarkablePdf(ext)) {
-      const w = await watermarkPdf(await readBytes(m.fileUrl));
+      const w = await watermarkPdf(await readBytes(m.fileUrl), label);
       updates.fileUrl = await saveUpload(newName('pdf'), w, 'application/pdf');
       done.push('pdf');
     } else if (m.fileKind === 'VIDEO' && ff) {
-      updates.fileUrl = await watermarkVideoInPlace(m.fileUrl, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct));
+      updates.fileUrl = await watermarkVideoInPlace(m.fileUrl, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct), contributor);
       done.push('video');
     } else if (m.fileKind === 'AUDIO' && ff && ext === 'mp3') {
-      const u = await watermarkMp3ArtworkInPlace(m.fileUrl, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct));
+      const u = await watermarkMp3ArtworkInPlace(m.fileUrl, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), contributor);
       if (u) { updates.fileUrl = u; done.push('audio-art'); }
     }
   }
@@ -92,7 +98,7 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   // Cover image / thumbnail (album art shown in our player) — any material kind.
   if (m.coverImage) {
     try {
-      const u = await stampImageNew(m.coverImage);
+      const u = await stampImageNew(m.coverImage, label);
       if (u) { updates.coverImage = u; done.push('cover'); }
     } catch { /* ignore cover errors */ }
   }
@@ -115,7 +121,7 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
     },
     orderBy: { createdAt: 'asc' },
     take: 8,
-    select: { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true },
+    select: { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true, submittedBy: { select: { name: true } } },
   });
 
   for (const m of candidates) {
