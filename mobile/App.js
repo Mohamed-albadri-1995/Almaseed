@@ -490,17 +490,16 @@ function SeekBar({ position, duration, onSeek }) {
   const wRef = useRef(1);
   const [drag, setDrag] = useState(null);
   const clamp = (x) => Math.max(0, Math.min(1, x));
-  // We want a NORMAL left-to-right seek bar (0 on the left, 100% on the right,
-  // elapsed time on the left) so a left-to-right drag moves forward — the same
-  // direction the bar fills. But the app forces global RTL and Android mirrors
-  // absolute left/right positions (and ignores direction:'ltr' on one view), which
-  // would put 0 on the right and reverse the drag. Since the platform swaps
-  // left<->right under RTL, we anchor with `right` so it lands back on the visual
-  // LEFT, and we read the touch physically from the left (locationX). Net result:
-  // finger position == bar position, drag right == forward, in both RTL and LTR.
+  // Arabic (RTL) seek bar: 0 is on the RIGHT, 100% on the LEFT, the fill and the
+  // elapsed time sit on the right, and the bar fills from right to left — so
+  // moving forward means dragging from right toward left. We anchor the fill/thumb
+  // with `right` (0% = right edge) to get that layout, and because the touch
+  // locationX is measured physically from the LEFT, we invert it with 1-raw so the
+  // finger position matches the bar: tapping the right edge = start, dragging left
+  // = forward. (In an LTR build none of this inverts.)
   const isRTL = I18nManager.isRTL;
   const anchorPct = (p) => (isRTL ? { right: `${p}%` } : { left: `${p}%` });
-  const fractionFromEvent = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
+  const fractionFromEvent = (e) => { const raw = (e.nativeEvent.locationX || 0) / wRef.current; return clamp(isRTL ? 1 - raw : raw); };
   const begin = (e) => setDrag(fractionFromEvent(e));
   const move = (e) => setDrag(fractionFromEvent(e));
   const finish = (e) => { const f = fractionFromEvent(e); setDrag(null); onSeek(f); };
