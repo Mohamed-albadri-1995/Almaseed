@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
+import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
@@ -256,6 +257,20 @@ function Account({ push, onBack }) {
     } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); } finally { setBusy(false); }
   };
   const doLogout = async () => { await clearAuth(); setAuthState(null); reregisterPush(); };
+  // One-tap Google via the system browser (Chrome Custom Tab shares the phone's
+  // Google session, so the user just picks an account — no password typing).
+  const googleLogin = async () => {
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(`${API_BASE}/mobile-login/google`, 'almaseed://auth');
+      if (result.type !== 'success' || !result.url) return; // cancelled
+      const token = decodeURIComponent((result.url.match(/[?&]token=([^&#]+)/) || [])[1] || '');
+      const error = decodeURIComponent((result.url.match(/[?&]error=([^&#]+)/) || [])[1] || '');
+      if (error || !token) { Alert.alert('تعذّر الدخول عبر Google', error === 'notconfigured' ? 'خدمة Google غير مُفعّلة بعد على الخادم.' : 'حاول مرة أخرى.'); return; }
+      const { user } = await api.me(token);
+      await setAuth({ token, user }); setAuthState({ token, user }); reregisterPush();
+      Alert.alert('تم الدخول', user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك عبر Google.');
+    } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); }
+  };
   // One login: when signed in, open the web pages through the SSO bridge so they
   // are already authenticated (no second login). Otherwise open them normally.
   const openWeb = (to, title) => push('web', {
@@ -281,7 +296,7 @@ function Account({ push, onBack }) {
             <TouchableOpacity style={styles.authBtn} onPress={doLogin} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>دخول</Text>}</TouchableOpacity>
             <TouchableOpacity onPress={() => push('web', { url: `${API_BASE}/forgot-password`, title: 'استعادة كلمة المرور' })} style={{ marginTop: 12 }} activeOpacity={0.7}><Text style={{ color: C.gold, textAlign: 'center', fontWeight: '700', fontSize: 13 }}>نسيت كلمة المرور؟</Text></TouchableOpacity>
             <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orTxt}>أو</Text><View style={styles.orLine} /></View>
-            <TouchableOpacity style={styles.googleBtn} onPress={() => push('googlelogin')} activeOpacity={0.85}><Text style={styles.googleG}>G</Text><Text style={styles.googleTxt}>الدخول عبر Google</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.googleBtn} onPress={googleLogin} activeOpacity={0.85}><Text style={styles.googleG}>G</Text><Text style={styles.googleTxt}>الدخول عبر Google</Text></TouchableOpacity>
             <Text style={[styles.acctDesc, { marginTop: 12 }]}>التصفّح متاح للجميع دون حساب — التسجيل اختياري وهو للمشرفين والمساهمين.</Text>
             <TouchableOpacity style={styles.guestBtn} onPress={onBack} activeOpacity={0.85}><Text style={styles.guestTxt}>متابعة كزائر</Text></TouchableOpacity>
           </View>

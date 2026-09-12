@@ -4,14 +4,18 @@ import { prisma } from '@/lib/prisma';
 import { googleExchange } from '@/lib/google-oauth';
 import { signMobileToken } from '@/lib/mobile-auth';
 import { hashPassword } from '@/lib/auth';
-import { appUrl } from '@/lib/email';
 import { ROLES, type Role } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
 function done(params: Record<string, string>): NextResponse {
   const sp = new URLSearchParams(params);
-  const res = NextResponse.redirect(`${appUrl()}/mobile-login/done?${sp.toString()}`);
+  // Redirect back into the app via its custom scheme so the system browser tab
+  // (opened with one-tap Google) closes and hands the session to the app.
+  const res = new NextResponse(null, {
+    status: 302,
+    headers: { Location: `almaseed://auth?${sp.toString()}` },
+  });
   res.cookies.delete('g_state');
   return res;
 }
