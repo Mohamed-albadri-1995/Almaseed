@@ -192,7 +192,10 @@ export async function searchMaterials(filters: ArchiveFilters) {
   const where: Prisma.MaterialWhereInput = { ...PUBLIC_WHERE };
 
   if (categorySlug) where.category = { slug: categorySlug };
-  if (fileKind === 'ARTICLE') where.bodyText = { not: null };
+  // «مقال» = a written material with NO file — the same definition used for the
+  // card badge (isWritten = !fileUrl). Keying off bodyText was wrong: an audio
+  // sermon that also has body text leaked into the «مقالات» filter.
+  if (fileKind === 'ARTICLE') where.fileUrl = null;
   else if (fileKind) where.fileKind = fileKind;
   if (docType) where.docType = docType;
   if (city) where.city = { contains: city };
