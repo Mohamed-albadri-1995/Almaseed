@@ -402,7 +402,7 @@ function Account({ push, onBack }) {
     </View>
   );
 }
-function Header({ title, onBack }) { return <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}><View style={{ width: 92 }} /><Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>{onBack ? <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}><Text style={[styles.backTxt, { writingDirection: 'ltr', flex: 1 }]}>‹ رجوع</Text></TouchableOpacity> : <View style={{ width: 92 }} />}</View>; }
+function Header({ title, onBack }) { return <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}>{onBack ? <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}><Text style={[styles.backTxt, { writingDirection: 'rtl', flex: 1 }]}>رجوع ›</Text></TouchableOpacity> : <View style={{ width: 92 }} />}<Text style={styles.headerTitle} numberOfLines={1}>{title}</Text><View style={{ width: 92 }} /></View>; }
 function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} javaScriptEnabled domStorageEnabled allowFileAccess allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} mediaCapturePermissionGrantType="grant" allowsProtectedMedia /></View>; }
 // Google sign-in via the website: the web handles Google OAuth (no native SDK,
 // no app-signing SHA-1), then redirects to /mobile-login/done?token=… which we
