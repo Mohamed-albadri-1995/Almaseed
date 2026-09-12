@@ -4,8 +4,7 @@ const AR = 'ar-EG';
 
 // Decode HTML entities (e.g. «&nbsp;») that can leak into plain-text fields from
 // the rich editor, so they don't show as raw text.
-export function decodeEntities(s?: string | null): string {
-  if (!s) return '';
+function decodeEntitiesOnce(s: string): string {
   return s
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -14,8 +13,20 @@ export function decodeEntities(s?: string | null): string {
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
-    .trim();
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+
+export function decodeEntities(s?: string | null): string {
+  if (!s) return '';
+  // Some fields are double-encoded (e.g. «&amp;nbsp;»), so decode repeatedly
+  // until the text stops changing (bounded to avoid any pathological loop).
+  let out = s;
+  for (let i = 0; i < 4; i++) {
+    const next = decodeEntitiesOnce(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
 }
 
 export function formatNumber(n: number | null | undefined): string {

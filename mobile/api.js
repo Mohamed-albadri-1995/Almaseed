@@ -4,8 +4,7 @@ import { API_HOST } from './config';
 // Decode them for plain-text display. bodyText is intentionally NOT touched —
 // it is rendered as HTML by ArticleHtml.
 const PLAIN_FIELDS = ['title', 'subtitle', 'description', 'summary', 'lyrics', 'performer', 'speaker', 'host', 'narrator', 'author', 'occasion', 'organizer', 'participants', 'place', 'city', 'topic', 'source', 'contributor'];
-function decodeEntities(s) {
-  if (typeof s !== 'string') return s;
+function decodeEntitiesOnce(s) {
   return s
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -14,8 +13,19 @@ function decodeEntities(s) {
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;|&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
-    .trim();
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+}
+function decodeEntities(s) {
+  if (typeof s !== 'string') return s;
+  // Some fields are double-encoded (e.g. «&amp;nbsp;»), so decode repeatedly
+  // until the text stops changing (bounded to avoid any pathological loop).
+  let out = s;
+  for (let i = 0; i < 4; i++) {
+    const next = decodeEntitiesOnce(out);
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
 }
 function decodeItem(o) {
   if (!o || typeof o !== 'object') return o;
