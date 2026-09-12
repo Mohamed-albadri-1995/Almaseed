@@ -147,8 +147,9 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
   useEffect(() => { (async () => {
     try {
       const seen = await getNotifSeen();
-      const d = await api.notifications();
-      const n = (d.items || []).filter((x) => x.publishedAt && new Date(x.publishedAt).getTime() > seen).length;
+      const a = await getAuth();
+      const d = await api.notifications(a?.token); // staff token also brings review items
+      const n = (d.items || []).filter((x) => { const t = x.at || x.publishedAt; return t && new Date(t).getTime() > seen; }).length;
       setUnread(n);
     } catch {}
   })(); }, []);
@@ -238,34 +239,51 @@ function NotificationsScreen({ push, onBack }) {
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
   const [seen, setSeen] = useState(0);
-  const load = useCallback(() => {
+  const [auth, setAuthLocal] = useState(null);
+  const load = useCallback((token) => {
     setErr('');
-    return api.notifications().then((d) => setItems(d.items || [])).catch((e) => setErr(e.message));
+    return api.notifications(token).then((d) => setItems(d.items || [])).catch((e) => setErr(e.message));
   }, []);
   useEffect(() => { (async () => {
     setSeen(await getNotifSeen());
-    await load();
+    const a = await getAuth(); setAuthLocal(a);
+    await load(a?.token); // staff token → also review-pending items
     // Opening the screen marks everything up to now as seen (clears the badge).
     await setNotifSeen(Date.now());
   })(); }, [load]);
+  // A review item opens the web review page (signed in via the SSO bridge); a
+  // published item opens the material detail.
+  const openItem = (m) => {
+    if (m.type === 'review') {
+      if (auth?.token) {
+        push('web', { url: `${API_BASE}/mobile-bridge?to=${encodeURIComponent(`/admin/review/${m.id}`)}&token=${encodeURIComponent(auth.token)}`, title: 'مراجعة المادة' });
+      } else {
+        push('web', { url: `${API_BASE}/admin/review/${m.id}`, title: 'مراجعة المادة' });
+      }
+      return;
+    }
+    push('material', { id: m.id });
+  };
   return (
     <View style={{ flex: 1 }}>
       <Header title="الإشعارات" onBack={onBack} />
-      {err ? <ErrorBox msg={err} onRetry={load} /> : !items ? <Loader /> : items.length === 0 ? (
+      {err ? <ErrorBox msg={err} onRetry={() => load(auth?.token)} /> : !items ? <Loader /> : items.length === 0 ? (
         <Text style={styles.empty}>لا توجد إشعارات بعد.</Text>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 12 }}>
           {items.map((m) => {
-            const isNew = m.publishedAt && new Date(m.publishedAt).getTime() > seen;
+            const at = m.at || m.publishedAt;
+            const isNew = at && new Date(at).getTime() > seen;
+            const isReview = m.type === 'review';
             return (
-              <TouchableOpacity key={m.id} style={styles.notifItem} activeOpacity={0.85} onPress={() => push('material', { id: m.id })}>
+              <TouchableOpacity key={`${m.type || 'new'}-${m.id}`} style={[styles.notifItem, isReview && styles.notifItemReview]} activeOpacity={0.85} onPress={() => openItem(m)}>
                 <View style={styles.notifThumb}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileUrl ? m.fileKind : 'ARTICLE'} size={22} />}</View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.notifLead}>إضافة جديدة{m.category ? ` · ${m.category.name}` : ''}</Text>
+                  <Text style={[styles.notifLead, isReview && styles.notifLeadReview]}>{isReview ? 'بانتظار المراجعة' : 'إضافة جديدة'}{m.category ? ` · ${m.category.name}` : ''}</Text>
                   <Text style={styles.notifTitle} numberOfLines={2}>{m.title}</Text>
-                  <Text style={styles.notifTime}>{timeAgo(m.publishedAt)}</Text>
+                  <Text style={styles.notifTime}>{timeAgo(at)}</Text>
                 </View>
-                {isNew && <View style={styles.newDot} />}
+                {isNew && <View style={[styles.newDot, isReview && styles.newDotReview]} />}
               </TouchableOpacity>
             );
           })}
@@ -486,7 +504,7 @@ function Loader() { return <View style={styles.center}><ActivityIndicator color=
 function ErrorBox({ msg, onRetry }) { return <View style={styles.center}><Text style={{ color: C.danger, textAlign: 'center', marginBottom: 12 }}>{msg}</Text>{onRetry && <TouchableOpacity style={styles.searchGo} onPress={onRetry}><Text style={{ color: C.brand, fontWeight: '800' }}>إعادة المحاولة</Text></TouchableOpacity>}</View>; }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ivory }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' },
+  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' }, notifItemReview: { borderColor: C.gold, borderWidth: 1.5, backgroundColor: '#fcf7ea' }, notifLeadReview: { color: '#b5892a' }, newDotReview: { backgroundColor: C.gold },
   searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12 }, search: { flex: 1, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchClear: { paddingRight: 8, paddingLeft: 4 }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, sugBox: { backgroundColor: '#ffffff', marginHorizontal: 12, marginTop: -4, marginBottom: 4, borderRadius: 12, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }, sugRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }, sugTitle: { color: C.ink, fontSize: 14, fontWeight: '700', textAlign: 'right' }, sugSub: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 2 }, chips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, typeChips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, filterCap: { color: C.gold, fontSize: 12, fontWeight: '800', textAlign: 'right', paddingHorizontal: 14, marginTop: 8 }, filterDivider: { height: 1, backgroundColor: C.line, marginHorizontal: 12, marginTop: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
   acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, authInput: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, fontSize: 15, color: C.ink, textAlign: 'right', backgroundColor: C.ivory50 }, authBtn: { backgroundColor: C.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 }, authBtnTxt: { color: C.white, fontWeight: '800', fontSize: 15 }, orRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }, orLine: { flex: 1, height: 1, backgroundColor: C.line }, orTxt: { color: C.muted, fontSize: 12, fontWeight: '700' }, googleBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingVertical: 11 }, googleG: { color: '#4285F4', fontSize: 18, fontWeight: '900' }, googleTxt: { color: C.ink, fontWeight: '800', fontSize: 14 }, guestBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line }, guestTxt: { color: C.brand, fontWeight: '800', fontSize: 14 }, logoutBtn: { marginTop: 12, alignSelf: 'flex-start', backgroundColor: '#f3e6e6', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 }, logoutTxt: { color: '#b23b3b', fontWeight: '800', fontSize: 13 }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },

@@ -148,8 +148,9 @@ export const api = {
     items: (d.items || []).map((s) => ({ ...s, title: decodeEntities(s.title), subtitle: decodeEntities(s.subtitle) })),
   })),
 
-  // Recent published materials, newest first — the in-app notifications feed.
-  notifications: () => j('/api/mobile/notifications').then(decodeList),
+  // In-app notifications feed. When a staff token is passed, the server also
+  // includes materials awaiting review in the user's assigned sections.
+  notifications: (token) => j('/api/mobile/notifications', token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then(decodeList),
 
   // Resolve the signed-in user for a token (used after the Google web flow).
   me: (token) => j('/api/mobile/me', { headers: { Authorization: `Bearer ${token}` } }),
