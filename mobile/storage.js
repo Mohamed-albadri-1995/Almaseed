@@ -75,18 +75,3 @@ export async function setAuth(auth) {
 export async function clearAuth() {
   try { await AsyncStorage.removeItem(AUTH_KEY); } catch {}
 }
-
-// The folder the user picked (once) for «تنزيل إلى الجهاز». We remember its SAF
-// tree URI so downloads go straight there without re-prompting every time.
-const SAF_DIR_KEY = 'almaseed.safDir.v1';
-
-export async function getSafDir() {
-  try { return (await AsyncStorage.getItem(SAF_DIR_KEY)) || null; } catch { return null; }
-}
-
-export async function setSafDir(uri) {
-  try {
-    if (uri) await AsyncStorage.setItem(SAF_DIR_KEY, uri);
-    else await AsyncStorage.removeItem(SAF_DIR_KEY);
-  } catch {}
-}
