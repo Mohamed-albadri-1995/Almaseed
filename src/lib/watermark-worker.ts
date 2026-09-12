@@ -15,7 +15,7 @@ import {
   isWatermarkableImage,
   isWatermarkablePdf,
 } from './watermark';
-import { saveUpload, saveUploadFromFile } from './storage';
+import { saveUpload, saveUploadFromFile, deleteUpload } from './storage';
 import {
   hasFfmpeg,
   watermarkVideoInPlace,
@@ -66,45 +66,69 @@ type PendingRow = {
   fileKind: string | null;
   fileType: string | null;
   coverImage: string | null;
+  originalFileUrl: string | null;
+  originalCoverImage: string | null;
   submittedBy: { name: string | null } | null;
 };
 
 async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   const done: string[] = [];
-  const updates: { fileUrl?: string; coverImage?: string } = {};
+  const updates: {
+    fileUrl?: string; coverImage?: string;
+    originalFileUrl?: string; originalCoverImage?: string;
+  } = {};
   // Pre-render the brand label once (emblem + المساهم name + site) so every
   // stamp on this material carries the same, correctly-shaped text.
   const contributor = m.submittedBy?.name ?? null;
   const label = await buildBrandLabel(contributor);
 
-  if (m.fileUrl) {
-    const ext = extOf(m.fileUrl, m.fileType);
+  // Always stamp from the pristine source. The first time, fileUrl/coverImage
+  // still hold the original; we capture them so re-running never stamps a stamp.
+  const srcFile = m.originalFileUrl ?? m.fileUrl;
+  const srcCover = m.originalCoverImage ?? m.coverImage;
+
+  if (srcFile) {
+    const ext = extOf(srcFile, m.fileType);
     if (m.fileKind === 'IMAGE' && isWatermarkableImage(ext)) {
-      const u = await stampImageNew(m.fileUrl, label);
+      const u = await stampImageNew(srcFile, label);
       if (u) { updates.fileUrl = u; done.push('image'); }
     } else if (m.fileKind === 'DOCUMENT' && isWatermarkablePdf(ext)) {
-      const w = await watermarkPdf(await readBytes(m.fileUrl), label);
+      const w = await watermarkPdf(await readBytes(srcFile), label);
       updates.fileUrl = await saveUpload(newName('pdf'), w, 'application/pdf');
       done.push('pdf');
     } else if (m.fileKind === 'VIDEO' && ff) {
-      updates.fileUrl = await watermarkVideoInPlace(m.fileUrl, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct), contributor);
+      updates.fileUrl = await watermarkVideoInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct), contributor);
       done.push('video');
     } else if (m.fileKind === 'AUDIO' && ff && ext === 'mp3') {
-      const u = await watermarkMp3ArtworkInPlace(m.fileUrl, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), contributor);
+      const u = await watermarkMp3ArtworkInPlace(srcFile, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), contributor);
       if (u) { updates.fileUrl = u; done.push('audio-art'); }
     }
+    // Preserve the original once (only when we actually produced a stamped copy).
+    if (updates.fileUrl && !m.originalFileUrl && m.fileUrl) updates.originalFileUrl = m.fileUrl;
   }
 
   // Cover image / thumbnail (album art shown in our player) — any material kind.
-  if (m.coverImage) {
+  if (srcCover) {
     try {
-      const u = await stampImageNew(m.coverImage, label);
-      if (u) { updates.coverImage = u; done.push('cover'); }
+      const u = await stampImageNew(srcCover, label);
+      if (u) {
+        updates.coverImage = u; done.push('cover');
+        if (!m.originalCoverImage && m.coverImage) updates.originalCoverImage = m.coverImage;
+      }
     } catch { /* ignore cover errors */ }
   }
 
   if (Object.keys(updates).length) {
     await prisma.material.update({ where: { id: m.id }, data: updates });
+    // On a re-stamp (original already preserved), the previous stamped copy is
+    // now orphaned — delete it so requeues don't pile up dead files. Never touch
+    // the original, and never the freshly written copy.
+    if (m.originalFileUrl && m.fileUrl && updates.fileUrl && m.fileUrl !== m.originalFileUrl) {
+      await deleteUpload(m.fileUrl).catch(() => {});
+    }
+    if (m.originalCoverImage && m.coverImage && updates.coverImage && m.coverImage !== m.originalCoverImage) {
+      await deleteUpload(m.coverImage).catch(() => {});
+    }
   }
   return done;
 }
@@ -121,7 +145,7 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
     },
     orderBy: { createdAt: 'asc' },
     take: 8,
-    select: { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true, submittedBy: { select: { name: true } } },
+    select: { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true, originalFileUrl: true, originalCoverImage: true, submittedBy: { select: { name: true } } },
   });
 
   for (const m of candidates) {

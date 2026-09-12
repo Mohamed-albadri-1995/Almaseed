@@ -113,6 +113,12 @@ model Material {
   // Last watermark error (null = success). Surfaced in /api/watermark-status
   // so a silent failure is visible instead of looking «finished».
   watermarkError String?
+  // The pristine, un-watermarked source — captured once, before the first stamp.
+  // The worker ALWAYS stamps from here, so re-running (requeue) never doubles the
+  // stamp, and the original can be restored. fileUrl/coverImage serve the stamped
+  // copy; these keep the source (also lets orphaned stamped copies be cleaned up).
+  originalFileUrl    String?
+  originalCoverImage String?
 
   downloads Int @default(0)
   plays     Int @default(0)
