@@ -47,12 +47,13 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
   idle?: string;
   capture?: boolean;
 }) {
-  const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
+  const [state, setState] = useState<'idle' | 'preview' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   // Local preview so the contributor can play the clip (hear the مادح / judge
-  // quality) before finalizing the submission.
+  // quality) BEFORE uploading — pick → listen → confirm, no unwanted uploads.
   const [preview, setPreview] = useState<{ url: string; kind: 'audio' | 'video' } | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const upload = async (file: File) => {
     setState('uploading'); setName(file.name); setError('');
@@ -82,7 +83,8 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
       if (prev) { try { URL.revokeObjectURL(prev.url); } catch {} }
       return isVid || isAud ? { url: URL.createObjectURL(f), kind: isVid ? 'video' : 'audio' } : null;
     });
-    upload(f);
+    // Don't upload yet — let the contributor preview and confirm first.
+    setPendingFile(f); setName(f.name); setError(''); setState('preview'); onUploaded(null);
   };
 
   return (
@@ -91,6 +93,7 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8 text-center hover:bg-brand-50">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600"><Icon.download width={24} height={24} className="rotate-180" /></span>
         {state === 'idle' && <span className="text-sm text-muted">{capture ? 'اختر من مدير الملفات (صوت أو فيديو فقط)' : idle}</span>}
+        {state === 'preview' && <span className="text-sm text-brand-700">تم اختيار «{name}» — استمع ثم اضغط «رفع هذا الملف»</span>}
         {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
@@ -104,6 +107,15 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
             <video src={preview.url} controls playsInline className="max-h-64 w-full rounded-xl bg-black" />
           ) : (
             <audio src={preview.url} controls className="w-full" />
+          )}
+          {state === 'preview' && (
+            <button
+              type="button"
+              onClick={() => pendingFile && upload(pendingFile)}
+              className="btn-primary mt-3 w-full"
+            >
+              رفع هذا الملف
+            </button>
           )}
         </div>
       )}
