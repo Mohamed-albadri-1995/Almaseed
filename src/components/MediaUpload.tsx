@@ -50,6 +50,9 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
   const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  // Local preview so the contributor can play the clip (hear the مادح / judge
+  // quality) before finalizing the submission.
+  const [preview, setPreview] = useState<{ url: string; kind: 'audio' | 'video' } | null>(null);
 
   const upload = async (file: File) => {
     setState('uploading'); setName(file.name); setError('');
@@ -72,6 +75,13 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
     if (capture && isNotMedia(f)) { setState('error'); setError('هذا القسم للصوت والفيديو فقط — اختر ملفًا صوتيًا أو مرئيًا.'); onUploaded(null); return; }
+    // Build a local preview (plays instantly, before the upload even finishes).
+    const isVid = /video/.test(f.type) || /\.(mp4|mov|webm|m4v|3gp|mkv|avi)$/i.test(f.name);
+    const isAud = /audio/.test(f.type) || /\.(mp3|wav|m4a|ogg|oga|aac|opus|amr|weba)$/i.test(f.name);
+    setPreview((prev) => {
+      if (prev) { try { URL.revokeObjectURL(prev.url); } catch {} }
+      return isVid || isAud ? { url: URL.createObjectURL(f), kind: isVid ? 'video' : 'audio' } : null;
+    });
     upload(f);
   };
 
@@ -86,6 +96,17 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
         <input type="file" className="hidden" accept={capture ? undefined : accept} onChange={pick} />
       </label>
+
+      {preview && (
+        <div className="mt-3 rounded-2xl bg-ivory-50 p-3 ring-1 ring-ivory-200">
+          <p className="field-hint mb-2">استمع/شاهد المقطع قبل الإرسال:</p>
+          {preview.kind === 'video' ? (
+            <video src={preview.url} controls playsInline className="max-h-64 w-full rounded-xl bg-black" />
+          ) : (
+            <audio src={preview.url} controls className="w-full" />
+          )}
+        </div>
+      )}
 
       {capture && (
         <>
