@@ -22,8 +22,18 @@ import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
+import * as Updates from 'expo-updates';
 
-try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
+// Force right-to-left layout. forceRTL only takes effect after a restart, so on
+// the very first launch after a fresh install (device not already RTL) we set
+// the native flag and reload once — otherwise the first screen shows mirrored.
+try {
+  I18nManager.allowRTL(true);
+  if (!I18nManager.isRTL) {
+    I18nManager.forceRTL(true);
+    Updates.reloadAsync().catch(() => {});
+  }
+} catch {}
 
 const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة', ARTICLE: 'مقال' };
 // Content-type filter shown as a second chip row: browse all of one kind.
