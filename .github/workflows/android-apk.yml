@@ -1,14 +1,10 @@
 name: Build Android APK
 
-# Builds the أرشيف المسيد mobile app into an installable APK on GitHub's
-# servers and uploads it as a downloadable artifact. No local setup needed.
+# Legacy debug-APK builder. Superseded by EAS builds (Expo cloud) for SDK 54+.
+# Manual-only now, so it no longer auto-fails on every mobile push. It may need
+# updating before it works again on SDK 54.
 on:
-  workflow_dispatch: {} # manual "Run workflow" button
-  push:
-    branches: ['**']
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/android-apk.yml'
+  workflow_dispatch: {} # manual "Run workflow" button only
 
 jobs:
   build-apk:
