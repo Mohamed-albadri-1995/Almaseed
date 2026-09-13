@@ -1,14 +1,15 @@
 const { withMainApplication } = require('@expo/config-plugins');
 
-// Force right-to-left layout in native Android code, in MainApplication.onCreate,
-// BEFORE React Native initializes. Doing it here (instead of only via JS
-// I18nManager.forceRTL, which needs an app restart to take effect) makes the very
-// first launch — and every launch — render RTL consistently. No JS reload is
-// needed, so there is no LTR flash and no first-launch hang.
+// Force a fixed LAYOUT DIRECTION in native Android code, in MainApplication.onCreate,
+// BEFORE React Native initializes. Forcing RTL on this device rendered
+// inconsistently (some launches everything drifted left, and a JS reload used to
+// force it hung the app). Forcing LTR natively here makes every launch identical:
+// the Arabic text keeps its explicit textAlign:'right' and sits on the right,
+// with no flip, no flash and no first-launch hang.
 const RTL_IMPORT = 'import com.facebook.react.modules.i18nmanager.I18nUtil';
 const RTL_CALLS =
-  'I18nUtil.getInstance().allowRTL(applicationContext, true)\n' +
-  '    I18nUtil.getInstance().forceRTL(applicationContext, true)';
+  'I18nUtil.getInstance().allowRTL(applicationContext, false)\n' +
+  '    I18nUtil.getInstance().forceRTL(applicationContext, false)';
 
 module.exports = function withForceRtl(config) {
   return withMainApplication(config, (cfg) => {

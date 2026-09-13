@@ -23,10 +23,11 @@ import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 
-// Keep the RTL flag set for future launches. The reliable first-launch RTL is
-// forced natively (see plugins/with-force-rtl.js) BEFORE React starts, so we do
-// NOT reload here — an early reloadAsync hung the app on first launch (ANR).
-try { I18nManager.allowRTL(true); I18nManager.forceRTL(true); } catch {}
+// Force LTR (physical) layout: forcing RTL on this device rendered inconsistently
+// (some launches everything drifted left). In LTR, all the Arabic text keeps its
+// explicit textAlign:'right', so it sits on the right reliably every launch. The
+// native side is forced to LTR too (plugins/with-force-rtl.js) before React starts.
+try { I18nManager.allowRTL(false); I18nManager.forceRTL(false); } catch {}
 
 const KIND_LABEL = { AUDIO: 'صوت', VIDEO: 'فيديو', DOCUMENT: 'مستند', IMAGE: 'صورة', ARTICLE: 'مقال' };
 // Content-type filter shown as a second chip row: browse all of one kind.

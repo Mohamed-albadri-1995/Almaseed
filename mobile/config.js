@@ -14,4 +14,4 @@ export const CONTRIBUTOR_URL = `${API_BASE}/account`;
 // Human-visible build marker. Bump this with every mobile change so it is
 // obvious on the device which build is actually installed (shown on the
 // account screen).
-export const BUILD = 107;
+export const BUILD = 108;
