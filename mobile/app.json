@@ -26,7 +26,8 @@
         "color": "#1f3d33"
       }],
       "./plugins/with-pdf-downloader",
-      "./plugins/with-force-rtl"
+      "./plugins/with-force-rtl",
+      "./plugins/with-release-signing"
     ],
     "assetBundlePatterns": ["**/*"],
     "extra": {
@@ -44,7 +45,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 108,
+      "versionCode": 109,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"

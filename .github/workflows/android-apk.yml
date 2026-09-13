@@ -1,10 +1,15 @@
 name: Build Android APK
 
-# Builds an installable (debug-signed) APK on GitHub's runners for direct
-# testing on a device, and uploads it as a downloadable artifact. Manual only
-# (Run workflow button). NOTE: the Google Play AAB is NOT built here — Play
-# requires it signed with the registered upload key, which only EAS holds; build
-# the store AAB with `eas build --profile production`.
+# Builds an installable (debug-signed) APK for direct testing, and — when the
+# upload-keystore secrets are configured — a Play-valid, upload-key-signed AAB.
+# Both are uploaded as downloadable artifacts. Manual only (Run workflow button).
+#
+# To get the signed AAB, add these repository secrets (Settings → Secrets and
+# variables → Actions):
+#   ANDROID_KEYSTORE_BASE64   base64 of your EAS upload keystore (.jks)
+#   ANDROID_KEYSTORE_PASSWORD keystore password
+#   ANDROID_KEY_ALIAS         key alias
+#   ANDROID_KEY_PASSWORD      key password
 on:
   workflow_dispatch: {} # manual "Run workflow" button only
 
@@ -45,11 +50,40 @@ jobs:
           fi
           echo "----- colors.xml -----"; cat "$COLORS"
 
+      - name: Configure upload signing (if secrets present)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > android/app/upload.jks
+            {
+              echo "ALMASEED_UPLOAD_STORE_FILE=upload.jks"
+              echo "ALMASEED_UPLOAD_KEY_ALIAS=$KS_ALIAS"
+              echo "ALMASEED_UPLOAD_STORE_PASSWORD=$KS_PASS"
+              echo "ALMASEED_UPLOAD_KEY_PASSWORD=$KEY_PASS"
+            } >> android/gradle.properties
+            echo "SIGNED=1" >> "$GITHUB_ENV"
+            echo "Upload keystore configured; a signed AAB will be built."
+          else
+            echo "No ANDROID_KEYSTORE_BASE64 secret — skipping the signed AAB."
+          fi
+
       - name: Build release APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease -x lint || ./gradlew assembleDebug -x lint
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
+
+      - name: Build signed AAB (Play)
+        if: env.SIGNED == '1'
+        run: |
+          cd android
+          ./gradlew bundleRelease -x lint
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g
 
@@ -59,3 +93,11 @@ jobs:
           name: almaseed-apk
           path: mobile/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+
+      - name: Upload AAB
+        if: env.SIGNED == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: almaseed-aab
+          path: mobile/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: warn
