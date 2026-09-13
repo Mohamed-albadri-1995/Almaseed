@@ -25,7 +25,8 @@
       ["expo-notifications", {
         "color": "#1f3d33"
       }],
-      "./plugins/with-pdf-downloader"
+      "./plugins/with-pdf-downloader",
+      "./plugins/with-force-rtl"
     ],
     "assetBundlePatterns": ["**/*"],
     "extra": {
@@ -43,7 +44,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 106,
+      "versionCode": 107,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
