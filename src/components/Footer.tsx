@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { LogoLockup } from './Logo';
+import { ANDROID_APP } from '@/lib/constants';
 
 const COLS = [
   {
@@ -19,6 +20,9 @@ const COLS = [
       { href: '/submit', label: 'إرسال مادة' },
       { href: '/faq', label: 'الأسئلة الشائعة' },
       { href: '/contact', label: 'تواصل معنا' },
+      ...(ANDROID_APP.published
+        ? [{ href: ANDROID_APP.playUrl, label: 'تطبيق الأندرويد' }]
+        : []),
     ],
   },
   {

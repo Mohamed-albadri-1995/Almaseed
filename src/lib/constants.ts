@@ -238,3 +238,16 @@ export const SORT_OPTIONS = [
   { value: 'plays', label: 'الأكثر استماعاً' },
   { value: 'title', label: 'الأبجدية' },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Android app (Google Play)
+// ---------------------------------------------------------------------------
+// The download links on the site point here. `published` gates the active
+// Play Store link: while the app is still in closed testing the public store
+// URL 404s, so we show a "coming soon" state instead. Flip `published` to true
+// once the app is live in Production on Google Play.
+export const ANDROID_APP = {
+  packageId: 'app.almaseed.archive',
+  playUrl: 'https://play.google.com/store/apps/details?id=app.almaseed.archive',
+  published: false,
+} as const;

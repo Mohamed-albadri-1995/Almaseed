@@ -4,6 +4,7 @@ import { CategoryCard } from '@/components/CategoryCard';
 import { MaterialCard } from '@/components/MaterialCard';
 import { MediaCarousel } from '@/components/MediaCarousel';
 import { SearchBox } from '@/components/SearchBox';
+import { AppDownload } from '@/components/AppDownload';
 import {
   getCategoriesWithCounts,
   getHomeStats,
@@ -179,6 +180,9 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* ---------------- Download the app ---------------- */}
+      <AppDownload />
 
       {/* ---------------- Contribute CTA ---------------- */}
       <section className="container-page pb-16">
