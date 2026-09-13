@@ -69,25 +69,28 @@ const STEPS: { icon: keyof typeof Icon; title: string; body: React.ReactNode }[]
 
 export function ContributorGuide() {
   return (
-    <details className="group mb-6 overflow-hidden rounded-2xl border border-brand-200 bg-brand-50/50">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+    <details
+      open
+      className="group mb-6 overflow-hidden rounded-2xl border-2 border-gold-300 bg-white shadow-card"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-gold-50 px-5 py-4">
         <span className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <Icon.sparkle width={20} height={20} />
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold-500 text-white">
+            <Icon.sparkle width={22} height={22} />
           </span>
           <span>
-            <span className="block font-bold text-brand-800">مساعد المساهمين</span>
-            <span className="block text-xs text-muted">خطوات بسيطة تجعل نشر مادتك أسهل وأسرع قبولاً.</span>
+            <span className="block text-base font-extrabold text-brand-800">مساعد المساهمين</span>
+            <span className="block text-xs text-brand-700/80">خطوات بسيطة تجعل نشر مادتك أسهل وأسرع قبولاً — اضغط للطي.</span>
           </span>
         </span>
         <Icon.chevronLeft
-          width={20}
-          height={20}
-          className="shrink-0 text-brand-600 transition-transform group-open:-rotate-90"
+          width={22}
+          height={22}
+          className="shrink-0 text-gold-700 transition-transform group-open:-rotate-90"
         />
       </summary>
 
-      <div className="space-y-3 border-t border-brand-200 px-5 py-4">
+      <div className="space-y-3 px-5 py-4">
         {STEPS.map((s) => {
           const I = Icon[s.icon] as (p: { width: number; height: number }) => JSX.Element;
           return (

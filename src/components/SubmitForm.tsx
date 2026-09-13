@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { Icon, DynamicIcon } from './icons';
 import { ArticleEditor } from './ArticleEditor';
+import { Tip } from './Tip';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
 
@@ -179,7 +180,8 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
       {step === 1 && (
         <div>
           <h2 className="mb-1 text-xl font-bold text-brand-800">اختر نوع المادة</h2>
-          <p className="mb-6 text-sm text-muted">حدد التصنيف المناسب للمادة التي تريد مشاركتها.</p>
+          <p className="mb-4 text-sm text-muted">حدد التصنيف المناسب للمادة التي تريد مشاركتها.</p>
+          <Tip>اختر القسم الأنسب ليسهل العثور على مادتك لاحقًا. أقسام المدائح والمحاضرات والندوات والمناسبات تقبل <span className="font-semibold">الصوت والفيديو فقط</span>.</Tip>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.filter((c) => CATEGORY_FORMS[c.slug]).map((c) => (
               <button key={c.slug} type="button" onClick={() => { setSlug(c.slug); setFile(null); setStep(2); }} className={`flex items-center gap-3 rounded-2xl border p-4 text-right transition ${slug === c.slug ? 'border-brand-400 bg-brand-50' : 'border-ivory-300 bg-white hover:border-brand-200 hover:bg-brand-50/40'}`}>
@@ -199,7 +201,8 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
           {articleMode && <input type="hidden" name="bodyText" value={articleText} />}
 
           <div className={step === 2 ? 'block' : 'hidden'}>
-            <div className="mb-6 flex items-center justify-between"><div><h2 className="text-xl font-bold text-brand-800">ملف {activeCat?.name}</h2><p className="text-sm text-muted">ارفع الملف أولاً — لا يمكن الإرسال دون اكتمال الرفع.</p></div><button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">تغيير النوع</button></div>
+            <div className="mb-4 flex items-center justify-between"><div><h2 className="text-xl font-bold text-brand-800">ملف {activeCat?.name}</h2><p className="text-sm text-muted">ارفع الملف أولاً — لا يمكن الإرسال دون اكتمال الرفع.</p></div><button type="button" onClick={() => setStep(1)} className="btn-ghost text-sm">تغيير النوع</button></div>
+            <Tip>ارفع أوضح نسخة متاحة (حتى ٢٠٠ ميجابايت) دون تضخيم الحجم بلا فائدة.{config?.capture ? ' يمكنك أيضًا التسجيل مباشرةً من الكاميرا أو الميكروفون.' : ''}{isReadings ? ' وفي القراءات يمكنك رفع ملف أو كتابة مقال.' : ''}</Tip>
             {isReadings && <div className="mb-5 flex gap-2"><button type="button" onClick={() => setReadingMode('file')} className={readingMode === 'file' ? 'btn-primary' : 'btn-outline'}>رفع ملف</button><button type="button" onClick={() => setReadingMode('article')} className={readingMode === 'article' ? 'btn-primary' : 'btn-outline'}>كتابة مقال</button></div>}
             {articleMode ? <div><label className="label">نص المقال</label><ArticleEditor value={articleText} onChange={setArticleText} /><p className="field-hint">يمكنك أيضاً إرفاق صورة غلاف في الخطوة التالية.</p></div> : <FileUpload onUploaded={setFile} accept={config.accept} capture={!!config.capture} label={`رفع الملف (${config.file === 'required' ? 'مطلوب' : 'اختياري'})`} />}
             <div className="mt-8 flex justify-between"><button type="button" onClick={() => setStep(1)} className="btn-outline">السابق</button><button type="button" onClick={() => setStep(3)} disabled={!fileSatisfied} className="btn-primary disabled:opacity-50">التالي</button></div>
@@ -208,9 +211,10 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
 
           <div className={step === 3 ? 'block' : 'hidden'}>
             <h2 className="mb-1 text-xl font-bold text-brand-800">بيانات {activeCat?.name}</h2>
-            <p className="mb-6 text-sm text-muted">
+            <p className="mb-4 text-sm text-muted">
               الحقول المعلّمة بـ <span className="font-bold text-danger">*</span> إجبارية، وما عداها اختياري.
             </p>
+            <Tip>كلما أكملت معلومات أكثر (المادح/المتحدّث، المناسبة، التاريخ، المكان، المصدر) زادت قيمة مادتك وسهُل البحث عنها.</Tip>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2"><label className="label" htmlFor="title">{config.titleLabel}<span className="font-bold text-danger"> *</span></label><input id="title" name="title" required className="input" /></div>
               <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">{config.subtitleLabel}<span className="mr-1 text-xs font-normal text-muted">(اختياري)</span></label><input id="subtitle" name="subtitle" className="input" /></div>
@@ -221,7 +225,8 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
           </div>
 
           <div className={step === 4 ? 'block' : 'hidden'}>
-            <h2 className="mb-6 text-xl font-bold text-brand-800">الإقرار والإرسال</h2>
+            <h2 className="mb-4 text-xl font-bold text-brand-800">الإقرار والإرسال</h2>
+            <Tip>بعد الإرسال يراجع فريق القسم مادتك، ثم تصلك النتيجة كإشعار (نشر / طلب تعديل / رفض مع السبب)، وتتابع حالتها في صفحة «حسابي».</Tip>
             {state.error && <div className="mb-5 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
             <div className="space-y-3"><label className="flex items-start gap-3 rounded-xl bg-ivory-50 p-4 text-sm text-ink/90"><input type="checkbox" name="rightsConfirmed" required className="mt-1 rounded" /><span>أقر بأن لدي الحق في مشاركة هذه المادة، وأن مشاركتها لا تخالف حقوق الآخرين.</span></label><label className="flex items-start gap-3 rounded-xl bg-ivory-50 p-4 text-sm text-ink/90"><input type="checkbox" name="reviewConsent" required className="mt-1 rounded" /><span>أوافق على مراجعة المادة من فريق الإشراف قبل نشرها.</span></label></div>
             <div className="mt-8 flex justify-between"><button type="button" onClick={() => setStep(3)} className="btn-outline">السابق</button><SubmitButton disabled={!fileSatisfied} /></div>

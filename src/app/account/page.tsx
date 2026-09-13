@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
 import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialCard } from '@/components/MaterialCard';
+import { Tip } from '@/components/Tip';
 import { getCurrentUser } from '@/lib/session';
 import { logoutAction } from '@/app/auth-actions';
 import { prisma } from '@/lib/prisma';
@@ -122,9 +123,16 @@ export default async function AccountPage({
           </div>
 
           {submissions.length === 0 ? (
-            <div className="card p-10 text-center text-muted">
-              لم ترسل أي مادة بعد.{' '}
-              <Link href="/submit" className="font-semibold text-brand-700 hover:underline">ابدأ الآن</Link>.
+            <div>
+              <Tip>
+                جديد في المساهمة؟ في صفحة{' '}
+                <Link href="/submit" className="font-semibold text-brand-800 underline">إرسال مادة</Link>{' '}
+                ستجد «مساعد المساهمين» يشرح لك الخطوات بالتفصيل.
+              </Tip>
+              <div className="card p-10 text-center text-muted">
+                لم ترسل أي مادة بعد.{' '}
+                <Link href="/submit" className="font-semibold text-brand-700 hover:underline">ابدأ الآن</Link>.
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
