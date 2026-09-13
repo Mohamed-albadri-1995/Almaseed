@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { SubmitForm } from '@/components/SubmitForm';
+import { ContributorGuide } from '@/components/ContributorGuide';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
@@ -23,9 +24,12 @@ export default async function SubmitPage() {
         </div>
 
         {user ? (
-          <div className="card p-6 sm:p-8">
-            <SubmitForm categories={categories} />
-          </div>
+          <>
+            <ContributorGuide />
+            <div className="card p-6 sm:p-8">
+              <SubmitForm categories={categories} />
+            </div>
+          </>
         ) : (
           <div className="card flex flex-col items-center gap-4 p-10 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-brand-600">

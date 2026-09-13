@@ -72,6 +72,39 @@ export default function PolicyPage() {
           </p>
         </section>
 
+        <section id="deletion-policy" className="space-y-3">
+          <h2 className="text-xl font-bold text-brand-800">حذف المواد من الأرشيف</h2>
+          <p className="text-muted">
+            الأصل في هذا الأرشيف <span className="font-bold text-brand-800">الحفظ لا الحذف</span>؛
+            فإن كانت في المادة مشكلة يسيرة نصحّحها أو نُخفيها مؤقتًا بدل حذفها. أما الحذف
+            النهائي فيخضع لضوابط تمنع التفرّد بالقرار:
+          </p>
+          <ul className="list-disc space-y-2 pr-6 text-muted">
+            <li>
+              يمكن لأي مراجع في القسم أن يتقدّم بـ
+              <span className="font-bold text-brand-800"> طلب حذف</span> مع بيان سببه.
+            </li>
+            <li>
+              لا يُنفَّذ الحذف إلا بعد
+              <span className="font-bold text-brand-800"> موافقة بقية مراجعي القسم</span>،
+              باستثناء المراجع الذي وافق على المادة ونشرها أول مرة (فقد أدى دوره)،
+              وباستثناء مقدّم الطلب نفسه (فطلبه موافقةٌ منه).
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">اعتراض مراجع واحد</span> يكفي
+              لإلغاء الطلب والإبقاء على المادة.
+            </li>
+            <li>
+              يجوز لمدير النظام حذف مادة مباشرةً في الحالات الضرورية (كطلب صاحب حق، أو
+              مخالفة ظاهرة)، ويبقى ذلك موثّقًا في سجل النشاط.
+            </li>
+          </ul>
+          <p className="text-muted">
+            وإن كنت مساهمًا وتريد حذف مادة رفعتها، فتواصل معنا أو استخدم رابط «الإبلاغ عن
+            مشكلة» في صفحة المادة.
+          </p>
+        </section>
+
         <section id="goal" className="space-y-3">
           <h2 className="text-xl font-bold text-brand-800">الهدف</h2>
           <p className="text-muted">
@@ -86,8 +119,10 @@ export default function PolicyPage() {
           <ul className="mt-3 list-disc space-y-2 pr-6 text-muted">
             <li>أن يكون المحتوى نافعاً ومتوافقاً مع طبيعة الأرشيف العلمية والدينية.</li>
             <li>أن يملك المساهم حق مشاركة المادة، وألا تخالف حقوق الآخرين.</li>
+            <li>أن تُكمل الحقول الإجبارية المعلّمة بنجمة حمراء <span className="font-bold text-danger">*</span>، وما تيسّر من الحقول الاختيارية يزيد المادة قيمة.</li>
             <li>أن تكون البيانات المرفقة صحيحة قدر الإمكان (المادح، المناسبة، التاريخ…).</li>
             <li>تخضع كل مادة للمراجعة قبل النشر، وقد يُطلب تعديلها أو تُرفض مع بيان السبب.</li>
+            <li>بعد النشر تبقى المادة محفوظة، ولا تُحذف إلا وفق <a href="#deletion-policy" className="font-semibold text-brand-700 underline">سياسة حذف المواد</a>.</li>
           </ul>
         </section>
 
