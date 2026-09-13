@@ -11,6 +11,15 @@ export default function PolicyPage() {
           <h1 className="section-title mt-1">السياسات وشروط النشر</h1>
         </div>
 
+        <section id="goal" className="rounded-2xl border-r-4 border-gold-300 bg-brand-50/60 p-5 sm:p-6">
+          <h2 className="text-xl font-extrabold text-brand-800">الهدف</h2>
+          <p className="mt-2 text-muted">
+            نريد أن يصبح هذا الأرشيف، مع مرور الوقت، ذاكرة رقمية للمسيد؛ يجمع ما تفرّق من
+            مواده ووثائقه وتسجيلاته وصوره، ويحفظها بطريقة تجعل الوصول إليها ممكنًا اليوم
+            وبعد سنوات طويلة. ولتحقيق ذلك وضعنا السياسات وشروط النشر التالية.
+          </p>
+        </section>
+
         <section id="archive-policy" className="space-y-4">
           <h2 className="text-2xl font-extrabold text-brand-800">سياسة أرشفة وحفظ تراث المسيد</h2>
           <p className="text-muted">
@@ -102,15 +111,6 @@ export default function PolicyPage() {
           <p className="text-muted">
             وإن كنت مساهمًا وتريد حذف مادة رفعتها، فتواصل معنا أو استخدم رابط «الإبلاغ عن
             مشكلة» في صفحة المادة.
-          </p>
-        </section>
-
-        <section id="goal" className="space-y-3">
-          <h2 className="text-xl font-bold text-brand-800">الهدف</h2>
-          <p className="text-muted">
-            نريد أن يصبح هذا الأرشيف، مع مرور الوقت، ذاكرة رقمية للمسيد؛ يجمع ما تفرق من
-            مواده ووثائقه وتسجيلاته وصوره، ويحفظها بطريقة تجعل الوصول إليها ممكنًا اليوم
-            وبعد سنوات طويلة.
           </p>
         </section>
 
