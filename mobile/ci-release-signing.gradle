@@ -1,0 +1,20 @@
+
+// Appended by CI to force the release build to use the Play upload keystore
+// (values come from gradle.properties, written by the workflow from secrets).
+// This reassigns the release buildType's signingConfig reliably, regardless of
+// comments in the generated build.gradle.
+android {
+    signingConfigs {
+        release {
+            storeFile file(project.property('ALMASEED_UPLOAD_STORE_FILE'))
+            storePassword project.property('ALMASEED_UPLOAD_STORE_PASSWORD')
+            keyAlias project.property('ALMASEED_UPLOAD_KEY_ALIAS')
+            keyPassword project.property('ALMASEED_UPLOAD_KEY_PASSWORD')
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+        }
+    }
+}
