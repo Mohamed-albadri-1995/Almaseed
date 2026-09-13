@@ -18,7 +18,7 @@ export default async function AdminLayout({
   const nav = [
     { href: '/admin', label: 'لوحة التحكم', icon: 'chart', show: true },
     { href: '/admin/submissions', label: 'المراجعة', icon: 'file', show: can.reviewContent(role) },
-    { href: '/admin/materials', label: 'إدارة المواد', icon: 'archive', show: can.editContent(role) },
+    { href: '/admin/materials', label: 'إدارة المواد', icon: 'archive', show: can.reviewContent(role) },
     { href: '/admin/categories', label: 'التصنيفات', icon: 'book-open', show: can.editContent(role) },
     { href: '/admin/reports', label: 'البلاغات', icon: 'flag', show: can.manageContent(role) },
     { href: '/admin/users', label: 'المستخدمون', icon: 'users', show: can.manageUsers(role) },

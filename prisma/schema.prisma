@@ -127,6 +127,11 @@ model Material {
   submittedBy   User?   @relation("submittedBy", fields: [submittedById], references: [id])
   reviewedById  String?
   reviewedBy    User?   @relation("reviewedBy", fields: [reviewedById], references: [id])
+  // The reviewer who FIRST approved (published) this material. Set once and never
+  // overwritten (unlike reviewedById, which tracks the latest review action). Used
+  // by the collective-deletion flow: this reviewer already vouched for the material
+  // so their approval is not required to delete it.
+  firstApprovedById String?
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -138,9 +143,38 @@ model Material {
   versions    MaterialVersion[]
   ratings     Rating[]
   comments    Comment[]
+  deletionRequest DeletionRequest?
 
   @@index([status])
   @@index([categoryId])
+}
+
+// A pending request to permanently delete a published material. A reviewer can
+// open one; it only executes once every OTHER reviewer of the category approves
+// (the original approver and the requester are excluded). Any single rejection
+// cancels it. Only PENDING requests are stored — resolving (delete/reject/cancel)
+// removes the row (a material delete cascades it away).
+model DeletionRequest {
+  id            String         @id @default(cuid())
+  materialId    String         @unique
+  material      Material       @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  requestedById String
+  reason        String?
+  status        String         @default("PENDING")
+  createdAt     DateTime       @default(now())
+  resolvedAt    DateTime?
+  votes         DeletionVote[]
+}
+
+model DeletionVote {
+  id        String          @id @default(cuid())
+  requestId String
+  request   DeletionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  voterId   String
+  vote      String
+  createdAt DateTime        @default(now())
+
+  @@unique([requestId, voterId])
 }
 
 model Rating {

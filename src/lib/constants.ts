@@ -251,3 +251,11 @@ export const ANDROID_APP = {
   playUrl: 'https://play.google.com/store/apps/details?id=app.almaseed.archive',
   published: false,
 } as const;
+
+// ---------------------------------------------------------------------------
+// Collective deletion (reviewers vote to delete a published material)
+// ---------------------------------------------------------------------------
+export const DELETION_VOTE = {
+  APPROVE: 'APPROVE',
+  REJECT: 'REJECT',
+} as const;

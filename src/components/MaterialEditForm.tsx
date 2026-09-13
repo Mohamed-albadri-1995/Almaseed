@@ -72,16 +72,17 @@ export function MaterialEditForm({ material, categories, saved }: { material: Ma
 
   return (
     <form action={editMaterialAction} className="card p-5">
-      <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold text-brand-800">بيانات المادة</h2>{saved && <span className="text-xs font-semibold text-emerald-600">تم الحفظ ✓</span>}</div>
+      <div className="mb-2 flex items-center justify-between"><h2 className="text-lg font-bold text-brand-800">بيانات المادة</h2>{saved && <span className="text-xs font-semibold text-emerald-600">تم الحفظ ✓</span>}</div>
+      <p className="mb-4 text-xs text-muted">الحقول المعلّمة بـ <span className="font-bold text-danger">*</span> إجبارية، وما عداها اختياري.</p>
       <input type="hidden" name="id" value={material.id} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2"><label className="label" htmlFor="title">{form?.titleLabel ?? 'العنوان'} *</label><input id="title" name="title" defaultValue={material.title} required className="input" /></div>
-        <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">عنوان فرعي</label><input id="subtitle" name="subtitle" defaultValue={material.subtitle ?? ''} className="input" /></div>
+        <div className="sm:col-span-2"><label className="label" htmlFor="title">{form?.titleLabel ?? 'العنوان'}<span className="font-bold text-danger"> *</span></label><input id="title" name="title" defaultValue={material.title} required className="input" /></div>
+        <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">عنوان فرعي<span className="mr-1 text-xs font-normal text-muted">(اختياري)</span></label><input id="subtitle" name="subtitle" defaultValue={material.subtitle ?? ''} className="input" /></div>
         <div><label className="label" htmlFor="categorySlug">التصنيف</label><select id="categorySlug" name="categorySlug" value={slug} onChange={(e) => setSlug(e.target.value)} className="input">{categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select></div>
 
         {form?.fields.map((f) => {
           const val = (material[f.name as keyof MaterialData] as string | null) ?? '';
-          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? ' *' : ''}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" />}{f.hint && <p className="field-hint">{f.hint}</p>}</div>;
+          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? <span className="font-bold text-danger"> *</span> : <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" />}{f.hint && <p className="field-hint">{f.hint}</p>}</div>;
         })}
 
         {form?.article && <div className="sm:col-span-2"><label className="label">النص المكتوب</label><input ref={bodyTextRef} type="hidden" name="bodyText" defaultValue={material.bodyText ?? ''} /><ArticleEditor value={material.bodyText ?? ''} onChange={(html) => { if (bodyTextRef.current) bodyTextRef.current.value = html; }} /></div>}

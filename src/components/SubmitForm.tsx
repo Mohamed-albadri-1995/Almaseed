@@ -47,7 +47,12 @@ function Field({ field }: { field: FieldDef }) {
   return (
     <div className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
       <label className="mb-1.5 block text-sm font-medium text-brand-800" htmlFor={field.name}>
-        {field.label}{field.required ? ' *' : ''}
+        {field.label}
+        {field.required ? (
+          <span className="font-bold text-danger"> *</span>
+        ) : (
+          <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>
+        )}
       </label>
       {field.type === 'textarea' ? (
         <textarea {...common} rows={3} />
@@ -203,10 +208,12 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
 
           <div className={step === 3 ? 'block' : 'hidden'}>
             <h2 className="mb-1 text-xl font-bold text-brand-800">بيانات {activeCat?.name}</h2>
-            <p className="mb-6 text-sm text-muted">الحقول المعلّمة بعلامة * مطلوبة، والباقي اختياري.</p>
+            <p className="mb-6 text-sm text-muted">
+              الحقول المعلّمة بـ <span className="font-bold text-danger">*</span> إجبارية، وما عداها اختياري.
+            </p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2"><label className="label" htmlFor="title">{config.titleLabel} *</label><input id="title" name="title" required className="input" /></div>
-              <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">{config.subtitleLabel}</label><input id="subtitle" name="subtitle" className="input" /></div>
+              <div className="sm:col-span-2"><label className="label" htmlFor="title">{config.titleLabel}<span className="font-bold text-danger"> *</span></label><input id="title" name="title" required className="input" /></div>
+              <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">{config.subtitleLabel}<span className="mr-1 text-xs font-normal text-muted">(اختياري)</span></label><input id="subtitle" name="subtitle" className="input" /></div>
               {config.fields.map((f) => <Field key={f.name} field={f} />)}
             </div>
             {config.cover !== false && <div className="mt-6"><CoverUpload onUploaded={setCover} cover={cover} /></div>}
