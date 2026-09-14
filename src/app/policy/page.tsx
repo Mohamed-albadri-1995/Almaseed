@@ -83,7 +83,8 @@ export default function PolicyPage() {
                 تُرفض، حتى يؤيّد الرفضَ <span className="font-bold text-brand-800">مراجعٌ ثانٍ</span>.
               </li>
               <li>
-                فإن رفضها مراجعان (اثنان مختلفان) صارت <span className="font-bold text-brand-800">مرفوضة</span>.
+                فإن رفضها <span className="font-bold text-brand-800">مراجعان مختلفان</span> حُذفت
+                نهائيًّا من الأرشيف.
               </li>
               <li>
                 وإن مرّت <span className="font-bold text-brand-800">سبعة أيام</span> دون أن يؤيّد الرفضَ

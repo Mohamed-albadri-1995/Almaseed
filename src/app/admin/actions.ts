@@ -66,6 +66,32 @@ export async function reviewDecisionAction(formData: FormData) {
     redirect(`/admin/review/${materialId}?error=held`);
   }
 
+  // Second, different reviewer confirms the rejection → delete permanently
+  // (files + record). The submitter is notified before removal.
+  if (isSecondRejection) {
+    if (material.submittedById) {
+      await prisma.notification.create({
+        data: {
+          userId: material.submittedById,
+          title: 'تم رفض مادتك',
+          body: `«${material.title}» — رفضها مراجعان فحُذفت من الأرشيف${reason ? ` (${reason})` : ''}.`,
+          link: '/account',
+        },
+      });
+    }
+    await logActivity({
+      userId: user.id,
+      action: 'reject',
+      entity: 'material',
+      entityId: materialId,
+      meta: { title: material.title, reason, secondRejection: true },
+    });
+    await performMaterialDeletion(material, user.id);
+    revalidatePath('/admin');
+    revalidatePath('/admin/submissions');
+    redirect('/admin/submissions?done=1');
+  }
+
   let newStatus = material.status;
   let notifyTitle = '';
   const extra: { heldAt?: Date | null; firstRejectedById?: string | null } = {};
@@ -76,10 +102,6 @@ export async function reviewDecisionAction(formData: FormData) {
   } else if (action === REVIEW_ACTIONS.REQUEST_EDIT) {
     newStatus = MATERIAL_STATUS.NEEDS_EDIT;
     notifyTitle = 'مادتك تحتاج إلى تعديل';
-    extra.heldAt = null;
-  } else if (isSecondRejection) {
-    newStatus = MATERIAL_STATUS.REJECTED;
-    notifyTitle = 'تم رفض مادتك';
     extra.heldAt = null;
   } else if (isFirstRejection) {
     // First rejection → hold (not rejected). The submitter isn't notified yet.
