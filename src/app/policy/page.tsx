@@ -75,6 +75,22 @@ export default function PolicyPage() {
             إذا كانت المعلومات ناقصة، يمكن للمشرف استكمالها إذا كانت لديه معلومات موثوقة،
             أو إرسال طلب إلى صاحب المادة لاستكمالها أو تصحيحها.
           </p>
+          <div className="rounded-xl border-r-4 border-gold-300 bg-brand-50/60 p-4">
+            <p className="font-bold text-brand-800">الرفض لا يكون بقرار مراجع واحد</p>
+            <ul className="mt-2 list-disc space-y-2 pr-6 text-muted">
+              <li>
+                إذا رفض مراجعٌ مادةً، فإنها <span className="font-bold text-brand-800">تُعلَّق</span> ولا
+                تُرفض، حتى يؤيّد الرفضَ <span className="font-bold text-brand-800">مراجعٌ ثانٍ</span>.
+              </li>
+              <li>
+                فإن رفضها مراجعان (اثنان مختلفان) صارت <span className="font-bold text-brand-800">مرفوضة</span>.
+              </li>
+              <li>
+                وإن مرّت <span className="font-bold text-brand-800">سبعة أيام</span> دون أن يؤيّد الرفضَ
+                مراجعٌ آخر، <span className="font-bold text-brand-800">تُنشر المادة تلقائيًّا</span>.
+              </li>
+            </ul>
+          </div>
           <p className="text-muted">
             ولا يعني وجود المادة في منصة أخرى أنها غير صالحة للأرشفة؛ فالغرض من الموقع هو
             حفظ تراث المسيد وجمعه في أرشيف واحد منظم ومستمر.

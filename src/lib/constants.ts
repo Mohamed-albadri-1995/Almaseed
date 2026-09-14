@@ -40,6 +40,10 @@ export const MATERIAL_STATUS = {
   NEEDS_EDIT: 'NEEDS_EDIT',
   REJECTED: 'REJECTED',
   HIDDEN: 'HIDDEN',
+  // A single reviewer's rejection holds the material (does not reject it) until a
+  // SECOND reviewer also rejects. If no second rejection arrives within 7 days,
+  // the material is published automatically.
+  HELD: 'HELD',
 } as const;
 
 export type MaterialStatus =
@@ -52,6 +56,7 @@ export const STATUS_LABELS: Record<MaterialStatus, string> = {
   NEEDS_EDIT: 'تحتاج إلى تعديل',
   REJECTED: 'مرفوضة',
   HIDDEN: 'مخفية',
+  HELD: 'معلّقة — بانتظار مراجع ثانٍ',
 };
 
 // tone → maps to a badge color class group
@@ -62,6 +67,7 @@ export const STATUS_TONE: Record<MaterialStatus, 'neutral' | 'warning' | 'succes
   NEEDS_EDIT: 'info',
   REJECTED: 'danger',
   HIDDEN: 'neutral',
+  HELD: 'warning',
 };
 
 // ---------------------------------------------------------------------------

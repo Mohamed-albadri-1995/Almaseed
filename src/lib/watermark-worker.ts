@@ -187,12 +187,24 @@ export function startWorkerLoop(): void {
   (async () => {
     // Small initial delay so it never competes with server startup work.
     await sleep(15000);
+    let lastHoldSweep = 0;
     for (;;) {
       let did: 'processed' | 'idle' = 'idle';
       try {
         did = await processOnePending();
       } catch (e) {
         console.error('[watermark] loop error:', e instanceof Error ? e.message : e);
+      }
+      // Roughly hourly: auto-publish rejection-holds past their 7-day window.
+      if (Date.now() - lastHoldSweep > 3600_000) {
+        lastHoldSweep = Date.now();
+        try {
+          const { releaseExpiredHolds } = await import('./review-holds');
+          const n = await releaseExpiredHolds();
+          if (n) console.log(`[holds] auto-published ${n} expired hold(s)`);
+        } catch (e) {
+          console.error('[holds] sweep error:', e instanceof Error ? e.message : e);
+        }
       }
       await sleep(did === 'processed' ? 2000 : 30000);
     }

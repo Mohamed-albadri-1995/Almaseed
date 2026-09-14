@@ -133,6 +133,13 @@ model Material {
   // so their approval is not required to delete it.
   firstApprovedById String?
 
+  // Two-reviewer rejection hold: a first rejection sets status HELD, records the
+  // rejecting reviewer here and the time in heldAt. A SECOND, different reviewer's
+  // rejection finalizes REJECTED; if none arrives within 7 days of heldAt the
+  // material is auto-published.
+  firstRejectedById String?
+  heldAt            DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   publishedAt DateTime?

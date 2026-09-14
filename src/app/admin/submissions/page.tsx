@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { assignedCategoriesOf } from '@/lib/rbac';
 import { MATERIAL_STATUS, STATUS_LABELS } from '@/lib/constants';
+import { releaseExpiredHolds } from '@/lib/review-holds';
 import { timeAgo } from '@/lib/format';
 import type { Prisma } from '@prisma/client';
 
@@ -14,6 +15,7 @@ export const dynamic = 'force-dynamic';
 
 const TABS = [
   { status: 'PENDING', label: 'قيد المراجعة' },
+  { status: 'HELD', label: 'معلّقة' },
   { status: 'NEEDS_EDIT', label: 'تحتاج تعديل' },
   { status: 'PUBLISHED', label: 'منشورة' },
   { status: 'REJECTED', label: 'مرفوضة' },
@@ -24,10 +26,14 @@ const TABS = [
 export default async function SubmissionsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; done?: string };
+  searchParams: { status?: string; done?: string; held?: string };
 }) {
   const me = await getCurrentUser();
   const status = searchParams.status ?? 'PENDING';
+
+  // Opportunistically auto-publish rejection-holds whose 7-day window elapsed
+  // (a safety net in case the background worker isn't running).
+  await releaseExpiredHolds().catch(() => {});
 
   // Section scoping: staff limited to specific sections only see those.
   const assigned = me && me.role !== 'ADMIN' ? assignedCategoriesOf(me) : [];
@@ -62,6 +68,11 @@ export default async function SubmissionsPage({
       {searchParams.done && (
         <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
           <Icon.check width={18} height={18} /> تم حفظ القرار بنجاح.
+        </div>
+      )}
+      {searchParams.held && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+          <Icon.flag width={18} height={18} /> عُلّقت المادة برفضك — يلزم رفض مراجع ثانٍ خلال ٧ أيام، وإلا تُنشر تلقائيًّا.
         </div>
       )}
 

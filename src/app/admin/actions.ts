@@ -21,6 +21,7 @@ import {
 } from '@/lib/constants';
 import { notifyAllNewMaterial } from '@/lib/push';
 import { sectionSupervisors, tallyDeletion, loadReviewStaff } from '@/lib/deletion';
+import { HOLD_DAYS } from '@/lib/review-holds';
 
 async function requireReviewer() {
   const user = await getCurrentUser();
@@ -54,23 +55,43 @@ export async function reviewDecisionAction(formData: FormData) {
     redirect(`/admin/review/${materialId}?error=reason`);
   }
 
+  // Two-reviewer rejection: one rejection HOLDS the material; a second, different
+  // reviewer's rejection finalizes it; the same reviewer can't count twice.
+  const isReject = action === REVIEW_ACTIONS.REJECT;
+  const wasHeld = material.status === MATERIAL_STATUS.HELD;
+  const isSecondRejection = isReject && wasHeld && !!material.firstRejectedById && material.firstRejectedById !== user.id;
+  const isFirstRejection = isReject && !wasHeld;
+  if (isReject && wasHeld && material.firstRejectedById === user.id) {
+    // The initiator can't be the two required reviewers on their own.
+    redirect(`/admin/review/${materialId}?error=held`);
+  }
+
   let newStatus = material.status;
   let notifyTitle = '';
+  const extra: { heldAt?: Date | null; firstRejectedById?: string | null } = {};
   if (action === REVIEW_ACTIONS.APPROVE) {
     newStatus = MATERIAL_STATUS.PUBLISHED;
     notifyTitle = 'تم نشر مادتك';
+    extra.heldAt = null; // approving clears any rejection hold
   } else if (action === REVIEW_ACTIONS.REQUEST_EDIT) {
     newStatus = MATERIAL_STATUS.NEEDS_EDIT;
     notifyTitle = 'مادتك تحتاج إلى تعديل';
-  } else if (action === REVIEW_ACTIONS.REJECT) {
+    extra.heldAt = null;
+  } else if (isSecondRejection) {
     newStatus = MATERIAL_STATUS.REJECTED;
     notifyTitle = 'تم رفض مادتك';
+    extra.heldAt = null;
+  } else if (isFirstRejection) {
+    // First rejection → hold (not rejected). The submitter isn't notified yet.
+    newStatus = MATERIAL_STATUS.HELD;
+    extra.heldAt = new Date();
+    extra.firstRejectedById = user.id;
   } else if (action === REVIEW_ACTIONS.DRAFT) {
     newStatus = MATERIAL_STATUS.DRAFT;
   }
 
-  // Rejected material shouldn't keep occupying storage — remove its files.
-  const clearFiles = action === REVIEW_ACTIONS.REJECT;
+  // Only a finalized rejection frees storage — a hold keeps the files.
+  const clearFiles = newStatus === MATERIAL_STATUS.REJECTED;
   if (clearFiles) {
     await deleteUpload(material.fileUrl);
     await deleteUpload(material.coverImage);
@@ -90,6 +111,7 @@ export async function reviewDecisionAction(formData: FormData) {
         newStatus === MATERIAL_STATUS.PUBLISHED
           ? material.publishedAt ?? new Date()
           : material.publishedAt,
+      ...extra,
       ...(clearFiles ? { fileUrl: null, coverImage: null } : {}),
     },
   });
@@ -129,9 +151,26 @@ export async function reviewDecisionAction(formData: FormData) {
     }).catch(() => {});
   }
 
+  // First rejection put the material on hold → ask the OTHER reviewers of the
+  // section to weigh in (a second rejection finalizes it; else it auto-publishes).
+  if (isFirstRejection) {
+    const staff = await loadReviewStaff();
+    const others = sectionSupervisors(staff, material.category?.slug ?? '').filter((u) => u.id !== user.id);
+    if (others.length) {
+      await prisma.notification.createMany({
+        data: others.map((u) => ({
+          userId: u.id,
+          title: 'مادة معلّقة تحتاج رأيك',
+          body: `علّق ${user.name} «${material.title}» برفضٍ أوّل. يلزم رفض مراجع ثانٍ خلال ${HOLD_DAYS} أيام وإلا نُشرت.`,
+          link: `/admin/review/${material.id}`,
+        })),
+      });
+    }
+  }
+
   revalidatePath('/admin');
   revalidatePath('/admin/submissions');
-  redirect('/admin/submissions?done=1');
+  redirect(`/admin/submissions?${isFirstRejection ? 'held=1' : 'done=1'}`);
 }
 
 // ---- Edit material data ----------------------------------------------------
