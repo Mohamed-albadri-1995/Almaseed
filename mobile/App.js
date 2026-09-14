@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler, Share,
-  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard,
+  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard, PermissionsAndroid,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -356,10 +356,24 @@ function Account({ push, onBack }) {
   };
   // One login: when signed in, open the web pages through the SSO bridge so they
   // are already authenticated (no second login). Otherwise open them normally.
-  const openWeb = (to, title) => push('web', {
-    url: auth?.token ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(auth.token)}` : `${API_BASE}${to}`,
-    title,
-  });
+  const openWeb = async (to, title) => {
+    // The contributor page hosts the submit form, whose «تسجيل فيديو/صوت» buttons
+    // use the camera/microphone. Android's WebView HIDES the camera-capture option
+    // unless CAMERA is granted at runtime (even when declared in the manifest), so
+    // the buttons look unresponsive. Request the permissions first.
+    if (to === '/account' && Platform.OS === 'android') {
+      try {
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        ]);
+      } catch {}
+    }
+    push('web', {
+      url: auth?.token ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(auth.token)}` : `${API_BASE}${to}`,
+      title,
+    });
+  };
   return (
     <View style={{ flex: 1 }}>
       <Header title="الدخول والإدارة" onBack={onBack} />
