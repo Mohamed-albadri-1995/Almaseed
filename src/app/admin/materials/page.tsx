@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic';
 
 const BANNERS: Record<string, { tone: 'ok' | 'err'; text: string }> = {
   deleted: { tone: 'ok', text: 'تم حذف المادة وملفاتها نهائياً.' },
-  delreq: { tone: 'ok', text: 'تم فتح تصويت الحذف، وبانتظار تصويت بقية مشرفي القسم.' },
+  delreq: { tone: 'ok', text: 'تم فتح تصويت الحذف، وبانتظار تصويت بقية مراجعي القسم.' },
   delvoted: { tone: 'ok', text: 'سُجّل تصويتك.' },
   delkept: { tone: 'ok', text: 'لم تبلغ الأغلبية المطلوبة، فبقيت المادة في الأرشيف.' },
   delcancelled: { tone: 'ok', text: 'تم إلغاء طلب الحذف.' },
@@ -117,8 +117,8 @@ export default async function MaterialsPage({
           <h1 className="section-title">إدارة المواد المنشورة</h1>
           <p className="text-muted">
             {canManage
-              ? 'عدّل البيانات أو أخفِ مادة مؤقتاً عن العرض العام أو اطلب حذفها بتصويت مشرفي القسم.'
-              : 'راجع المواد المنشورة، ويمكنك طلب حذف مادة يُقرَّر بأغلبية مشرفي القسم.'}
+              ? 'عدّل البيانات أو أخفِ مادة مؤقتاً عن العرض العام أو اطلب حذفها بتصويت مراجعي القسم.'
+              : 'راجع المواد المنشورة، ويمكنك طلب حذف مادة يُقرَّر بأغلبية مراجعي القسم.'}
           </p>
         </div>
         <form method="get" className="flex gap-2">
@@ -283,7 +283,7 @@ export default async function MaterialsPage({
                             </p>
                             {pending!.reason && <p className="text-amber-800">السبب: {pending!.reason}</p>}
                             <p className="mt-1">
-                              موافقون {del.approve} · رافضون {del.reject} · من {del.poolSize} مشرفًا
+                              موافقون {del.approve} · رافضون {del.reject} · من {del.poolSize} مراجعًا
                               {' '}(يلزم {del.needed} للحذف).
                             </p>
                             {userInPool && !del.userVoted && (
@@ -332,7 +332,7 @@ export default async function MaterialsPage({
                                 <form action={requestMaterialDeletionAction} className="mt-2 space-y-2 rounded-lg bg-red-50 p-2">
                                   <input type="hidden" name="id" value={m.id} />
                                   <p className="text-red-700">
-                                    يُقرَّر الحذف بأغلبية مشرفي القسم (أكثر من النصف)؛ التعادل يُبقي المادة.
+                                    يُقرَّر الحذف بأغلبية مراجعي القسم (أكثر من النصف)؛ التعادل يُبقي المادة.
                                   </p>
                                   <input name="reason" placeholder="سبب الحذف (اختياري)" className="input w-full py-1 text-xs" />
                                   <button className="btn-danger px-2 py-1 text-xs">فتح تصويت الحذف</button>

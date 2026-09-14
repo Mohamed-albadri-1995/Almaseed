@@ -2,15 +2,11 @@ import { prisma } from './prisma';
 import { canAccessCategory } from './rbac';
 import { ROLES } from './constants';
 
-// The "supervisors" of a section who take part in a deletion vote: the section's
-// reviewers and the level(s) above them (editor, content manager). ADMIN is not
-// here — an admin does not vote; an admin may only delete directly at the owner's
-// request or for a technical problem.
-export const DELETION_APPROVER_ROLES: string[] = [
-  ROLES.REVIEWER,
-  ROLES.EDITOR,
-  ROLES.CONTENT_MANAGER,
-];
+// The reviewers of a section who take part in a deletion vote. In practice only
+// the REVIEWER role is assigned to section staff on this site, so the vote is
+// among the section's reviewers. ADMIN never votes — an admin may only delete
+// directly at the owner's request or for a technical problem.
+export const DELETION_APPROVER_ROLES: string[] = [ROLES.REVIEWER];
 
 export interface ApproverUser {
   id: string;

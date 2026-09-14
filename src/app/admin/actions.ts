@@ -81,8 +81,8 @@ export async function reviewDecisionAction(formData: FormData) {
     data: {
       status: newStatus,
       reviewedById: user.id,
-      // Record the FIRST approver once — never overwrite. The collective-deletion
-      // flow excludes this reviewer from the required approvals.
+      // Record the FIRST approver once — never overwrite (kept for the record;
+      // the deletion vote now includes every reviewer, none excluded).
       ...(action === REVIEW_ACTIONS.APPROVE && !material.firstApprovedById
         ? { firstApprovedById: user.id }
         : {}),
@@ -503,7 +503,7 @@ async function resolveDeletionTally(requestId: string): Promise<'delete' | 'keep
 
   if (decision === 'delete') {
     await performMaterialDeletion(req.material, req.requestedById);
-    await notifyPool('تم حذف المادة', `وافقت أغلبية مشرفي القسم فحُذفت «${req.material.title}».`);
+    await notifyPool('تم حذف المادة', `وافقت أغلبية مراجعي القسم فحُذفت «${req.material.title}».`);
   } else if (decision === 'keep') {
     await prisma.deletionRequest.delete({ where: { id: requestId } });
     await notifyPool('أُبقيت المادة', `لم تبلغ الأغلبية المطلوبة لحذف «${req.material.title}»، فبقيت في الأرشيف.`);
@@ -527,7 +527,7 @@ export async function requestMaterialDeletionAction(formData: FormData) {
 
   const staff = await loadReviewStaff();
   const pool = sectionSupervisors(staff, material.category.slug);
-  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مشرفي هذا القسم');
+  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مراجعي هذا القسم');
 
   // Create the request and record the requester's own vote as an approval.
   const req = await prisma.deletionRequest.create({
@@ -583,7 +583,7 @@ export async function voteMaterialDeletionAction(formData: FormData) {
 
   const staff = await loadReviewStaff();
   const pool = sectionSupervisors(staff, req.material.category.slug);
-  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مشرفي هذا القسم');
+  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مراجعي هذا القسم');
 
   await prisma.deletionVote.upsert({
     where: { requestId_voterId: { requestId, voterId: user.id } },
