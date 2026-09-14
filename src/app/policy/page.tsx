@@ -20,6 +20,22 @@ export default function PolicyPage() {
           </p>
         </section>
 
+        <section id="automation" className="rounded-2xl border-2 border-gold-300 bg-gold-50 p-5 sm:p-6">
+          <h2 className="text-xl font-extrabold text-brand-800">نظامٌ آليٌّ عادل</h2>
+          <p className="mt-2 text-muted">
+            تُدار المراجعة والنشر والحذف في هذا الأرشيف عبر
+            {' '}<span className="font-bold text-brand-800">نظامٍ آليّ</span> يطبّق القواعد المنشورة
+            هنا بنفسه، بدقّةٍ وبلا محاباة: يَعُدّ أصوات المراجعين، ويُعلّق المواد، ويحسب المُدد
+            (كمهلة الأسبوع)، ويُرسل الإشعارات، ثم يَنشر أو يَحذف عند اكتمال الشروط — كلّه
+            {' '}<span className="font-bold text-brand-800">آليًّا ودون تدخّل يدوي</span>.
+          </p>
+          <p className="mt-2 text-muted">
+            ولا يملك <span className="font-bold text-brand-800">أيُّ شخصٍ بمفرده</span> — ولا مدير
+            النظام — الانفرادَ بالقرار أو تجاوزَ هذه القواعد؛ فالكلمة للنظام وفق ما هو مكتوب في
+            هذه الصفحة، ضمانًا للعدل وحفظًا للأمانة.
+          </p>
+        </section>
+
         <section id="archive-policy" className="space-y-4">
           <h2 className="text-2xl font-extrabold text-brand-800">سياسة أرشفة وحفظ تراث المسيد</h2>
           <p className="text-muted">
@@ -60,8 +76,8 @@ export default function PolicyPage() {
         <section id="review-policy" className="space-y-3">
           <h2 className="text-xl font-bold text-brand-800">مراجعة المواد</h2>
           <p className="text-muted">
-            تُراجع المواد المضافة إلى الأرشيف من قِبل المشرفين المختصين بكل قسم. ويتحقق
-            المشرف من:
+            تُراجَع كل مادة مضافة قبل نشرها من قِبل مراجعي القسم المختصّين. ويتحقّق
+            المراجع من:
           </p>
           <ul className="list-disc space-y-2 pr-6 text-muted">
             <li>ارتباط المادة بالمسيد.</li>
@@ -91,6 +107,10 @@ export default function PolicyPage() {
                 مراجعٌ آخر، <span className="font-bold text-brand-800">تُنشر المادة تلقائيًّا</span>.
               </li>
             </ul>
+            <p className="mt-2 text-sm text-muted">
+              تُنفَّذ هذه الخطوات كلّها <span className="font-bold text-brand-800">آليًّا</span> —
+              التعليق، وإشعار بقية المراجعين، وحساب مهلة الأسبوع، والنشر أو الحذف — دون قرارٍ فرديّ.
+            </p>
           </div>
           <p className="text-muted">
             ولا يعني وجود المادة في منصة أخرى أنها غير صالحة للأرشفة؛ فالغرض من الموقع هو
@@ -127,6 +147,11 @@ export default function PolicyPage() {
               حتى وإن كان يملك الصلاحية تقنيًّا — ويبقى ذلك موثّقًا في سجل النشاط.
             </li>
           </ul>
+          <p className="text-sm text-muted">
+            ويُدير النظام هذا كلَّه <span className="font-bold text-brand-800">آليًّا</span>: فتح
+            التصويت، وعدّ الأصوات، وإغلاقه عند التعادل أو تعذّر الأغلبية، وتنفيذ الحذف عند
+            اكتمال الشروط — فلا انفراد لأحدٍ بقرار الحذف.
+          </p>
           <p className="text-muted">
             وإن كنت مساهمًا وتريد حذف مادة رفعتها، فتواصل معنا أو استخدم رابط «الإبلاغ عن
             مشكلة» في صفحة المادة.
