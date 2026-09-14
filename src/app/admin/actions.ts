@@ -20,7 +20,7 @@ import {
   ROLES,
 } from '@/lib/constants';
 import { notifyAllNewMaterial } from '@/lib/push';
-import { computeRequiredApprovers, loadReviewStaff } from '@/lib/deletion';
+import { sectionSupervisors, tallyDeletion, loadReviewStaff } from '@/lib/deletion';
 
 async function requireReviewer() {
   const user = await getCurrentUser();
@@ -452,20 +452,74 @@ async function performMaterialDeletion(
   });
 }
 
-// ---- Permanently delete a material — ADMIN only (direct, no vote) -----------
+// ---- ADMIN direct delete — ONLY at the owner's request or a technical issue --
+// Policy: an admin may not delete on their own judgement even though they
+// technically can; they must record one of these two justifications.
 export async function deleteMaterialAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user || user.role !== ROLES.ADMIN) throw new Error('غير مصرّح');
   const id = formData.get('id') as string;
+  const justification = formData.get('justification') as string; // owner_request | technical
+  if (justification !== 'owner_request' && justification !== 'technical') {
+    redirect('/admin/materials?delneedjust=1');
+  }
   const material = await prisma.material.findUnique({ where: { id } });
   if (!material) throw new Error('غير موجودة');
 
   await performMaterialDeletion(material, user.id);
+  await logActivity({
+    userId: user.id,
+    action: 'delete_admin',
+    entity: 'material',
+    entityId: id,
+    meta: { title: material.title, justification },
+  });
   revalidatePath('/admin/materials');
   redirect('/admin/materials?deleted=1');
 }
 
-// ---- Reviewer opens a deletion request (collective approval) ----------------
+// Load the deletion vote state for a material and act on the current tally:
+// delete on a strict majority of the section's supervisors, keep (and close the
+// request) once a majority is no longer reachable. Returns the decision taken.
+async function resolveDeletionTally(requestId: string): Promise<'delete' | 'keep' | 'pending'> {
+  const req = await prisma.deletionRequest.findUnique({
+    where: { id: requestId },
+    include: {
+      material: { include: { category: { select: { slug: true } } } },
+      votes: true,
+    },
+  });
+  if (!req) return 'keep';
+  const staff = await loadReviewStaff();
+  const pool = sectionSupervisors(staff, req.material.category.slug);
+  const poolIds = new Set(pool.map((u) => u.id));
+  const { decision } = tallyDeletion(pool.length, poolIds, req.votes);
+
+  if (decision === 'delete') {
+    await performMaterialDeletion(req.material, req.requestedById);
+    await prisma.notification.create({
+      data: {
+        userId: req.requestedById,
+        title: 'تم حذف المادة',
+        body: `وافقت أغلبية مشرفي القسم فحُذفت «${req.material.title}».`,
+        link: '/admin/materials',
+      },
+    });
+  } else if (decision === 'keep') {
+    await prisma.deletionRequest.delete({ where: { id: requestId } });
+    await prisma.notification.create({
+      data: {
+        userId: req.requestedById,
+        title: 'أُبقيت المادة',
+        body: `لم تبلغ الأغلبية المطلوبة لحذف «${req.material.title}»، فبقيت في الأرشيف.`,
+        link: '/admin/materials',
+      },
+    });
+  }
+  return decision;
+}
+
+// ---- A supervisor opens a deletion request (majority vote) ------------------
 export async function requestMaterialDeletionAction(formData: FormData) {
   const user = await requireReviewer();
   const id = formData.get('id') as string;
@@ -480,126 +534,82 @@ export async function requestMaterialDeletionAction(formData: FormData) {
   if (material.deletionRequest) redirect('/admin/materials?delexists=1');
 
   const staff = await loadReviewStaff();
-  const required = computeRequiredApprovers(
-    staff,
-    material.category.slug,
-    material.firstApprovedById,
-    user.id,
-  );
+  const pool = sectionSupervisors(staff, material.category.slug);
+  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مشرفي هذا القسم');
 
-  // No one else needs to approve → delete immediately.
-  if (required.length === 0) {
-    await performMaterialDeletion(material, user.id);
+  // Create the request and record the requester's own vote as an approval.
+  const req = await prisma.deletionRequest.create({
+    data: {
+      materialId: id,
+      requestedById: user.id,
+      reason,
+      votes: { create: { voterId: user.id, vote: DELETION_VOTE.APPROVE } },
+    },
+  });
+
+  // A lone supervisor (pool of one) is already a majority → delete now.
+  const decision = await resolveDeletionTally(req.id);
+  if (decision === 'delete') {
     revalidatePath('/admin/materials');
     redirect('/admin/materials?deleted=1');
   }
 
-  await prisma.deletionRequest.create({
-    data: { materialId: id, requestedById: user.id, reason },
-  });
+  // Otherwise notify the other supervisors to cast their vote.
   await prisma.notification.createMany({
-    data: required.map((u) => ({
-      userId: u.id,
-      title: 'طلب حذف مادة يحتاج موافقتك',
-      body: `طلب ${user.name} حذف «${material.title}»${reason ? ` — السبب: ${reason}` : ''}. راجع القرار في «إدارة المواد».`,
-      link: '/admin/materials',
-    })),
+    data: pool
+      .filter((u) => u.id !== user.id)
+      .map((u) => ({
+        userId: u.id,
+        title: 'طلب حذف مادة يحتاج تصويتك',
+        body: `طلب ${user.name} حذف «${material.title}»${reason ? ` — السبب: ${reason}` : ''}. صوّت في «إدارة المواد».`,
+        link: '/admin/materials',
+      })),
   });
   await logActivity({
     userId: user.id,
     action: 'delete_request',
     entity: 'material',
     entityId: id,
-    meta: { title: material.title, reason, required: required.length },
+    meta: { title: material.title, reason, pool: pool.length },
   });
   revalidatePath('/admin/materials');
   redirect('/admin/materials?delreq=1');
 }
 
-// ---- A required reviewer approves or rejects a deletion request -------------
+// ---- A supervisor votes on a deletion request (approve / reject) ------------
 export async function voteMaterialDeletionAction(formData: FormData) {
   const user = await requireReviewer();
   const requestId = formData.get('requestId') as string;
-  const vote = formData.get('vote') as string;
+  const vote = formData.get('vote') === DELETION_VOTE.REJECT ? DELETION_VOTE.REJECT : DELETION_VOTE.APPROVE;
 
   const req = await prisma.deletionRequest.findUnique({
     where: { id: requestId },
-    include: {
-      material: { include: { category: { select: { slug: true } } } },
-      votes: true,
-    },
+    include: { material: { include: { category: { select: { slug: true } } } } },
   });
   if (!req) redirect('/admin/materials');
-  const material = req.material;
-  if (!canAccessCategory(user, material.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
+  if (!canAccessCategory(user, req.material.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
 
   const staff = await loadReviewStaff();
-  const required = computeRequiredApprovers(
-    staff,
-    material.category.slug,
-    material.firstApprovedById,
-    req.requestedById,
-  );
-  if (!required.some((u) => u.id === user.id)) {
-    throw new Error('لست ضمن المراجعين المطلوب موافقتهم');
-  }
-
-  // A single rejection cancels the whole request (veto).
-  if (vote === DELETION_VOTE.REJECT) {
-    await prisma.deletionRequest.delete({ where: { id: requestId } });
-    await prisma.notification.create({
-      data: {
-        userId: req.requestedById,
-        title: 'رُفض طلب الحذف',
-        body: `رفض ${user.name} حذف «${material.title}»، فأُلغي الطلب.`,
-        link: '/admin/materials',
-      },
-    });
-    await logActivity({
-      userId: user.id,
-      action: 'delete_reject',
-      entity: 'material',
-      entityId: material.id,
-      meta: { title: material.title },
-    });
-    revalidatePath('/admin/materials');
-    redirect('/admin/materials?delrejected=1');
-  }
+  const pool = sectionSupervisors(staff, req.material.category.slug);
+  if (!pool.some((u) => u.id === user.id)) throw new Error('لست من مشرفي هذا القسم');
 
   await prisma.deletionVote.upsert({
     where: { requestId_voterId: { requestId, voterId: user.id } },
-    create: { requestId, voterId: user.id, vote: DELETION_VOTE.APPROVE },
-    update: { vote: DELETION_VOTE.APPROVE },
+    create: { requestId, voterId: user.id, vote },
+    update: { vote },
   });
-
-  const approvedIds = new Set(
-    req.votes.filter((v) => v.vote === DELETION_VOTE.APPROVE).map((v) => v.voterId),
-  );
-  approvedIds.add(user.id);
-  const allApproved = required.every((u) => approvedIds.has(u.id));
-
-  if (allApproved) {
-    await performMaterialDeletion(material, user.id);
-    await prisma.notification.create({
-      data: {
-        userId: req.requestedById,
-        title: 'تم حذف المادة',
-        body: `اكتملت موافقات المراجعين وحُذفت «${material.title}».`,
-        link: '/admin/materials',
-      },
-    });
-    revalidatePath('/admin/materials');
-    redirect('/admin/materials?deleted=1');
-  }
-
   await logActivity({
     userId: user.id,
-    action: 'delete_approve',
+    action: vote === DELETION_VOTE.REJECT ? 'delete_reject' : 'delete_approve',
     entity: 'material',
-    entityId: material.id,
-    meta: { title: material.title },
+    entityId: req.material.id,
+    meta: { title: req.material.title },
   });
+
+  const decision = await resolveDeletionTally(requestId);
   revalidatePath('/admin/materials');
+  if (decision === 'delete') redirect('/admin/materials?deleted=1');
+  if (decision === 'keep') redirect('/admin/materials?delkept=1');
   redirect('/admin/materials?delvoted=1');
 }
 

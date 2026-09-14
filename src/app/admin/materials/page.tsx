@@ -13,7 +13,7 @@ import {
   cancelMaterialDeletionAction,
 } from '@/app/admin/actions';
 import { MATERIAL_STATUS, DELETION_VOTE, STAFF_ROLES, ROLES, type Role } from '@/lib/constants';
-import { computeRequiredApprovers } from '@/lib/deletion';
+import { sectionSupervisors, tallyDeletion } from '@/lib/deletion';
 import { formatCount, timeAgo } from '@/lib/format';
 import type { Prisma } from '@prisma/client';
 
@@ -22,11 +22,12 @@ export const dynamic = 'force-dynamic';
 
 const BANNERS: Record<string, { tone: 'ok' | 'err'; text: string }> = {
   deleted: { tone: 'ok', text: 'تم حذف المادة وملفاتها نهائياً.' },
-  delreq: { tone: 'ok', text: 'تم إرسال طلب الحذف، وبانتظار موافقة بقية مراجعي القسم.' },
-  delvoted: { tone: 'ok', text: 'سُجّلت موافقتك على الحذف.' },
-  delrejected: { tone: 'ok', text: 'تم رفض طلب الحذف وإلغاؤه.' },
+  delreq: { tone: 'ok', text: 'تم فتح تصويت الحذف، وبانتظار تصويت بقية مشرفي القسم.' },
+  delvoted: { tone: 'ok', text: 'سُجّل تصويتك.' },
+  delkept: { tone: 'ok', text: 'لم تبلغ الأغلبية المطلوبة، فبقيت المادة في الأرشيف.' },
   delcancelled: { tone: 'ok', text: 'تم إلغاء طلب الحذف.' },
-  delexists: { tone: 'err', text: 'يوجد طلب حذف قائم لهذه المادة بالفعل.' },
+  delexists: { tone: 'err', text: 'يوجد تصويت حذف قائم لهذه المادة بالفعل.' },
+  delneedjust: { tone: 'err', text: 'الحذف المباشر لمدير النظام يتطلّب تحديد السبب (طلب صاحب المادة أو مشكلة تقنية).' },
   merged: { tone: 'ok', text: 'تم دمج المادتين، ونُقلت المفضلة والإحصاءات إلى المادة الهدف.' },
   merge: { tone: 'err', text: 'تعذّر الدمج — تأكد من اختيار مادة هدف مختلفة.' },
 };
@@ -41,9 +42,10 @@ export default async function MaterialsPage({
     deleted?: string;
     delreq?: string;
     delvoted?: string;
-    delrejected?: string;
+    delkept?: string;
     delcancelled?: string;
     delexists?: string;
+    delneedjust?: string;
   };
 }) {
   const user = await getCurrentUser();
@@ -86,8 +88,8 @@ export default async function MaterialsPage({
           <h1 className="section-title">إدارة المواد المنشورة</h1>
           <p className="text-muted">
             {canManage
-              ? 'عدّل البيانات أو أخفِ مادة مؤقتاً عن العرض العام أو اطلب حذفها.'
-              : 'راجع المواد المنشورة، ويمكنك طلب حذف مادة بموافقة بقية مراجعي القسم.'}
+              ? 'عدّل البيانات أو أخفِ مادة مؤقتاً عن العرض العام أو اطلب حذفها بتصويت مشرفي القسم.'
+              : 'راجع المواد المنشورة، ويمكنك طلب حذف مادة يُقرَّر بأغلبية مشرفي القسم.'}
           </p>
         </div>
         <form method="get" className="flex gap-2">
@@ -122,31 +124,29 @@ export default async function MaterialsPage({
             <tbody className="divide-y divide-ivory-200">
               {items.map((m) => {
                 const slug = m.category?.slug;
-                const canReviewHere = can.reviewContent(role) && canAccessCategory(user, slug);
+                // The section's voting pool: reviewers + the levels above them,
+                // assigned to this category. Admins are not voters.
+                const pool = slug ? sectionSupervisors(staff, slug) : [];
+                const userInPool = pool.some((u) => u.id === user.id);
                 const pending = m.deletionRequest;
 
-                // Deletion-request state for this material (if any).
+                // Deletion-vote state for this material (if any).
                 let del: null | {
-                  required: { id: string; name: string }[];
-                  approvedCount: number;
-                  userIsRequired: boolean;
+                  poolSize: number;
+                  approve: number;
+                  reject: number;
+                  needed: number; // votes needed for a strict majority
                   userVoted: boolean;
                   isInitiator: boolean;
                 } = null;
                 if (pending && slug) {
-                  const required = computeRequiredApprovers(
-                    staff,
-                    slug,
-                    m.firstApprovedById,
-                    pending.requestedById,
-                  );
-                  const approvedIds = new Set(
-                    pending.votes.filter((v) => v.vote === DELETION_VOTE.APPROVE).map((v) => v.voterId),
-                  );
+                  const poolIds = new Set(pool.map((u) => u.id));
+                  const t = tallyDeletion(pool.length, poolIds, pending.votes);
                   del = {
-                    required: required.map((u) => ({ id: u.id, name: u.name })),
-                    approvedCount: required.filter((u) => approvedIds.has(u.id)).length,
-                    userIsRequired: required.some((u) => u.id === user.id),
+                    poolSize: t.poolSize,
+                    approve: t.approve,
+                    reject: t.reject,
+                    needed: Math.floor(t.poolSize / 2) + 1,
                     userVoted: pending.votes.some((v) => v.voterId === user.id),
                     isInitiator: pending.requestedById === user.id,
                   };
@@ -193,17 +193,18 @@ export default async function MaterialsPage({
                           </details>
                         )}
 
-                        {/* ---- Deletion workflow ---- */}
+                        {/* ---- Deletion workflow (majority vote of section supervisors) ---- */}
                         {del ? (
                           <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
                             <p className="font-semibold">
-                              طلب حذف من {nameOf(pending!.requestedById)}
+                              تصويت حذف — فتحه {nameOf(pending!.requestedById)}
                             </p>
                             {pending!.reason && <p className="text-amber-800">السبب: {pending!.reason}</p>}
                             <p className="mt-1">
-                              وافق {del.approvedCount} من {del.required.length} من مراجعي القسم المطلوبين.
+                              موافقون {del.approve} · رافضون {del.reject} · من {del.poolSize} مشرفًا
+                              {' '}(يلزم {del.needed} للحذف).
                             </p>
-                            {del.userIsRequired && !del.userVoted && (
+                            {userInPool && !del.userVoted && (
                               <div className="mt-2 flex items-center gap-2">
                                 <form action={voteMaterialDeletionAction}>
                                   <input type="hidden" name="requestId" value={pending!.id} />
@@ -213,42 +214,63 @@ export default async function MaterialsPage({
                                 <form action={voteMaterialDeletionAction}>
                                   <input type="hidden" name="requestId" value={pending!.id} />
                                   <input type="hidden" name="vote" value={DELETION_VOTE.REJECT} />
-                                  <button className="btn-outline px-2 py-1 text-xs">أرفض</button>
+                                  <button className="btn-outline px-2 py-1 text-xs">أرفض الحذف</button>
                                 </form>
                               </div>
                             )}
-                            {del.userIsRequired && del.userVoted && (
-                              <p className="mt-1 font-medium text-emerald-700">سجّلت موافقتك ✓</p>
+                            {userInPool && del.userVoted && (
+                              <p className="mt-1 font-medium text-emerald-700">سُجّل تصويتك ✓ (يمكنك تغييره بالضغط أدناه)</p>
+                            )}
+                            {userInPool && del.userVoted && (
+                              <div className="mt-1 flex items-center gap-2">
+                                <form action={voteMaterialDeletionAction}>
+                                  <input type="hidden" name="requestId" value={pending!.id} />
+                                  <input type="hidden" name="vote" value={DELETION_VOTE.APPROVE} />
+                                  <button className="text-[11px] text-muted hover:text-danger">تغيير إلى موافقة</button>
+                                </form>
+                                <form action={voteMaterialDeletionAction}>
+                                  <input type="hidden" name="requestId" value={pending!.id} />
+                                  <input type="hidden" name="vote" value={DELETION_VOTE.REJECT} />
+                                  <button className="text-[11px] text-muted hover:text-brand-700">تغيير إلى رفض</button>
+                                </form>
+                              </div>
                             )}
                             {(del.isInitiator || isAdmin) && (
                               <form action={cancelMaterialDeletionAction} className="mt-2">
                                 <input type="hidden" name="requestId" value={pending!.id} />
-                                <button className="text-[11px] text-muted hover:text-danger">إلغاء الطلب</button>
+                                <button className="text-[11px] text-muted hover:text-danger">إلغاء التصويت</button>
                               </form>
                             )}
                           </div>
                         ) : (
                           <>
-                            {isAdmin && (
+                            {userInPool && (
                               <details className="text-xs">
-                                <summary className="cursor-pointer text-muted hover:text-danger">حذف نهائي (مباشر)</summary>
-                                <form action={deleteMaterialAction} className="mt-2 flex items-center gap-2 rounded-lg bg-red-50 p-2">
-                                  <input type="hidden" name="id" value={m.id} />
-                                  <span className="text-red-700">يُحذف نهائياً مع الملف — لا يمكن التراجع.</span>
-                                  <button className="btn-danger px-2 py-1 text-xs">تأكيد الحذف</button>
-                                </form>
-                              </details>
-                            )}
-                            {!isAdmin && canReviewHere && (
-                              <details className="text-xs">
-                                <summary className="cursor-pointer text-muted hover:text-danger">طلب حذف</summary>
+                                <summary className="cursor-pointer text-muted hover:text-danger">طلب حذف (تصويت القسم)</summary>
                                 <form action={requestMaterialDeletionAction} className="mt-2 space-y-2 rounded-lg bg-red-50 p-2">
                                   <input type="hidden" name="id" value={m.id} />
                                   <p className="text-red-700">
-                                    لا يُحذف إلا بموافقة بقية مراجعي القسم (عدا من وافق عليها أصلاً).
+                                    يُقرَّر الحذف بأغلبية مشرفي القسم (أكثر من النصف)؛ التعادل يُبقي المادة.
                                   </p>
                                   <input name="reason" placeholder="سبب الحذف (اختياري)" className="input w-full py-1 text-xs" />
-                                  <button className="btn-danger px-2 py-1 text-xs">إرسال طلب الحذف</button>
+                                  <button className="btn-danger px-2 py-1 text-xs">فتح تصويت الحذف</button>
+                                </form>
+                              </details>
+                            )}
+                            {isAdmin && (
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-muted hover:text-danger">حذف مباشر (مدير النظام)</summary>
+                                <form action={deleteMaterialAction} className="mt-2 space-y-2 rounded-lg bg-red-50 p-2">
+                                  <input type="hidden" name="id" value={m.id} />
+                                  <p className="text-red-700">
+                                    للحذف المباشر سببان فقط: طلب صاحب المادة، أو مشكلة تقنية. يُوثّق في السجل.
+                                  </p>
+                                  <select name="justification" required defaultValue="" className="input w-full py-1 text-xs">
+                                    <option value="" disabled>اختر السبب…</option>
+                                    <option value="owner_request">بطلب من صاحب المادة</option>
+                                    <option value="technical">مشكلة تقنية</option>
+                                  </select>
+                                  <button className="btn-danger px-2 py-1 text-xs">تأكيد الحذف المباشر</button>
                                 </form>
                               </details>
                             )}
