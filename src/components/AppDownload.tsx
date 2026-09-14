@@ -19,7 +19,7 @@ function PlayMark({ size = 26 }: { size?: number }) {
 export function AppDownload() {
   const live = ANDROID_APP.published;
   return (
-    <section className="container-page pb-16">
+    <section id="app" className="container-page pb-16 scroll-mt-24">
       <div className="grid items-center gap-8 overflow-hidden rounded-3xl bg-brand-800 px-6 py-12 text-ivory-50 sm:px-12 md:grid-cols-[1fr_auto]">
         <div className="text-center md:text-right">
           <p className="eyebrow text-gold-300">تطبيق الأندرويد</p>

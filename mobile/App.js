@@ -84,6 +84,21 @@ function AppInner() {
   const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const top = stack[stack.length - 1];
+
+  // Deep links: open a specific material when the app is opened via
+  // almaseed://material/<id> or https://almaseeed.com/material/<id> (from the
+  // «أكمل في التطبيق» link on the website). Auth callbacks (almaseed://auth) are
+  // handled by the browser session, not here, so they're ignored below.
+  useEffect(() => {
+    const handle = (url) => {
+      if (!url) return;
+      const m = url.match(/(?:almaseed:\/\/material\/|\/material\/)([A-Za-z0-9_-]+)/);
+      if (m && m[1]) setStack((s) => (s[s.length - 1]?.params?.id === m[1] ? s : [...s, { name: 'material', params: { id: m[1] } }]));
+    };
+    Linking.getInitialURL().then(handle).catch(() => {});
+    const sub = Linking.addEventListener('url', (e) => handle(e.url));
+    return () => sub.remove();
+  }, []);
   // Feed filters + search live here (not in Feed) so they survive navigating
   // into a material and back — otherwise returning reset «الكل» and cleared the
   // search keyword.

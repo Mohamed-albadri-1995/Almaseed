@@ -12,6 +12,7 @@ import {
 import { StarRating } from '@/components/StarRating';
 import { Comments } from '@/components/Comments';
 import { Icon } from '@/components/icons';
+import { OpenInApp } from '@/components/OpenInApp';
 import { getMaterial, getRelatedMaterials } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
@@ -211,6 +212,7 @@ export default async function MaterialPage({
               initial={favorited}
               loggedIn={!!user}
             />
+            <OpenInApp id={material.id} />
           </div>
 
           {/* Rating */}
