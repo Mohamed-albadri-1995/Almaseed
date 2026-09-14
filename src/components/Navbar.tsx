@@ -17,6 +17,8 @@ const NAV_LINKS = [
   { href: '/archive?category=seminars', label: 'الندوات' },
   { href: '/archive?category=sermons', label: 'المواعظ' },
   { href: '/archive?category=occasions', label: 'المناسبات' },
+  { href: '/archive?category=images', label: 'الصور' },
+  { href: '/archive?category=readings', label: 'مكتبة المسيد' },
   { href: '/about', label: 'عن الطريقة' },
 ];
 
