@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { can, canAccessCategory } from '@/lib/rbac';
@@ -58,7 +59,7 @@ export default async function MaterialsPage({
     ...(q ? { title: { contains: q } } : {}),
   };
 
-  const [items, staff] = await Promise.all([
+  const [items, staff, openRequests] = await Promise.all([
     prisma.material.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
@@ -72,6 +73,15 @@ export default async function MaterialsPage({
       where: { active: true, role: { in: STAFF_ROLES } },
       select: { id: true, name: true, role: true, assignedCategories: true },
     }),
+    // Every open deletion vote — surfaced in a panel so supervisors can act
+    // regardless of search/paging.
+    prisma.deletionRequest.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        material: { select: { id: true, title: true, category: { select: { name: true, slug: true } } } },
+        votes: true,
+      },
+    }),
   ]);
 
   const nameOf = (id: string) => staff.find((s) => s.id === id)?.name ?? '—';
@@ -80,6 +90,25 @@ export default async function MaterialsPage({
 
   const activeKey = Object.keys(BANNERS).find((k) => (searchParams as Record<string, string>)[k]);
   const banner = activeKey ? BANNERS[activeKey] : null;
+
+  // Open deletion votes surfaced in a panel (only those the viewer may see/act on).
+  const openVotes = openRequests
+    .map((r) => {
+      const slug = r.material.category?.slug;
+      const pool = slug ? sectionSupervisors(staff, slug) : [];
+      const poolIds = new Set(pool.map((u) => u.id));
+      const t = tallyDeletion(pool.length, poolIds, r.votes);
+      return {
+        r,
+        approve: t.approve,
+        reject: t.reject,
+        poolSize: t.poolSize,
+        needed: Math.floor(t.poolSize / 2) + 1,
+        userInPool: poolIds.has(user.id),
+        userVoted: r.votes.some((v) => v.voterId === user.id),
+      };
+    })
+    .filter((x) => x.userInPool || canManage || isAdmin);
 
   return (
     <div>
@@ -105,6 +134,59 @@ export default async function MaterialsPage({
           }`}
         >
           {banner.text}
+        </div>
+      )}
+
+      {openVotes.length > 0 && (
+        <div className="mb-6 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-base font-extrabold text-amber-900">
+            <Icon.flag width={18} height={18} /> تصويتات حذف مفتوحة ({openVotes.length})
+          </h2>
+          <div className="space-y-2.5">
+            {openVotes.map(({ r, approve, reject, poolSize, needed, userInPool, userVoted }) => (
+              <div key={r.id} className="rounded-xl bg-white p-3 text-sm ring-1 ring-amber-200">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <Link href={`/admin/review/${r.material.id}`} className="font-bold text-brand-800 hover:underline">
+                      {r.material.title}
+                    </Link>
+                    <p className="text-xs text-muted">
+                      {r.material.category?.name} · فتحه {nameOf(r.requestedById)}
+                      {r.reason ? ` · السبب: ${r.reason}` : ''}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                    موافقون {approve} · رافضون {reject} · من {poolSize} (يلزم {needed})
+                  </span>
+                </div>
+                {userInPool && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <form action={voteMaterialDeletionAction}>
+                      <input type="hidden" name="requestId" value={r.id} />
+                      <input type="hidden" name="vote" value={DELETION_VOTE.APPROVE} />
+                      <button className={`px-2 py-1 text-xs ${userVoted ? 'text-muted hover:text-danger' : 'btn-danger'}`}>
+                        {userVoted ? 'تغيير إلى موافقة' : 'أوافق على الحذف'}
+                      </button>
+                    </form>
+                    <form action={voteMaterialDeletionAction}>
+                      <input type="hidden" name="requestId" value={r.id} />
+                      <input type="hidden" name="vote" value={DELETION_VOTE.REJECT} />
+                      <button className={`px-2 py-1 text-xs ${userVoted ? 'text-muted hover:text-brand-700' : 'btn-outline'}`}>
+                        {userVoted ? 'تغيير إلى رفض' : 'أرفض الحذف'}
+                      </button>
+                    </form>
+                    {userVoted && <span className="text-xs font-medium text-emerald-700">سُجّل تصويتك ✓</span>}
+                  </div>
+                )}
+                {(r.requestedById === user.id || isAdmin) && (
+                  <form action={cancelMaterialDeletionAction} className="mt-1.5">
+                    <input type="hidden" name="requestId" value={r.id} />
+                    <button className="text-[11px] text-muted hover:text-danger">إلغاء التصويت</button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

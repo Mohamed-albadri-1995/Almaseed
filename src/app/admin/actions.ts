@@ -495,26 +495,18 @@ async function resolveDeletionTally(requestId: string): Promise<'delete' | 'keep
   const poolIds = new Set(pool.map((u) => u.id));
   const { decision } = tallyDeletion(pool.length, poolIds, req.votes);
 
+  // Notify the whole section pool of the outcome (a deletion is rare + important).
+  const notifyPool = (title: string, body: string) =>
+    prisma.notification.createMany({
+      data: pool.map((u) => ({ userId: u.id, title, body, link: '/admin/materials' })),
+    });
+
   if (decision === 'delete') {
     await performMaterialDeletion(req.material, req.requestedById);
-    await prisma.notification.create({
-      data: {
-        userId: req.requestedById,
-        title: 'تم حذف المادة',
-        body: `وافقت أغلبية مشرفي القسم فحُذفت «${req.material.title}».`,
-        link: '/admin/materials',
-      },
-    });
+    await notifyPool('تم حذف المادة', `وافقت أغلبية مشرفي القسم فحُذفت «${req.material.title}».`);
   } else if (decision === 'keep') {
     await prisma.deletionRequest.delete({ where: { id: requestId } });
-    await prisma.notification.create({
-      data: {
-        userId: req.requestedById,
-        title: 'أُبقيت المادة',
-        body: `لم تبلغ الأغلبية المطلوبة لحذف «${req.material.title}»، فبقيت في الأرشيف.`,
-        link: '/admin/materials',
-      },
-    });
+    await notifyPool('أُبقيت المادة', `لم تبلغ الأغلبية المطلوبة لحذف «${req.material.title}»، فبقيت في الأرشيف.`);
   }
   return decision;
 }
