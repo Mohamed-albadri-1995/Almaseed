@@ -24,6 +24,7 @@ import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
+import { EMBLEM_DATA_URI } from './emblemData';
 
 // Force LTR (physical) layout: forcing RTL on this device rendered inconsistently
 // (some launches everything drifted left). In LTR, all the Arabic text keeps its
@@ -573,6 +574,9 @@ function AudioPlayer({ url, title }) {
 // article PDF (works offline, no network fetch).
 let _emblemUri = null;
 async function getEmblemDataUri() {
+  // Use the emblem bundled directly as a data URI — reliable in release builds
+  // where runtime asset reads can fail (so the PDF seal always renders).
+  if (EMBLEM_DATA_URI) return EMBLEM_DATA_URI;
   if (_emblemUri) return _emblemUri;
   try {
     const asset = Asset.fromModule(require('./assets/emblem.png'));
@@ -600,7 +604,7 @@ function buildArticlePdfHtml(material, stamp, person) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-@page{margin:46px 40px 74px}
+@page{margin:46px 40px 92px}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;font-size:16px;line-height:2.05;color:#20302a;direction:rtl;text-align:justify;word-wrap:break-word}
@@ -631,6 +635,7 @@ h1,h2,h3{font-family:'Aref Ruqaa','Amiri',serif;font-weight:700;color:#1f3d33;li
 h1{font-size:1.6em}h2{font-size:1.35em}h3{font-size:1.15em}
 strong{font-weight:700;color:#173029}
 img{max-width:100%;height:auto}
+.masthead .seal img,.stampblock .seal img,.ftr .brand img{width:100%;height:100%;object-fit:contain}
 
 /* Closing stamp block at the end of the article */
 .stampblock{margin-top:26px;padding-top:14px;border-top:1px dashed #d9c08a;text-align:center;page-break-inside:avoid}
@@ -639,7 +644,7 @@ img{max-width:100%;height:auto}
 .stampblock .date{color:#9a9a9a;font-size:11px;margin-top:2px;font-family:'Cairo',sans-serif}
 
 /* Slim footer repeated on every page */
-.ftr{position:fixed;bottom:14px;left:14px;right:14px;height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 18px 0;color:#8f612b;font-size:10.5px;font-family:'Cairo',sans-serif;z-index:1}
+.ftr{position:fixed;bottom:22px;left:26px;right:26px;height:34px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:7px;border-top:1px solid #e6ddc7;background:#fff;color:#8f612b;font-size:10.5px;font-family:'Cairo',sans-serif;z-index:2}
 .ftr .brand{display:flex;align-items:center;gap:7px}
 .ftr .brand img{width:26px;height:26px;opacity:.9}
 .ftr .src{color:#6b6b6b;direction:ltr}
