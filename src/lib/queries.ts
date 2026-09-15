@@ -90,6 +90,11 @@ export interface SimilarMaterial {
   reasons: string[];
   /** True when this looks like the very same file (same URL, or same size+duration). */
   exactFile: boolean;
+  /** Media so the reviewer can play/view the suspected duplicate side by side. */
+  fileUrl: string | null;
+  fileKind: string | null;
+  fileType: string | null;
+  coverImage: string | null;
 }
 
 export async function getSimilarMaterials(m: {
@@ -117,6 +122,7 @@ export async function getSimilarMaterials(m: {
     select: {
       id: true, title: true, status: true, fileSize: true, durationSec: true,
       performer: true, speaker: true, publishedAt: true, searchText: true, fileUrl: true,
+      fileKind: true, fileType: true, coverImage: true,
       category: { select: { name: true } },
     },
   });
@@ -135,8 +141,9 @@ export async function getSimilarMaterials(m: {
     if (m.performer && r.performer === m.performer) reasons.push('نفس المادح');
     if (m.speaker && r.speaker === m.speaker) reasons.push('نفس المحاضر');
     if (reasons.length === 0) reasons.push('عنوان مشابه');
-    const { searchText: _omit, fileUrl: _omit2, ...rest } = r;
-    void _omit; void _omit2;
+    // Keep fileUrl now — the reviewer needs it to play/view the duplicate.
+    const { searchText: _omit, ...rest } = r;
+    void _omit;
     return { ...rest, reasons, exactFile };
   });
   // Show exact-file matches first so the reviewer sees the strongest signal.
