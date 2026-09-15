@@ -84,6 +84,7 @@ export default async function AccountPage({
           {isStaff(user.role) && (
             <Link href="/admin" className="btn-outline">لوحة الإشراف</Link>
           )}
+          <Link href="/guide" className="btn-outline">📷 الدليل المصوّر</Link>
           <form action={logoutAction}>
             <button className="btn-ghost text-danger">تسجيل الخروج</button>
           </form>

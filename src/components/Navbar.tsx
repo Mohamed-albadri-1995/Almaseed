@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: '/archive?category=images', label: 'الصور' },
   { href: '/archive?category=readings', label: 'مكتبة المسيد' },
   { href: '/about', label: 'عن الطريقة' },
+  { href: '/guide', label: 'الدليل المصوّر' },
 ];
 
 interface NavUser {

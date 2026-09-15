@@ -21,6 +21,9 @@ export default async function SubmitPage() {
           <p className="mx-auto mt-2 max-w-xl text-muted">
             شاركنا مادة نافعة لتُضاف إلى الأرشيف بعد مراجعتها. اختر النوع، أدخل البيانات، وأرفق الملف.
           </p>
+          <Link href="/guide/upload" className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-100">
+            📷 دليل مصوّر: كيف أرفع مادة؟
+          </Link>
         </div>
 
         {user ? (

@@ -63,6 +63,9 @@ export default async function SubmissionsPage({
       <div className="mb-6">
         <h1 className="section-title">مراجعة المحتوى</h1>
         <p className="text-muted">راجع المواد المُرسَلة واتخذ القرار المناسب.</p>
+        <Link href="/guide/reach" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline">
+          📷 دليل المراجعة المصوّر
+        </Link>
       </div>
 
       {searchParams.done && (

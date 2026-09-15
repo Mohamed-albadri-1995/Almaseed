@@ -20,6 +20,7 @@ const COLS = [
     links: [
       { href: '/about', label: 'عن الطريقة' },
       { href: '/submit', label: 'إرسال مادة' },
+      { href: '/guide', label: 'الدليل المصوّر' },
       { href: '/faq', label: 'الأسئلة الشائعة' },
       { href: '/contact', label: 'تواصل معنا' },
       ...(ANDROID_APP.published
