@@ -604,7 +604,7 @@ function buildArticlePdfHtml(material, stamp, person) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-@page{margin:46px 40px 92px}
+@page{margin:46px 40px 46px}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;font-size:16px;line-height:2.05;color:#20302a;direction:rtl;text-align:justify;word-wrap:break-word}
@@ -668,7 +668,6 @@ img{max-width:100%;height:auto}
     <div class="date">${esc(source)}</div>
   </div>
 </div>
-<div class="ftr"><span class="brand">${img}<span>أرشيف المسيد</span></span><span class="src">${source}</span></div>
 </body></html>`;
 }
 
