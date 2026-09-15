@@ -47,6 +47,13 @@ export async function reviewDecisionAction(formData: FormData) {
   const wasPublishedBefore = !!material.publishedAt;
   if (!canAccessCategory(user, material.category?.slug)) throw new Error('غير مصرّح لهذا القسم');
 
+  // Conflict of interest: a reviewer may not take a review decision on a
+  // material they submitted themselves — it must be reviewed by another
+  // reviewer. (An admin isn't exempt when they are the submitter.)
+  if (material.submittedById && material.submittedById === user.id) {
+    redirect(`/admin/review/${materialId}?error=self`);
+  }
+
   // Reason is mandatory for edit-requests and rejections.
   if (
     (action === REVIEW_ACTIONS.REQUEST_EDIT || action === REVIEW_ACTIONS.REJECT) &&

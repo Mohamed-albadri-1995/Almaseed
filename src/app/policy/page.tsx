@@ -169,6 +169,14 @@ export default function PolicyPage() {
             أو إرسال طلب إلى صاحب المادة لاستكمالها أو تصحيحها.
           </p>
           <div className="rounded-xl border-r-4 border-gold-300 bg-brand-50/60 p-4">
+            <p className="font-bold text-brand-800">لا يراجع المراجع مادته</p>
+            <p className="mt-2 text-muted">
+              تفاديًا لتضارب المصالح، إذا رفع المراجع (أو المشرف) مادةً بنفسه فلا يجوز له
+              الموافقة عليها أو اتّخاذ أيّ قرار بشأنها؛ بل يراجعها مراجعٌ آخر من القسم.
+              ويمنع النظام ذلك آليًّا.
+            </p>
+          </div>
+          <div className="rounded-xl border-r-4 border-gold-300 bg-brand-50/60 p-4">
             <p className="font-bold text-brand-800">الرفض لا يكون بقرار مراجع واحد</p>
             <ul className="mt-2 list-disc space-y-2 pr-6 text-muted">
               <li>
