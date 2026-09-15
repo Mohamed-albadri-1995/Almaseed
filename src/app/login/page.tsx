@@ -37,10 +37,6 @@ export default async function LoginPage({
             </Link>
           </p>
         </div>
-        <div className="mt-4 rounded-xl bg-ivory-50 p-4 text-xs leading-6 text-muted">
-          <p className="font-semibold text-brand-700">حسابات تجريبية (كلمة المرور: password123):</p>
-          <p dir="ltr" className="text-right">admin@almaseed.app · reviewer@almaseed.app · contributor@almaseed.app</p>
-        </div>
       </div>
     </div>
   );

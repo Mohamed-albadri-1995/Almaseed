@@ -31,7 +31,25 @@ async function main() {
   const categories = await prisma.category.findMany();
   const bySlug = (slug: string) => categories.find((c) => c.slug === slug)!;
 
-  // ---- Users --------------------------------------------------------------
+  // ---- Demo accounts (LOCAL / DEV ONLY) -----------------------------------
+  // These carry a public, well-known password, so they must NEVER exist on a
+  // populated (production) database. On any DB that already has materials we
+  // DELETE them and stop. Deletion is safe: a demo user's submitted materials
+  // and review notes are preserved because those relations null the reference
+  // (submittedById/reviewerId) instead of cascading.
+  const DEMO_EMAILS = [
+    'admin@almaseed.app', 'manager@almaseed.app', 'editor@almaseed.app',
+    'reviewer@almaseed.app', 'contributor@almaseed.app',
+  ];
+  const existing = await prisma.material.count();
+  if (existing > 0) {
+    const del = await prisma.user.deleteMany({ where: { email: { in: DEMO_EMAILS } } });
+    console.log(`↳ Materials present (${existing}) — removed ${del.count} demo account(s); skipping material seed.`);
+    console.log('✅ Seed complete.');
+    return;
+  }
+
+  // Clean database (local development only): create demo users + sample data.
   const pw = await bcrypt.hash('password123', 10);
   const users = [
     { name: 'مدير النظام', email: 'admin@almaseed.app', role: ROLES.ADMIN, city: 'أم درمان' },
@@ -51,14 +69,6 @@ async function main() {
   }
   const contributorId = userRecords[ROLES.CONTRIBUTOR];
   const reviewerId = userRecords[ROLES.REVIEWER];
-
-  // Only reseed materials on a clean database to avoid duplicates.
-  const existing = await prisma.material.count();
-  if (existing > 0) {
-    console.log(`↳ Materials already present (${existing}) — skipping material seed.`);
-    console.log('✅ Seed complete.');
-    return;
-  }
 
   const days = (n: number) => new Date(Date.now() - n * 86400000);
 
