@@ -593,7 +593,12 @@ function buildArticlePdfHtml(material, stamp, person) {
   const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const raw = material.bodyText || material.description || '';
   const looksHtml = /<[a-z!/][\s\S]*>/i.test(raw);
-  const body = looksHtml ? raw : `<div style="white-space:pre-wrap">${esc(raw)}</div>`;
+  // Plain text: split into stanzas on blank lines and wrap each as a block that
+  // is never broken across pages, so a couplet is never cut in the middle.
+  const stanzas = (t) => t.replace(/\r\n/g, '\n').split(/\n{2,}/)
+    .map((s) => s.trim()).filter(Boolean)
+    .map((s) => `<p class="stanza">${esc(s).replace(/\n/g, '<br>')}</p>`).join('');
+  const body = looksHtml ? raw : stanzas(raw);
   const meta = [material.subtitle ? esc(material.subtitle) : '', person ? `الكاتب: ${esc(person)}` : '']
     .filter(Boolean).join(' · ');
   const img = stamp ? `<img src="${stamp}" alt="">` : '';
@@ -631,6 +636,10 @@ body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;fo
 
 .body-text{padding:0 4px}
 .body-text p{margin:0 0 12px}
+/* Keep a stanza/couplet together — never split across a page break. */
+.stanza{margin:0 0 14px;break-inside:avoid;page-break-inside:avoid}
+.body-text p,h1,h2,h3{break-inside:avoid;page-break-inside:avoid}
+.body-text{orphans:2;widows:2}
 h1,h2,h3{font-family:'Aref Ruqaa','Amiri',serif;font-weight:700;color:#1f3d33;line-height:1.6;text-align:right}
 h1{font-size:1.6em}h2{font-size:1.35em}h3{font-size:1.15em}
 strong{font-weight:700;color:#173029}
