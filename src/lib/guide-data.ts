@@ -35,8 +35,7 @@ export const GUIDE_FLOWS: GuideFlow[] = [
     id: 'register', group: 'contributor', title: 'إنشاء حساب', role: 'زائر جديد', icon: '📝',
     where: 'القائمة ☰ ← تسجيل الدخول ← «إنشاء حساب»',
     steps: [
-      { t: 'افتح القائمة <strong>☰</strong> من أعلى الموقع، واختر <strong>«تسجيل الدخول»</strong>.', shot: '/guide/s01_home_menu.png', cap: 'زرّ القائمة ☰ داخل الحلقة' },
-      { t: 'في صفحة الدخول اضغط رابط <strong>«إنشاء حساب»</strong>.', shot: '/guide/s07b_reg_link.png', cap: 'رابط «إنشاء حساب» داخل الحلقة' },
+      { t: 'افتح القائمة <strong>☰</strong> من أعلى الموقع، اختر <strong>«تسجيل الدخول»</strong>، ثم من صفحة الدخول اضغط رابط <strong>«إنشاء حساب»</strong>.', shot: '/guide/s01_home_menu.png', cap: 'زرّ القائمة ☰ داخل الحلقة' },
       { t: 'اكتب <strong>الاسم</strong>.', shot: '/guide/s04_reg_name.png', cap: 'حقل الاسم داخل الحلقة' },
       { t: 'اكتب <strong>البريد الإلكتروني</strong>.', shot: '/guide/s05_reg_email.png', cap: 'حقل البريد داخل الحلقة' },
       { t: 'اكتب <strong>كلمة المرور</strong>.', shot: '/guide/s06_reg_pass.png', cap: 'حقل كلمة المرور داخل الحلقة' },
@@ -48,7 +47,7 @@ export const GUIDE_FLOWS: GuideFlow[] = [
     id: 'login', group: 'contributor', title: 'تسجيل الدخول', role: 'لكل مستخدم', icon: '🔑',
     where: 'القائمة ☰ ← تسجيل الدخول',
     steps: [
-      { t: 'افتح القائمة <strong>☰</strong> واختر <strong>«تسجيل الدخول»</strong>.', btn: ['تسجيل الدخول', 'outline'], shot: '/guide/s02b_menu_login.png', cap: 'رابط «تسجيل الدخول» داخل الحلقة' },
+      { t: 'افتح القائمة <strong>☰</strong> واختر <strong>«تسجيل الدخول»</strong>.', btn: ['تسجيل الدخول', 'outline'], shot: '/guide/s01_home_menu.png', cap: 'زرّ القائمة ☰ داخل الحلقة' },
       { t: 'اكتب بريدك في حقل <strong>البريد الإلكتروني</strong>.', shot: '/guide/s08_login_email.png', cap: 'حقل البريد داخل الحلقة' },
       { t: 'اكتب كلمتك في حقل <strong>كلمة المرور</strong>.', shot: '/guide/s09_login_pass.png', cap: 'حقل كلمة المرور داخل الحلقة' },
       { t: 'اضغط زرّ الدخول (أخضر عريض).', btn: ['دخول', 'primary'], shot: '/guide/s10_login_submit.png', cap: 'زرّ «دخول» داخل الحلقة' },
