@@ -27,6 +27,31 @@ node record.mjs
 - تحويلها إلى mp4: `npm run mp4` (يتطلب ffmpeg).
 - لتشغيل تدفّق واحد فقط: `node record.mjs 3-review-reject`.
 
+## التشغيل من الجوّال (Termux) — وضع اللقطات ثم mp4
+ويندوز القديم قد لا يصلح؛ Termux على أندرويد بديل عملي. الفيديو المباشر لا يعمل على
+أندرويد، فنستخدم **وضع اللقطات** الذي يلتقط صورة لكل خطوة ثم يدمجها mp4 عبر ffmpeg:
+
+```bash
+# داخل Termux
+pkg update -y
+pkg install -y nodejs ffmpeg
+# متصفّح النظام لأندرويد عبر مستودع tur:
+pkg install -y tur-repo && pkg install -y chromium
+
+cd tutorials
+npm install playwright-core      # نواة فقط — بلا تنزيل متصفّح
+export CHROMIUM_PATH="$(command -v chromium)"
+
+MODE=shots BASE_URL=https://almaseeed.com \
+REVIEWER1_EMAIL=... REVIEWER1_PASS=... \
+REVIEWER2_EMAIL=... REVIEWER2_PASS=... \
+CONTRIBUTOR_EMAIL=... CONTRIBUTOR_PASS=... \
+node record.mjs
+```
+- الناتج: `out/<التدفّق>.mp4` (شرائح، ٢٫٥ث لكل خطوة) + اللقطات في `out/<التدفّق>/`.
+- لتدفّق واحد: `MODE=shots node record.mjs 3-review-reject`.
+- إن لم يتوفّر `chromium` في Termux، ثبّت متصفّحًا وضع مساره في `CHROMIUM_PATH`.
+
 ## الأوضاع
 - `DRY_RUN=1` (الافتراضي): **آمن على الإنتاج** — يقف عند الأزرار التي تغيّر البيانات فعليًّا
   (نشر/رفض/حذف/إرسال) ويُبرزها فقط دون الضغط. مناسب لتصوير الخطوات دون تعديل بيانات الموقع.
