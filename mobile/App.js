@@ -604,7 +604,7 @@ function buildArticlePdfHtml(material, stamp, person) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-@page{margin:46px 40px 46px}
+@page{margin:46px 0 46px}
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;font-size:16px;line-height:2.05;color:#20302a;direction:rtl;text-align:justify;word-wrap:break-word}
@@ -614,7 +614,7 @@ body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;fo
 .frame::before{content:"";position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:0.6px solid #d9c08a;border-radius:5px}
 .wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;height:360px;opacity:.045;z-index:0}
 .wm img{width:100%;height:100%;object-fit:contain}
-.content{position:relative;z-index:1}
+.content{position:relative;z-index:1;padding:0 42px}
 
 /* First-page masthead */
 .masthead{text-align:center;padding:6px 0 14px;margin-bottom:18px;border-bottom:2px solid #cd9b44;position:relative}
