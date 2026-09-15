@@ -429,7 +429,10 @@ function Account({ push, onBack }) {
   );
 }
 function Header({ title, onBack }) { return <View style={[styles.header, { paddingTop: STATUSBAR_H + 8 }]}><View style={{ width: 92 }} /><Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>{onBack ? <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} activeOpacity={0.7}><Text style={[styles.backTxt, { writingDirection: 'rtl', flex: 1 }]}>رجوع ›</Text></TouchableOpacity> : <View style={{ width: 92 }} />}</View>; }
-function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} javaScriptEnabled domStorageEnabled allowFileAccess allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} mediaCapturePermissionGrantType="grant" allowsProtectedMedia /></View>; }
+// Force a device-width viewport inside the WebView so pages (esp. the admin
+// area) never render at a desktop width and overflow the phone screen.
+const FIT_VIEWPORT = `(function(){try{var m=document.querySelector('meta[name=viewport]');if(!m){m=document.createElement('meta');m.name='viewport';document.getElementsByTagName('head')[0].appendChild(m);}m.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');document.documentElement.style.maxWidth='100%';document.documentElement.style.overflowX='hidden';}catch(e){}})();true;`;
+function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} javaScriptEnabled domStorageEnabled allowFileAccess allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} mediaCapturePermissionGrantType="grant" allowsProtectedMedia scalesPageToFit={false} injectedJavaScriptBeforeContentLoaded={FIT_VIEWPORT} injectedJavaScript={FIT_VIEWPORT} onNavigationStateChange={() => {}} /></View>; }
 // Google sign-in via the website: the web handles Google OAuth (no native SDK,
 // no app-signing SHA-1), then redirects to /mobile-login/done?token=… which we
 // intercept here to capture the session and hand it to the app.
@@ -589,34 +592,78 @@ function buildArticlePdfHtml(material, stamp, person) {
   const body = looksHtml ? raw : `<div style="white-space:pre-wrap">${esc(raw)}</div>`;
   const meta = [material.subtitle ? esc(material.subtitle) : '', person ? `الكاتب: ${esc(person)}` : '']
     .filter(Boolean).join(' · ');
-  const img = stamp ? `<img src="${stamp}">` : '';
+  const img = stamp ? `<img src="${stamp}" alt="">` : '';
   const source = `almaseeed.com/material/${material.id}`;
+  const today = new Date().toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' });
+  const catName = material.category?.name || 'مكتبة المسيد';
   return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Aref+Ruqaa:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-@page{margin:22px 20px 88px}
+@page{margin:46px 40px 74px}
 *{box-sizing:border-box}
-body{margin:0;font-family:'Cairo','Tajawal',-apple-system,Roboto,'Segoe UI',sans-serif;font-size:15px;line-height:2.1;color:#20302a;direction:rtl;text-align:right;word-wrap:break-word}
-.hdr{display:flex;align-items:center;gap:12px;border-bottom:2px solid #cd9b44;padding-bottom:10px;margin-bottom:14px}
-.hdr img{width:52px;height:52px}
-.hdr .t{font-family:'Aref Ruqaa','Amiri','Cairo',serif;font-weight:700;color:#1f3d33;font-size:19px;line-height:1.4}
-.hdr .s{color:#8f612b;font-size:12px;margin-top:2px}
-.art-title{font-family:'Aref Ruqaa','Amiri','Cairo',serif;color:#1f3d33;font-size:22px;font-weight:700;margin:4px 0 2px}
-.art-meta{color:#6b6b6b;font-size:12px;margin-bottom:14px}
-h1,h2{font-family:'Aref Ruqaa','Amiri','Cairo',serif;font-weight:700;color:#1f3d33;line-height:1.6}
-h1{font-size:1.7em}h2{font-size:1.4em}
+html,body{margin:0;padding:0}
+body{font-family:'Amiri','Scheherazade New','Noto Naskh Arabic','Cairo',serif;font-size:16px;line-height:2.05;color:#20302a;direction:rtl;text-align:justify;word-wrap:break-word}
+
+/* Decorative frame + faint seal watermark repeat on every page (paged fixed). */
+.frame{position:fixed;top:14px;left:14px;right:14px;bottom:14px;border:2px solid #cd9b44;border-radius:8px;pointer-events:none;z-index:0}
+.frame::before{content:"";position:absolute;top:4px;left:4px;right:4px;bottom:4px;border:0.6px solid #d9c08a;border-radius:5px}
+.wm{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;height:360px;opacity:.045;z-index:0}
+.wm img{width:100%;height:100%;object-fit:contain}
+.content{position:relative;z-index:1}
+
+/* First-page masthead */
+.masthead{text-align:center;padding:6px 0 14px;margin-bottom:18px;border-bottom:2px solid #cd9b44;position:relative}
+.masthead::after{content:"";display:block;height:1px;background:#d9c08a;margin-top:4px}
+.masthead .seal{width:76px;height:76px;margin:0 auto 8px}
+.masthead .name{font-family:'Aref Ruqaa','Amiri',serif;font-weight:700;color:#1f3d33;font-size:24px;line-height:1.4}
+.masthead .sub{color:#8f612b;font-size:13px;margin-top:3px;letter-spacing:.5px}
+.masthead .kicker{display:inline-block;margin-top:10px;color:#6b6b6b;font-size:12px;font-family:'Cairo',sans-serif}
+
+.art-title{font-family:'Aref Ruqaa','Amiri',serif;color:#1f3d33;font-size:26px;font-weight:700;margin:10px 0 4px;text-align:center;line-height:1.5}
+.art-meta{color:#6b6b6b;font-size:12.5px;margin:0 auto 18px;text-align:center;font-family:'Cairo',sans-serif}
+.divider{width:120px;height:0;border-top:1.5px solid #cd9b44;margin:0 auto 20px;position:relative}
+.divider::after{content:"﴾﴿";position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:#fff;padding:0 8px;color:#cd9b44;font-size:16px}
+
+.body-text{padding:0 4px}
+.body-text p{margin:0 0 12px}
+h1,h2,h3{font-family:'Aref Ruqaa','Amiri',serif;font-weight:700;color:#1f3d33;line-height:1.6;text-align:right}
+h1{font-size:1.6em}h2{font-size:1.35em}h3{font-size:1.15em}
 strong{font-weight:700;color:#173029}
 img{max-width:100%;height:auto}
-.ftr{position:fixed;bottom:0;left:0;right:0;height:66px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e6ddc7;padding:8px 20px;color:#8f612b;font-size:10.5px}
-.ftr img{width:32px;height:32px;opacity:.92}
+
+/* Closing stamp block at the end of the article */
+.stampblock{margin-top:26px;padding-top:14px;border-top:1px dashed #d9c08a;text-align:center;page-break-inside:avoid}
+.stampblock .seal{width:70px;height:70px;margin:0 auto 6px;opacity:.95}
+.stampblock .cap{color:#8f612b;font-size:12px;font-family:'Cairo',sans-serif}
+.stampblock .date{color:#9a9a9a;font-size:11px;margin-top:2px;font-family:'Cairo',sans-serif}
+
+/* Slim footer repeated on every page */
+.ftr{position:fixed;bottom:14px;left:14px;right:14px;height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 18px 0;color:#8f612b;font-size:10.5px;font-family:'Cairo',sans-serif;z-index:1}
+.ftr .brand{display:flex;align-items:center;gap:7px}
+.ftr .brand img{width:26px;height:26px;opacity:.9}
 .ftr .src{color:#6b6b6b;direction:ltr}
 </style></head><body>
-<div class="hdr">${img}<div><div class="t">الطريقة السمّانية — السجادة السليمانية</div><div class="s">أرشيف المسيد · مكتبة المسيد</div></div></div>
-<div class="art-title">${esc(material.title)}</div>
-${meta ? `<div class="art-meta">${meta}</div>` : ''}
-${body}
-<div class="ftr">${img}<span>خُتم بخاتم أرشيف المسيد</span><span class="src">${source}</span></div>
+<div class="frame"></div>
+<div class="wm">${img}</div>
+<div class="content">
+  <div class="masthead">
+    <div class="seal">${img}</div>
+    <div class="name">الطريقة السمّانية — السجادة السليمانية</div>
+    <div class="sub">أرشيف المسيد</div>
+    <div class="kicker">${esc(catName)}${today ? ` · ${esc(today)}` : ''}</div>
+  </div>
+  <div class="art-title">${esc(material.title)}</div>
+  ${meta ? `<div class="art-meta">${meta}</div>` : ''}
+  <div class="divider"></div>
+  <div class="body-text">${body}</div>
+  <div class="stampblock">
+    <div class="seal">${img}</div>
+    <div class="cap">خُتم بخاتم أرشيف المسيد — وثيقة موثّقة</div>
+    <div class="date">${esc(source)}</div>
+  </div>
+</div>
+<div class="ftr"><span class="brand">${img}<span>أرشيف المسيد</span></span><span class="src">${source}</span></div>
 </body></html>`;
 }
 
