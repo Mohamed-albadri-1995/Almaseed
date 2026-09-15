@@ -68,6 +68,11 @@ jobs:
             cat ci-release-signing.gradle >> android/app/build.gradle
             echo "SIGNED=1" >> "$GITHUB_ENV"
             echo "Upload keystore configured; a signed AAB will be built."
+            echo "----- upload keystore fingerprints (this is the key the AAB is signed with) -----"
+            keytool -list -v -keystore android/app/upload.jks -storepass "$KS_PASS" -alias "$KS_ALIAS" 2>/dev/null | grep -Ei "SHA1|SHA-1|SHA256|SHA-256" || true
+            # Export the PUBLIC upload certificate (safe to share) so it can be
+            # registered in Play Console via "Request upload key reset".
+            keytool -export -rfc -keystore android/app/upload.jks -storepass "$KS_PASS" -alias "$KS_ALIAS" -file upload-certificate.pem 2>/dev/null || true
           else
             echo "No ANDROID_KEYSTORE_BASE64 secret — skipping the signed AAB."
           fi
@@ -101,4 +106,12 @@ jobs:
         with:
           name: almaseed-aab
           path: mobile/android/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: warn
+
+      - name: Upload public upload-certificate (for Play upload-key reset)
+        if: env.SIGNED == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-certificate-pem
+          path: mobile/upload-certificate.pem
           if-no-files-found: warn
