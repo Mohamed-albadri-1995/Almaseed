@@ -503,7 +503,13 @@ async function performMaterialDeletion(
   await deleteUpload(material.originalFileUrl ?? null);
   await deleteUpload(material.originalCoverImage ?? null);
   // Deleting the material cascades its children — including any DeletionRequest.
-  await prisma.material.delete({ where: { id: material.id } });
+  // Idempotent: if a concurrent vote/rejection already removed it, don't error.
+  try {
+    await prisma.material.delete({ where: { id: material.id } });
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code === 'P2025') return; // already deleted
+    throw e;
+  }
   await logActivity({
     userId: actorId,
     action: 'delete',
@@ -566,7 +572,11 @@ async function resolveDeletionTally(requestId: string): Promise<'delete' | 'keep
     await performMaterialDeletion(req.material, req.requestedById);
     await notifyPool('تم حذف المادة', `وافقت أغلبية مراجعي القسم فحُذفت «${req.material.title}».`);
   } else if (decision === 'keep') {
-    await prisma.deletionRequest.delete({ where: { id: requestId } });
+    try {
+      await prisma.deletionRequest.delete({ where: { id: requestId } });
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2025') throw e; // already closed
+    }
     await notifyPool('أُبقيت المادة', `لم تبلغ الأغلبية المطلوبة لحذف «${req.material.title}»، فبقيت في الأرشيف.`);
   }
   return decision;
@@ -676,7 +686,11 @@ export async function cancelMaterialDeletionAction(formData: FormData) {
   if (req.requestedById !== user.id && user.role !== ROLES.ADMIN) {
     throw new Error('لا يمكنك إلغاء طلب غيرك');
   }
-  await prisma.deletionRequest.delete({ where: { id: requestId } });
+  try {
+    await prisma.deletionRequest.delete({ where: { id: requestId } });
+  } catch (e: unknown) {
+    if ((e as { code?: string })?.code !== 'P2025') throw e; // already resolved/cancelled
+  }
   await logActivity({
     userId: user.id,
     action: 'delete_cancel',
