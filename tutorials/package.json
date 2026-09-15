@@ -1,0 +1,13 @@
+{
+  "name": "almaseed-tutorials",
+  "private": true,
+  "type": "module",
+  "description": "مسجّل فيديوهات تعليمية لأرشيف المسيد عبر Playwright",
+  "scripts": {
+    "record": "node record.mjs",
+    "mp4": "for f in out/*.webm; do ffmpeg -y -i \"$f\" -movflags +faststart -pix_fmt yuv420p \"${f%.webm}.mp4\"; done"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

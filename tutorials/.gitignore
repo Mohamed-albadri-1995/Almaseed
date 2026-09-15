@@ -1,0 +1,6 @@
+node_modules/
+out/
+sample.*
+*.mp4
+*.webm
+.env
