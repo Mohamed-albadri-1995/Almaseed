@@ -19,7 +19,7 @@ import {
   type Role,
   ROLES,
 } from '@/lib/constants';
-import { notifyAllNewMaterial } from '@/lib/push';
+import { notifyAllNewMaterial, pushToUsers } from '@/lib/push';
 import { sectionSupervisors, tallyDeletion, loadReviewStaff } from '@/lib/deletion';
 import { HOLD_DAYS } from '@/lib/review-holds';
 
@@ -78,6 +78,11 @@ export async function reviewDecisionAction(formData: FormData) {
           link: '/account',
         },
       });
+      await pushToUsers([material.submittedById], {
+        title: 'تم رفض مادتك',
+        body: `«${material.title}» — رفضها مراجعان فحُذفت من الأرشيف${reason ? ` (${reason})` : ''}.`,
+        data: { type: 'material_rejected' },
+      }).catch(() => {});
     }
     await logActivity({
       userId: user.id,
@@ -143,16 +148,19 @@ export async function reviewDecisionAction(formData: FormData) {
   });
 
   if (material.submittedById && notifyTitle) {
+    const body = `«${material.title}» — ${STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]}${
+      reason ? ` (${reason})` : ''
+    }`;
     await prisma.notification.create({
-      data: {
-        userId: material.submittedById,
-        title: notifyTitle,
-        body: `«${material.title}» — ${STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]}${
-          reason ? ` (${reason})` : ''
-        }`,
-        link: '/account',
-      },
+      data: { userId: material.submittedById, title: notifyTitle, body, link: '/account' },
     });
+    // Also push to the contributor's device so accept / needs-edit / (a first
+    // rejection shows as «معلّقة») reach them even when the app is closed.
+    await pushToUsers([material.submittedById], {
+      title: notifyTitle,
+      body,
+      data: { materialId: material.id, type: 'review_decision' },
+    }).catch(() => {});
   }
 
   await logActivity({
@@ -179,14 +187,20 @@ export async function reviewDecisionAction(formData: FormData) {
     const staff = await loadReviewStaff();
     const others = sectionSupervisors(staff, material.category?.slug ?? '').filter((u) => u.id !== user.id);
     if (others.length) {
+      const body = `علّق ${user.name} «${material.title}» برفضٍ أوّل. يلزم رفض مراجع ثانٍ خلال ${HOLD_DAYS} أيام وإلا نُشرت.`;
       await prisma.notification.createMany({
         data: others.map((u) => ({
           userId: u.id,
           title: 'مادة معلّقة تحتاج رأيك',
-          body: `علّق ${user.name} «${material.title}» برفضٍ أوّل. يلزم رفض مراجع ثانٍ خلال ${HOLD_DAYS} أيام وإلا نُشرت.`,
+          body,
           link: `/admin/review/${material.id}`,
         })),
       });
+      await pushToUsers(others.map((u) => u.id), {
+        title: 'مادة معلّقة تحتاج رأيك',
+        body,
+        data: { materialId: material.id, type: 'review_hold' },
+      }).catch(() => {});
     }
   }
 
@@ -442,6 +456,11 @@ export async function restoreMaterialAction(formData: FormData) {
         link: '/account',
       },
     });
+    await pushToUsers([material.submittedById], {
+      title: 'تمت استعادة مادتك ونشرها',
+      body: `«${material.title}» أصبحت منشورة من جديد.`,
+      data: { materialId: id, type: 'material_restored' },
+    }).catch(() => {});
   }
   await logActivity({ userId: user.id, action: 'restore', entity: 'material', entityId: id });
   revalidatePath('/admin/materials');
@@ -563,10 +582,12 @@ async function resolveDeletionTally(requestId: string): Promise<'delete' | 'keep
   const { decision } = tallyDeletion(pool.length, poolIds, req.votes);
 
   // Notify the whole section pool of the outcome (a deletion is rare + important).
-  const notifyPool = (title: string, body: string) =>
-    prisma.notification.createMany({
+  const notifyPool = async (title: string, body: string) => {
+    await prisma.notification.createMany({
       data: pool.map((u) => ({ userId: u.id, title, body, link: '/admin/materials' })),
     });
+    await pushToUsers(pool.map((u) => u.id), { title, body, data: { type: 'deletion_outcome' } }).catch(() => {});
+  };
 
   if (decision === 'delete') {
     await performMaterialDeletion(req.material, req.requestedById);
@@ -618,16 +639,21 @@ export async function requestMaterialDeletionAction(formData: FormData) {
   }
 
   // Otherwise notify the other supervisors to cast their vote.
+  const voteBody = `طلب ${user.name} حذف «${material.title}»${reason ? ` — السبب: ${reason}` : ''}. صوّت في «إدارة المواد».`;
+  const otherIds = pool.filter((u) => u.id !== user.id).map((u) => u.id);
   await prisma.notification.createMany({
-    data: pool
-      .filter((u) => u.id !== user.id)
-      .map((u) => ({
-        userId: u.id,
-        title: 'طلب حذف مادة يحتاج تصويتك',
-        body: `طلب ${user.name} حذف «${material.title}»${reason ? ` — السبب: ${reason}` : ''}. صوّت في «إدارة المواد».`,
-        link: '/admin/materials',
-      })),
+    data: otherIds.map((uid) => ({
+      userId: uid,
+      title: 'طلب حذف مادة يحتاج تصويتك',
+      body: voteBody,
+      link: '/admin/materials',
+    })),
   });
+  await pushToUsers(otherIds, {
+    title: 'طلب حذف مادة يحتاج تصويتك',
+    body: voteBody,
+    data: { materialId: id, type: 'deletion_vote' },
+  }).catch(() => {});
   await logActivity({
     userId: user.id,
     action: 'delete_request',

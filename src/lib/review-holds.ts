@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import { MATERIAL_STATUS } from './constants';
 import { logActivity } from './activity';
-import { notifyAllNewMaterial } from './push';
+import { notifyAllNewMaterial, pushToUsers } from './push';
 
 // Days a rejection-hold waits for a second reviewer before auto-publishing.
 export const HOLD_DAYS = 7;
@@ -28,14 +28,15 @@ export async function releaseExpiredHolds(): Promise<number> {
     });
 
     if (m.submittedById) {
+      const body = `«${m.title}» — نُشرت تلقائيًّا بعد مرور ${HOLD_DAYS} أيام دون تأييد الرفض من مراجع ثانٍ.`;
       await prisma.notification.create({
-        data: {
-          userId: m.submittedById,
-          title: 'تم نشر مادتك',
-          body: `«${m.title}» — نُشرت تلقائيًّا بعد مرور ${HOLD_DAYS} أيام دون تأييد الرفض من مراجع ثانٍ.`,
-          link: '/account',
-        },
+        data: { userId: m.submittedById, title: 'تم نشر مادتك', body, link: '/account' },
       });
+      await pushToUsers([m.submittedById], {
+        title: 'تم نشر مادتك',
+        body,
+        data: { materialId: m.id, type: 'auto_published' },
+      }).catch(() => {});
     }
     await logActivity({
       action: 'auto_publish_hold',

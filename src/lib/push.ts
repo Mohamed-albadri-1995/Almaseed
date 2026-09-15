@@ -152,6 +152,29 @@ async function pushToTokens(tokens: string[], msg: PushMessage): Promise<void> {
   }
 }
 
+// Push to specific users' devices (all their registered tokens). Used for the
+// personal/targeted alerts that mirror an in-app notification: a contributor
+// whose material was accepted/rejected/needs-edit, or the section's reviewers
+// asked to weigh in on a hold or a deletion vote. Safe no-op when a user has no
+// device registered or FCM isn't configured.
+export async function pushToUsers(userIds: string[], msg: PushMessage): Promise<void> {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  if (ids.length === 0) return;
+  let tokens: string[] = [];
+  try {
+    const rows = await prisma.pushToken.findMany({
+      where: { userId: { in: ids } },
+      select: { token: true },
+    });
+    tokens = rows.map((r) => r.token);
+  } catch (e) {
+    console.error('[push] user token lookup failed:', e instanceof Error ? e.message : e);
+    return;
+  }
+  if (tokens.length === 0) return;
+  await pushToTokens(tokens, msg);
+}
+
 // Broadcast to every registered device — used when new content is published.
 export async function notifyAllNewMaterial(material: {
   id: string;
