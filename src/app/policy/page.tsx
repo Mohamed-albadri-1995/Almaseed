@@ -5,11 +5,39 @@ export const metadata: Metadata = { title: 'السياسات وشروط النش
 export default function PolicyPage() {
   return (
     <div className="container-page py-14">
-      <div className="mx-auto max-w-3xl space-y-10 leading-8 text-ink/90">
+      <div className="mx-auto max-w-3xl space-y-10 leading-8 text-ink/90 [&>section]:scroll-mt-24">
         <div>
           <p className="eyebrow">الشفافية أولاً</p>
           <h1 className="section-title mt-1">السياسات وشروط النشر</h1>
+          <p className="mt-2 text-muted">
+            هذه الصفحة تجمع كل ما يخصّ المساهمة والمراجعة والنشر والحذف والخصوصية في
+            أرشيف المسيد، بصورة مفصّلة وواضحة.
+          </p>
         </div>
+
+        <nav aria-label="محتويات الصفحة" className="rounded-2xl border border-ivory-300 bg-white p-5">
+          <p className="mb-3 font-bold text-brand-800">محتويات الصفحة</p>
+          <ol className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+            {[
+              ['#goal', 'الهدف'],
+              ['#automation', 'نظامٌ آليٌّ عادل'],
+              ['#archive-policy', 'سياسة الأرشفة والحفظ'],
+              ['#types', 'الأنواع المقبولة في كل قسم'],
+              ['#roles', 'الأدوار في الأرشيف'],
+              ['#review-policy', 'مراجعة المواد'],
+              ['#deletion-policy', 'حذف المواد'],
+              ['#publishing', 'شروط نشر المحتوى'],
+              ['#usage', 'سياسة الاستخدام'],
+              ['#privacy', 'سياسة الخصوصية'],
+              ['#rights', 'الحقوق والإبلاغ'],
+              ['#updates', 'تحديثات السياسة'],
+            ].map(([href, label]) => (
+              <li key={href}>
+                <a href={href} className="text-brand-700 hover:underline">{label}</a>
+              </li>
+            ))}
+          </ol>
+        </nav>
 
         <section id="goal" className="rounded-2xl border-r-4 border-gold-300 bg-brand-50/60 p-5 sm:p-6">
           <h2 className="text-xl font-extrabold text-brand-800">الهدف</h2>
@@ -71,6 +99,55 @@ export default function PolicyPage() {
               ضع المادة في القسم المناسب لها حتى يسهل العثور عليها مستقبلًا.
             </li>
           </ol>
+        </section>
+
+        <section id="types" className="space-y-3">
+          <h2 className="text-xl font-bold text-brand-800">الأنواع المقبولة في كل قسم</h2>
+          <p className="text-muted">
+            يقبل كل قسم أنواعًا محدّدة من الملفات؛ حفاظًا على جودة الأرشيف وتناسقه:
+          </p>
+          <ul className="list-disc space-y-2 pr-6 text-muted">
+            <li>
+              <span className="font-bold text-brand-800">المدائح والمحاضرات والمواعظ والندوات والمناسبات:</span>{' '}
+              ملفات <span className="font-bold text-brand-800">صوت أو فيديو فقط</span> (مع إمكانية
+              التسجيل المباشر من الكاميرا أو الميكروفون داخل التطبيق).
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">الصور:</span> ملفات صور فقط (JPG، PNG، WEBP).
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">مكتبة المسيد:</span> مقال يُكتب داخل الموقع،
+              أو ملف مرفق (وثيقة، كتاب، صوت، فيديو…) — وهي الأوسع نوعًا.
+            </li>
+          </ul>
+          <p className="text-sm text-muted">أقصى حجم للملف الواحد: ٢٠٠ ميجابايت.</p>
+        </section>
+
+        <section id="roles" className="space-y-3">
+          <h2 className="text-xl font-bold text-brand-800">الأدوار في الأرشيف</h2>
+          <ul className="list-disc space-y-2 pr-6 text-muted">
+            <li>
+              <span className="font-bold text-brand-800">الزائر:</span> يتصفّح ويستمع ويشاهد ويُنزّل كل
+              المحتوى المنشور <span className="font-bold text-brand-800">دون حساب</span>.
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">المساهم:</span> يرسل المواد ويتابع حالتها في
+              صفحة «حسابي»، وتصله الإشعارات بقرار كل مادة.
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">المراجع:</span> يراجع مواد قسمه فينشر أو يطلب
+              تعديلًا أو يرفض، ويشارك في تصويت الحذف.
+            </li>
+            <li>
+              <span className="font-bold text-brand-800">مدير النظام:</span> يدير الإعدادات والحسابات،
+              ولا يحذف مادةً إلا بطلب صاحبها أو لمشكلة تقنية.
+            </li>
+          </ul>
+          <p className="text-sm text-muted">
+            وتبقى القرارات المصيرية (النشر، التعليق، الحذف) بيد{' '}
+            <a href="#automation" className="font-semibold text-brand-700 underline">النظام الآليّ</a>{' '}
+            وفق القواعد المنشورة، لا بيد فردٍ واحد.
+          </p>
         </section>
 
         <section id="review-policy" className="space-y-3">
@@ -186,8 +263,10 @@ export default function PolicyPage() {
             الأدنى اللازم — الاسم والبريد الإلكتروني (والهاتف إن أضفته) ورمز الإشعارات —
             لإدارة المساهمات وإرسال الإشعارات، ولا نبيع بياناتك ولا نستخدمها للإعلانات
             ولا نشاركها مع جهات خارجية لأغراض تسويقية. للتفاصيل الكاملة (البيانات التي
-            نجمعها، ومزوّدو الخدمة، وكيفية حذف الحساب) راجع{' '}
-            <a href="/privacy" className="font-semibold text-brand-700 underline">سياسة الخصوصية الكاملة</a>.
+            نجمعها، ومزوّدو الخدمة) راجع{' '}
+            <a href="/privacy" className="font-semibold text-brand-700 underline">سياسة الخصوصية الكاملة</a>،
+            {' '}ولحذف حسابك وبياناتك راجع{' '}
+            <a href="/delete-account" className="font-semibold text-brand-700 underline">صفحة حذف الحساب</a>.
           </p>
         </section>
 
@@ -195,9 +274,20 @@ export default function PolicyPage() {
           <h2 className="text-xl font-bold text-brand-800">حقوق الاستخدام والإبلاغ</h2>
           <p className="mt-3 text-muted">
             إذا كنت صاحب حق في مادة منشورة وترى أنها نُشرت دون إذن، أو لاحظت مشكلة في أي
-            محتوى، يمكنك استخدام رابط «الإبلاغ عن مشكلة» في صفحة المادة أو صفحة «تواصل
-            معنا»، وسنراجع البلاغ ونتخذ الإجراء المناسب.
+            محتوى، يمكنك استخدام رابط «الإبلاغ عن مشكلة» في صفحة المادة أو صفحة{' '}
+            <a href="/contact" className="font-semibold text-brand-700 underline">«تواصل معنا»</a>،
+            وسنراجع البلاغ ونتخذ الإجراء المناسب.
           </p>
+        </section>
+
+        <section id="updates" className="border-t border-ivory-300 pt-6">
+          <h2 className="text-xl font-bold text-brand-800">تحديثات السياسة</h2>
+          <p className="mt-3 text-muted">
+            قد نُحدّث هذه السياسات من حينٍ لآخر لتطوير الأرشيف أو للامتثال للمتطلبات،
+            وتسري النسخة المنشورة هنا فور نشرها. ولأي استفسار تواصل معنا عبر{' '}
+            <a href="/contact" className="font-semibold text-brand-700 underline">«تواصل معنا»</a>.
+          </p>
+          <p className="mt-2 text-sm text-muted">آخر تحديث: سبتمبر ٢٠٢٦.</p>
         </section>
       </div>
     </div>
