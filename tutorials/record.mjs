@@ -95,8 +95,23 @@ async function openFirstSubmission(page, statusTab) {
   await page.waitForLoadState('networkidle').catch(() => {});
 }
 
+async function logout(ctx) { await ctx.clearCookies(); }
+
 const FLOWS = {
-  '1-login': async (ctx) => {
+  // ١) تسجيل حساب جديد
+  '1-register': async (ctx) => {
+    const page = await ctx.newPage(); await page.addInitScript(overlay);
+    await page.goto(`${BASE}/register`, { waitUntil: 'networkidle' }); await wait(page, 800);
+    await say(page, 'صفحة إنشاء حساب جديد'); await snap(page);
+    await say(page, 'اكتب الاسم الكامل'); await focus(page, page.locator('#name')); await page.fill('#name', 'مستخدم تجريبي').catch(() => {});
+    await say(page, 'اكتب البريد الإلكتروني'); await focus(page, page.locator('#email')); await page.fill('#email', `test${Date.now()}@example.com`).catch(() => {});
+    await say(page, 'اكتب كلمة المرور'); await focus(page, page.locator('#password')); await page.fill('#password', 'Test-123456').catch(() => {});
+    await press(page, page.getByRole('button', { name: 'إنشاء حساب' }), 'اضغط «إنشاء حساب»', { destructive: true });
+    return page;
+  },
+
+  // ٢) تسجيل الدخول
+  '2-login': async (ctx) => {
     const page = await ctx.newPage(); await page.addInitScript(overlay);
     await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' }); await wait(page, 800);
     const [email, pass] = CRED.contributor;
@@ -105,64 +120,96 @@ const FLOWS = {
     await press(page, page.getByRole('button', { name: 'دخول' }), 'اضغط «دخول»');
     return page;
   },
-  '2-upload': async (ctx) => {
+
+  // ٣) رفع مادة حقيقي — من الرئيسية + ملء الفورم كاملًا
+  '3-upload': async (ctx) => {
     const page = await login(ctx, 'contributor');
-    await page.goto(`${BASE}/submit`, { waitUntil: 'networkidle' }); await wait(page, 900);
+    await page.goto(`${BASE}/`, { waitUntil: 'networkidle' }); await wait(page, 900);
+    await say(page, 'من الصفحة الرئيسية'); await snap(page);
+    await press(page, page.getByRole('link', { name: 'أرسل مادة' }).first().or(page.getByRole('link', { name: /ساهم/ }).first()), 'اضغط «أرسل مادة»');
+    await page.waitForLoadState('networkidle').catch(() => {}); await wait(page, 800);
     await press(page, page.getByRole('button', { name: /المدائح/ }).first(), 'الخطوة ١: اختر نوع المادة (المدائح)');
-    if (fs.existsSync(SAMPLE)) { await say(page, 'الخطوة ٢: ارفع الملف'); await page.setInputFiles('input[type=file]', SAMPLE).catch(() => {}); await wait(page, 2500); await snap(page); }
-    await press(page, page.getByRole('button', { name: 'التالي' }).first(), 'اضغط «التالي»');
-    await say(page, 'الخطوة ٣: اكتب العنوان'); await focus(page, page.locator('#title')); await page.fill('#title', 'مادة تجريبية — دليل').catch(() => {});
+    if (fs.existsSync(SAMPLE)) { await say(page, 'الخطوة ٢: ارفع الملف من جهازك'); await page.setInputFiles('input[type=file]', SAMPLE).catch(() => {}); await wait(page, 2500); await snap(page); }
+    else { await say(page, 'الخطوة ٢: اضغط منطقة الرفع واختر ملفًا (صوت/فيديو)'); await snap(page); }
+    await press(page, page.getByRole('button', { name: 'التالي' }).first(), 'بعد اكتمال الرفع اضغط «التالي»');
+    await say(page, 'الخطوة ٣: املأ العنوان'); await focus(page, page.locator('#title')); await page.fill('#title', 'مدحة تجريبية للدليل').catch(() => {});
+    await say(page, 'أكمل الحقول (المادح، المناسبة، التاريخ…) لرفع قيمة المادة'); await snap(page);
     await press(page, page.getByRole('button', { name: 'التالي' }).first(), 'اضغط «التالي»');
     await say(page, 'الخطوة ٤: فعّل الإقرارين'); await page.check('input[name=rightsConfirmed]').catch(() => {}); await page.check('input[name=reviewConsent]').catch(() => {}); await snap(page); await wait(page, 700);
     await press(page, page.getByRole('button', { name: 'إرسال للمراجعة' }), 'اضغط «إرسال للمراجعة»', { destructive: true });
     return page;
   },
-  '3-review-reject': async (ctx) => {
-    const page = await login(ctx, 'reviewer1'); await openFirstSubmission(page, 'PENDING');
-    await press(page, page.getByRole('button', { name: 'رفض المادة' }), 'في «قرار المراجعة» اختر «رفض المادة»');
-    await say(page, 'اختر السبب (إلزامي)'); await page.selectOption('select[name=reason]', { index: 1 }).catch(() => {}); await snap(page); await wait(page, 700);
-    await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), 'اضغط «تأكيد القرار» — تصبح المادة معلّقة', { destructive: true });
+
+  // ٤) متابعة حالة المادة + كيف تعرف: قبول/رفض/طلب تعديل + الإشعارات
+  '4-track-status': async (ctx) => {
+    const page = await login(ctx, 'contributor');
+    await page.goto(`${BASE}/account`, { waitUntil: 'networkidle' }); await wait(page, 900);
+    await say(page, '«حسابي» — البطاقات العلوية تلخّص: قيد المراجعة / منشورة / تحتاج تعديل / مرفوضة'); await snap(page);
+    await say(page, '«موادي المُرسَلة» — تظهر حالة كل مادة بشارة ملوّنة'); await page.mouse.wheel(0, 500).catch(() => {}); await wait(page, 800); await snap(page);
+    const editBtn = page.getByRole('link', { name: 'تعديل وإعادة الإرسال' }).first();
+    if (await editBtn.count()) { await focus(page, editBtn); await say(page, 'إن طُلب تعديل: يظهر السبب وزر «تعديل وإعادة الإرسال»'); }
+    await say(page, 'الإشعارات: افتح جرس الإشعارات لمعرفة نتيجة كل مادة');
+    await page.goto(`${BASE}/account/notifications`, { waitUntil: 'networkidle' }); await wait(page, 900);
+    await say(page, 'هنا تصلك: «تم نشر مادتك» / «مادتك تحتاج إلى تعديل» / «تم رفض مادتك»'); await snap(page);
     return page;
   },
-  '4-second-review': async (ctx) => {
-    const page = await login(ctx, 'reviewer2'); await openFirstSubmission(page, 'HELD');
+
+  // ٥) المراجع: إشعار المراجعة + كل الخيارات (قبول/طلب تعديل/رفض) + التعديل بنفسك
+  '5-review-all': async (ctx) => {
+    const page = await login(ctx, 'reviewer1');
+    await page.goto(`${BASE}/account/notifications`, { waitUntil: 'networkidle' }); await wait(page, 800);
+    await say(page, 'يصل المراجع إشعار بوصول مادة تنتظر المراجعة'); await snap(page);
+    await openFirstSubmission(page, 'PENDING');
+    await say(page, 'التعديل بنفسك: عدّل الحقول في «بيانات المادة»'); await focus(page, page.locator('#title'));
+    await press(page, page.getByRole('button', { name: 'حفظ البيانات' }), 'اضغط «حفظ البيانات» لحفظ تعديلك', { destructive: true });
+    await say(page, 'قرار المراجعة — الخيارات الثلاثة:');
+    await focus(page, page.getByRole('button', { name: 'موافقة ونشر' }));
+    await say(page, '① «موافقة ونشر»: تُنشر المادة فورًا'); await snap(page);
     await focus(page, page.getByRole('button', { name: 'رفض المادة' }));
-    await press(page, page.getByRole('button', { name: 'موافقة ونشر' }), 'للنقض: «موافقة ونشر» (أو «رفض المادة» للإتمام)');
+    await say(page, '② «رفض المادة»: تُعلَّق حتى يرفضها مراجع ثانٍ'); await snap(page);
+    await press(page, page.getByRole('button', { name: 'طلب تعديل' }), '③ «طلب تعديل»: لإعادتها للمساهم');
+    await say(page, 'اختر السبب واكتب ملاحظة توضّح المطلوب'); await page.selectOption('select[name=reason]', { index: 1 }).catch(() => {}); await focus(page, page.locator('textarea[name=note]')); await page.fill('textarea[name=note]', 'يرجى تصحيح التاريخ.').catch(() => {}); await snap(page);
     await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), 'اضغط «تأكيد القرار»', { destructive: true });
     return page;
   },
-  '5-edit-self': async (ctx) => {
-    const page = await login(ctx, 'reviewer1'); await openFirstSubmission(page, 'PENDING');
-    await say(page, 'عدّل الحقول في نموذج «بيانات المادة»'); await focus(page, page.locator('#title'));
-    await press(page, page.getByRole('button', { name: 'حفظ البيانات' }), 'اضغط «حفظ البيانات»', { destructive: true });
+
+  // ٦) الرفض بمراجعَين — من حساب الرافض ثم من حساب المُثنّي على الرفض
+  '6-two-reject': async (ctx) => {
+    // المراجع الأول: يرفض → تُعلَّق
+    let page = await login(ctx, 'reviewer1');
+    await openFirstSubmission(page, 'PENDING');
+    await say(page, 'المراجع الأول: «رفض المادة»'); await press(page, page.getByRole('button', { name: 'رفض المادة' }), 'اختر «رفض المادة»');
+    await page.selectOption('select[name=reason]', { index: 1 }).catch(() => {}); await snap(page);
+    await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), '«تأكيد القرار» — تصبح المادة «معلّقة»', { destructive: true });
+    // تبديل الحساب للمراجع الثاني
+    await logout(ctx); await page.close();
+    page = await login(ctx, 'reviewer2');
+    await openFirstSubmission(page, 'HELD');
+    await say(page, 'المراجع الثاني (المُثنّي): يرفض لإتمام الحذف، أو يوافق لنقض الرفض');
+    await focus(page, page.getByRole('button', { name: 'رفض المادة' }));
+    await press(page, page.getByRole('button', { name: 'رفض المادة' }), 'لإتمام الرفض: «رفض المادة»');
+    await page.selectOption('select[name=reason]', { index: 1 }).catch(() => {}); await snap(page);
+    await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), '«تأكيد القرار» — رفضان ⇦ تُحذف نهائيًّا', { destructive: true });
     return page;
   },
-  '6-request-edit': async (ctx) => {
-    const page = await login(ctx, 'reviewer1'); await openFirstSubmission(page, 'PENDING');
-    await press(page, page.getByRole('button', { name: 'طلب تعديل' }), 'اختر «طلب تعديل»');
-    await say(page, 'اختر السبب واكتب ملاحظة'); await page.selectOption('select[name=reason]', { index: 1 }).catch(() => {}); await snap(page); await wait(page, 700);
-    await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), 'اضغط «تأكيد القرار»', { destructive: true });
-    return page;
-  },
-  '7-approve': async (ctx) => {
-    const page = await login(ctx, 'reviewer1'); await openFirstSubmission(page, 'PENDING');
-    await press(page, page.getByRole('button', { name: 'موافقة ونشر' }), 'اختر «موافقة ونشر»');
-    await press(page, page.getByRole('button', { name: 'تأكيد القرار' }), 'اضغط «تأكيد القرار» — تُنشر المادة', { destructive: true });
-    return page;
-  },
-  '8-delete-start': async (ctx) => {
+
+  // ٧) طلب الحذف (تصويت القسم)
+  '7-delete-request': async (ctx) => {
     const page = await login(ctx, 'reviewer1');
     await page.goto(`${BASE}/admin/materials`, { waitUntil: 'networkidle' }); await wait(page, 900);
+    await say(page, '«إدارة المواد» — اعثر على المادة المراد حذفها'); await snap(page);
     await press(page, page.getByText('طلب حذف (تصويت القسم)').first(), 'افتح «طلب حذف (تصويت القسم)»');
-    await say(page, 'اكتب سبب الحذف (اختياري)'); await page.fill('input[name=reason]', 'سبب تجريبي').catch(() => {}); await snap(page); await wait(page, 700);
-    await press(page, page.getByRole('button', { name: 'فتح تصويت الحذف' }), 'اضغط «فتح تصويت الحذف»', { destructive: true });
+    await say(page, 'اكتب سبب الحذف (اختياري)'); await focus(page, page.locator('input[name=reason]')); await page.fill('input[name=reason]', 'سبب تجريبي للحذف').catch(() => {}); await snap(page);
+    await press(page, page.getByRole('button', { name: 'فتح تصويت الحذف' }), 'اضغط «فتح تصويت الحذف» — يبدأ التصويت ويصل بقية المراجعين إشعار', { destructive: true });
     return page;
   },
-  '9-delete-vote': async (ctx) => {
+
+  // (إضافي) المشاركة في تصويت الحذف من مراجع ثانٍ
+  '8-delete-vote': async (ctx) => {
     const page = await login(ctx, 'reviewer2');
     await page.goto(`${BASE}/admin/materials`, { waitUntil: 'networkidle' }); await wait(page, 900);
-    await say(page, 'في لوحة «تصويتات حذف مفتوحة» بالأعلى'); await snap(page);
-    await press(page, page.getByRole('button', { name: 'أوافق على الحذف' }).first(), 'اضغط «أوافق على الحذف» (أو «أرفض الحذف»)', { destructive: true });
+    await say(page, 'لوحة «تصويتات حذف مفتوحة» أعلى الصفحة'); await snap(page);
+    await press(page, page.getByRole('button', { name: 'أوافق على الحذف' }).first(), 'صوّت: «أوافق على الحذف» (أو «أرفض الحذف»)', { destructive: true });
     return page;
   },
 };
