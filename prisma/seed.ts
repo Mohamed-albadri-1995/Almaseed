@@ -75,11 +75,14 @@ async function main() {
       where: { action: 'VISITS_RESET', entity: 'DailyView' },
     });
     if (!visitsReset) {
-      const cleared = await prisma.dailyView.deleteMany({});
+      // Remove the old (inflated) daily rows from before today; today's row is
+      // kept so counting simply continues from a clean baseline.
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const cleared = await prisma.dailyView.deleteMany({ where: { date: { lt: todayStr } } });
       await prisma.activityLog.create({
-        data: { action: 'VISITS_RESET', entity: 'DailyView', meta: `cleared ${cleared.count} rows` },
+        data: { action: 'VISITS_RESET', entity: 'DailyView', meta: `removed ${cleared.count} rows before ${todayStr}` },
       });
-      console.log(`↳ Reset visit counter: cleared ${cleared.count} DailyView row(s) for a clean start.`);
+      console.log(`↳ Visit counter baseline reset: removed ${cleared.count} DailyView row(s) before ${todayStr}.`);
     }
 
     console.log('✅ Seed complete.');
