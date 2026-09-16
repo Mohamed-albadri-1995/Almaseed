@@ -26,13 +26,31 @@ export async function getSystemStats() {
   const sinceStr = since.toISOString().slice(0, 10);
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const [rows, totalAgg, storageAgg, materials, users] = await Promise.all([
+  const [rows, totalAgg, storageAgg, materials, users, byCategory, categories, topDownloaded] = await Promise.all([
     prisma.dailyView.findMany({ orderBy: { date: 'desc' }, take: 14 }),
     prisma.dailyView.aggregate({ _sum: { count: true } }),
     prisma.material.aggregate({ _sum: { fileSize: true } }),
     prisma.material.count(),
     prisma.user.count(),
+    prisma.material.groupBy({
+      by: ['categoryId'],
+      where: { status: 'PUBLISHED' },
+      _count: { _all: true },
+    }),
+    prisma.category.findMany({ orderBy: { order: 'asc' }, select: { id: true, name: true } }),
+    prisma.material.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { downloads: 'desc' },
+      take: 5,
+      select: { id: true, title: true, downloads: true },
+    }),
   ]);
+
+  // Content distribution per category (published only), named and sorted by
+  // category display order, so the system dashboard shows where materials sit.
+  const distribution = categories
+    .map((c) => ({ name: c.name, count: byCategory.find((b) => b.categoryId === c.id)?._count._all ?? 0 }))
+    .filter((d) => d.count > 0);
 
   const last7 = rows
     .filter((r) => r.date >= sinceStr)
@@ -52,5 +70,7 @@ export async function getSystemStats() {
     materials,
     users,
     memory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal },
+    distribution,
+    topDownloaded,
   };
 }

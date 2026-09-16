@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
 import { resolveReportAction } from '@/app/admin/actions';
-import { MATERIAL_STATUS, type Role } from '@/lib/constants';
+import { type Role } from '@/lib/constants';
 import { formatCount, timeAgo } from '@/lib/format';
 
 export const metadata: Metadata = { title: 'التقارير والبلاغات' };
@@ -15,30 +15,14 @@ export default async function ReportsPage() {
   const user = await getCurrentUser();
   if (!user || !can.manageContent(user.role as Role)) redirect('/admin');
 
-  const [byCategory, totals, topDownloaded, reports] = await Promise.all([
-    prisma.material.groupBy({
-      by: ['categoryId'],
-      where: { status: MATERIAL_STATUS.PUBLISHED },
-      _count: { _all: true },
-      _sum: { downloads: true, plays: true },
-    }),
+  const [totals, reports] = await Promise.all([
     prisma.material.aggregate({ _sum: { downloads: true, plays: true }, _count: { _all: true } }),
-    prisma.material.findMany({
-      where: { status: MATERIAL_STATUS.PUBLISHED },
-      orderBy: { downloads: 'desc' },
-      take: 5,
-      select: { id: true, title: true, downloads: true, plays: true },
-    }),
     prisma.contentReport.findMany({
       orderBy: [{ resolved: 'asc' }, { createdAt: 'desc' }],
       take: 30,
       include: { material: { select: { id: true, title: true } } },
     }),
   ]);
-
-  const categories = await prisma.category.findMany();
-  const catName = (id: string) => categories.find((c) => c.id === id)?.name ?? '—';
-  const maxCount = Math.max(1, ...byCategory.map((b) => b._count._all));
 
   return (
     <div>
@@ -60,49 +44,6 @@ export default async function ReportsPage() {
             <div className="mt-1 text-xs text-muted">{s.label}</div>
           </div>
         ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Distribution */}
-        <div className="card p-5">
-          <h2 className="mb-4 text-lg font-bold text-brand-800">توزيع المواد حسب التصنيف</h2>
-          <div className="space-y-3">
-            {byCategory.map((b) => (
-              <div key={b.categoryId}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium text-brand-800">{catName(b.categoryId)}</span>
-                  <span className="text-muted">{formatCount(b._count._all)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-ivory-200">
-                  <div
-                    className="h-full rounded-full bg-brand-500"
-                    style={{ width: `${(b._count._all / maxCount) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Top downloaded */}
-        <div className="card p-5">
-          <h2 className="mb-4 text-lg font-bold text-brand-800">الأكثر تحميلاً</h2>
-          <ol className="space-y-2">
-            {topDownloaded.map((m, i) => (
-              <li key={m.id} className="flex items-center justify-between gap-3 border-b border-ivory-200 pb-2 text-sm">
-                <span className="flex items-center gap-2">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
-                    {i + 1}
-                  </span>
-                  <Link href={`/material/${m.id}`} className="font-medium text-brand-800 hover:underline">
-                    {m.title}
-                  </Link>
-                </span>
-                <span className="text-muted">{formatCount(m.downloads)} تحميل</span>
-              </li>
-            ))}
-          </ol>
-        </div>
       </div>
 
       {/* Reports */}

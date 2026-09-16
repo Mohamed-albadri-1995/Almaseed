@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Icon } from '@/components/icons';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
@@ -16,6 +17,7 @@ export default async function SystemPage() {
 
   const s = await getSystemStats();
   const maxDaily = Math.max(1, ...s.views.daily.map((d) => d.count));
+  const maxCount = Math.max(1, ...s.distribution.map((d) => d.count));
 
   const cards = [
     { label: 'زيارات اليوم', value: formatCount(s.views.today), icon: 'chart' as const },
@@ -88,6 +90,50 @@ export default async function SystemPage() {
           <p className="mt-3 text-xs text-muted">
             ملاحظة: ذاكرة الخادم لحظية لكل نسخة تشغيل، ومساحة الملفات مخزّنة على R2.
           </p>
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        {/* Content distribution per category */}
+        <div className="card p-5">
+          <h2 className="mb-4 text-lg font-bold text-brand-800">توزيع المواد حسب التصنيف</h2>
+          {s.distribution.length === 0 ? (
+            <p className="text-sm text-muted">لا توجد مواد منشورة بعد.</p>
+          ) : (
+            <div className="space-y-3">
+              {s.distribution.map((d) => (
+                <div key={d.name}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-medium text-brand-800">{d.name}</span>
+                    <span className="text-muted">{formatCount(d.count)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-ivory-200">
+                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${(d.count / maxCount) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Most downloaded */}
+        <div className="card p-5">
+          <h2 className="mb-4 text-lg font-bold text-brand-800">الأكثر تحميلاً</h2>
+          {s.topDownloaded.length === 0 ? (
+            <p className="text-sm text-muted">لا توجد بيانات بعد.</p>
+          ) : (
+            <ol className="space-y-2">
+              {s.topDownloaded.map((m, i) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 border-b border-ivory-200 pb-2 text-sm">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{i + 1}</span>
+                    <Link href={`/material/${m.id}`} className="truncate font-medium text-brand-800 hover:underline">{m.title}</Link>
+                  </span>
+                  <span className="shrink-0 text-muted">{formatCount(m.downloads)} تحميل</span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </div>
     </div>
