@@ -64,6 +64,24 @@ async function main() {
     });
     if (legacyDel.count > 0) console.log(`↳ Removed ${legacyDel.count} legacy written-madeeh row (owner-requested).`);
 
+    // ---- One-time visit-counter reset (owner-requested) ------------------
+    // The old page-view counter inflated the numbers (it fired on every render,
+    // counting the owner's own admin browsing, the app's WebViews, and bots,
+    // with no per-visitor dedup). After switching to one-visit-per-device-per-day
+    // counting, the owner asked to clear the old rows so the numbers start clean
+    // and consistent. Guarded by an ActivityLog marker so this runs EXACTLY once
+    // and never wipes the new (accurate) data on later deploys.
+    const visitsReset = await prisma.activityLog.findFirst({
+      where: { action: 'VISITS_RESET', entity: 'DailyView' },
+    });
+    if (!visitsReset) {
+      const cleared = await prisma.dailyView.deleteMany({});
+      await prisma.activityLog.create({
+        data: { action: 'VISITS_RESET', entity: 'DailyView', meta: `cleared ${cleared.count} rows` },
+      });
+      console.log(`↳ Reset visit counter: cleared ${cleared.count} DailyView row(s) for a clean start.`);
+    }
+
     console.log('✅ Seed complete.');
     return;
   }
