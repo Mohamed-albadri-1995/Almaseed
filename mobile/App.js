@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
 import { api } from './api';
-import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE } from './config';
+import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 import { EMBLEM_DATA_URI } from './emblemData';
@@ -481,6 +481,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
   const [title, setTitle] = useState('');
   const [vals, setVals] = useState({});
   const [busy, setBusy] = useState('');
+  const [pct, setPct] = useState(0);
   const [err, setErr] = useState('');
   const [rights, setRights] = useState(false);
   const [consent, setConsent] = useState(false);
@@ -494,24 +495,56 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
   };
   const fileKind = kindOf(file?.mimeType, file?.name);
 
-  // Some sources (notably the stock music player) hand us a content:// uri that
-  // React Native's multipart upload can't read directly — the POST then fails
-  // with "Network request failed" even though the form is valid. Copy such a
-  // uri to a real cache file first so the upload always has a readable file://
-  // path; file:// uris pass through unchanged.
+  // Turn whatever the share handed us into a clean, readable local file.
+  // Different sources behave very differently: the stock music player gives a
+  // content:// MediaStore uri, others give a file:// path whose name has Arabic
+  // characters or spaces — both make RN's uploader fail with a vague "Network
+  // request failed". Copying to an ASCII-named cache file sidesteps all of that,
+  // and we verify the copy exists and is non-empty so we fail with a clear
+  // message instead of a silent network error. Returns { uri, size, mimeType }.
   const toUploadable = async (f) => {
-    if (!f?.uri || !f.uri.startsWith('content://')) return f;
+    if (!f?.uri) throw new Error('لا يوجد ملف للإرسال.');
+    const raw = (f.name || f.uri).split('?')[0];
+    const ext = ((raw.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '')).slice(0, 5) || 'dat';
+    const dest = `${FileSystem.cacheDirectory}share_${Date.now()}.${ext}`;
     try {
-      const safeName = (f.name || `share_${Date.now()}`).replace(/[^\p{L}\p{N}._-]/gu, '_');
-      const dest = FileSystem.cacheDirectory + safeName;
       await FileSystem.deleteAsync(dest, { idempotent: true });
       await FileSystem.copyAsync({ from: f.uri, to: dest });
-      let size = f.size;
-      try { const info = await FileSystem.getInfoAsync(dest, { size: true }); if (info?.size) size = info.size; } catch {}
-      return { ...f, uri: dest, size };
     } catch {
-      return f; // fall back — the upload will surface any real error
+      // Copy failed (e.g. an unreadable content uri). If the original is itself
+      // a readable file, use it; otherwise ask the user to share another way.
+      const src = await FileSystem.getInfoAsync(f.uri, { size: true }).catch(() => null);
+      if (src?.exists && src.size) return { uri: f.uri, size: src.size, mimeType: f.mimeType };
+      throw new Error('تعذّر قراءة الملف المُشارَك من هذا التطبيق. جرّب المشاركة من «الملفات» أو «المعرض».');
     }
+    const info = await FileSystem.getInfoAsync(dest, { size: true }).catch(() => null);
+    if (!info?.exists || !info.size) throw new Error('الملف المُشارَك فارغ أو تعذّرت قراءته. جرّب المشاركة من «الملفات».');
+    return { uri: dest, size: info.size, mimeType: f.mimeType };
+  };
+
+  // Stream the file to the server with real progress. expo-file-system uploads
+  // straight from disk (no huge in-memory copy → no OOM on large video) and is
+  // far more reliable than RN's fetch(FormData) for shared files.
+  const uploadShared = async (localUri, mimeType) => {
+    const task = FileSystem.createUploadTask(
+      `${API_HOST}/api/mobile/upload`,
+      localUri,
+      {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'file',
+        mimeType: mimeType || 'application/octet-stream',
+        headers: { Authorization: `Bearer ${auth.token}`, 'X-Almaseed-App': 'android', Accept: 'application/json' },
+      },
+      (p) => { if (p.totalBytesExpectedToSend > 0) setPct(Math.min(100, Math.round((p.totalBytesSent / p.totalBytesExpectedToSend) * 100))); },
+    );
+    const res = await task.uploadAsync();
+    if (!res || res.status < 200 || res.status >= 300) {
+      let msg = `تعذّر رفع الملف${res?.status ? ` (${res.status})` : ''} — تحقّق من الاتصال وحاول مجددًا.`;
+      try { const d = JSON.parse(res.body); if (d.error) msg = d.error; } catch {}
+      throw new Error(msg);
+    }
+    return JSON.parse(res.body);
   };
 
   useEffect(() => { getAuth().then((a) => setAuthState(a || null)).catch(() => setAuthState(null)); }, []);
@@ -537,7 +570,9 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
     if (!rights || !consent) { setErr('يجب الإقرار بحق المشاركة والموافقة على المراجعة قبل الإرسال.'); return; }
     try {
       setBusy('upload');
-      const up = await api.uploadFile(auth.token, await toUploadable(file));
+      setPct(0);
+      const prepared = await toUploadable(file);
+      const up = await uploadShared(prepared.uri, file?.mimeType);
       setBusy('submit');
       const clean = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, (v || '').trim()]));
       await api.submit(auth.token, {
@@ -549,6 +584,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
       Alert.alert('تم الإرسال', 'أُرسلت المادة للمراجعة. جزاك الله خيراً على مساهمتك.', [{ text: 'حسناً', onPress: onDone }]);
     } catch (e) {
       setBusy('');
+      setPct(0);
       setErr(String(e.message || e));
     }
   };
@@ -594,7 +630,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
 
        {!!err && <Text style={styles.shareErr}>{err}</Text>}
        <TouchableOpacity style={[styles.authBtn, { marginTop: 18, opacity: busy ? 0.6 : 1 }]} onPress={submit} disabled={!!busy} activeOpacity={0.85}>
-         <Text style={styles.authBtnTxt}>{busy === 'upload' ? 'جارٍ رفع الملف…' : busy === 'submit' ? 'جارٍ الإرسال…' : 'إرسال للمراجعة'}</Text>
+         <Text style={styles.authBtnTxt}>{busy === 'upload' ? (pct >= 100 ? 'اكتمل الرفع، جارٍ الحفظ…' : pct > 0 ? `جارٍ رفع الملف… ${pct}٪` : 'جارٍ تجهيز الملف…') : busy === 'submit' ? 'جارٍ الإرسال…' : 'إرسال للمراجعة'}</Text>
        </TouchableOpacity>
        <TouchableOpacity onPress={onBack} style={{ padding: 12, marginTop: 2 }} activeOpacity={0.7}><Text style={{ color: C.muted, textAlign: 'center', fontWeight: '700' }}>إلغاء</Text></TouchableOpacity>
      </ScrollView>}
