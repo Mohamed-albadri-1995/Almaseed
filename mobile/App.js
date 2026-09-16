@@ -97,11 +97,26 @@ function AppInner() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent({ resetOnBackground: true });
   const sharedHandled = useRef(false);
   useEffect(() => {
-    if (hasShareIntent && shareIntent?.files?.length && !sharedHandled.current) {
+    if (!hasShareIntent || sharedHandled.current) return;
+    // A shared file can arrive under different field names depending on the
+    // source app (path / filePath / a content:// uri), so accept any of them.
+    const f = (shareIntent?.files || [])[0];
+    const uri = f && (f.path || f.filePath || f.contentUri || f.uri);
+    if (uri) {
       sharedHandled.current = true;
-      const f = shareIntent.files[0];
-      setStack((s) => [...s, { name: 'sharesubmit', params: { file: { uri: f.path, name: f.fileName, mimeType: f.mimeType, size: f.size } } }]);
+      setStack((s) => [...s, { name: 'sharesubmit', params: { file: { uri, name: f.fileName || f.name, mimeType: f.mimeType, size: f.size } } }]);
       resetShareIntent();
+      setTimeout(() => { sharedHandled.current = false; }, 1500);
+    } else if (shareIntent && (shareIntent.text || shareIntent.webUrl)) {
+      // Some players/apps share a link or text (e.g. «يُشغَّل الآن»), not the
+      // audio file itself — there is nothing to upload. Tell the user clearly
+      // instead of silently landing them on the home screen.
+      sharedHandled.current = true;
+      resetShareIntent();
+      Alert.alert(
+        'لم يصل ملف',
+        'يستقبل التطبيق ملفات الصوت أو الفيديو أو الصور. يبدو أنّ ما شاركته من هذا التطبيق رابطٌ أو نصّ لا الملف نفسه. جرّب المشاركة من «الملفات» أو «المعرض»، أو من مشغّلٍ يُشارك الملف الصوتي مباشرةً.',
+      );
       setTimeout(() => { sharedHandled.current = false; }, 1500);
     }
   }, [hasShareIntent, shareIntent]); // eslint-disable-line react-hooks/exhaustive-deps
