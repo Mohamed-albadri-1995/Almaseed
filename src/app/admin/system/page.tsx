@@ -48,6 +48,10 @@ export default async function SystemPage() {
         })}
       </div>
 
+      <p className="mt-2 text-xs text-muted">
+        تُحتسب الزيارة مرّةً واحدة لكل جهاز في اليوم، ولا تشمل صفحات لوحة الإشراف ولا برامج الفهرسة. و«الإجمالي» محسوب منذ بدء تفعيل العدّاد لا منذ إنشاء الموقع.
+      </p>
+
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         {/* Visits chart */}
         <div className="card p-5">

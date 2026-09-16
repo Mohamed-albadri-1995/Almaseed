@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -25,7 +26,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
-  void recordVisit(); // fire-and-forget page-view counter
+  // Count one visit only when the middleware judged this a genuine public page
+  // view (real visitor, once per browser per day — not admin pages, assets, or
+  // bots). Keeps the «زيارات» numbers meaningful instead of a raw hit counter.
+  if (headers().get('x-count-visit') === '1') void recordVisit();
   const unread = user
     ? await prisma.notification.count({ where: { userId: user.id, read: false } })
     : 0;
