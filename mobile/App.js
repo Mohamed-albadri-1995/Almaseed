@@ -462,6 +462,8 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
   const [vals, setVals] = useState({});
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const [rights, setRights] = useState(false);
+  const [consent, setConsent] = useState(false);
 
   const kindOf = (mime, name) => {
     const ext = ((name || '').split('.').pop() || '').toLowerCase();
@@ -492,6 +494,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
       if (fld.required && !((vals[fld.name] || '').trim())) { setErr(`الحقل «${fld.label}» مطلوب`); return; }
     }
     if (form?.kinds && !form.kinds.includes(fileKind)) { setErr('نوع الملف لا يناسب هذا القسم — اختر قسماً مناسباً.'); return; }
+    if (!rights || !consent) { setErr('يجب الإقرار بحق المشاركة والموافقة على المراجعة قبل الإرسال.'); return; }
     try {
       setBusy('upload');
       const up = await api.uploadFile(auth.token, file);
@@ -500,6 +503,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
       await api.submit(auth.token, {
         categorySlug: slug, title: title.trim(), ...clean,
         fileUrl: up.url, fileKind: up.fileKind, fileType: up.fileType, fileSize: String(up.fileSize),
+        rightsConfirmed: 'true', reviewConsent: 'true',
       });
       setBusy('');
       Alert.alert('تم الإرسال', 'أُرسلت المادة للمراجعة. جزاك الله خيراً على مساهمتك.', [{ text: 'حسناً', onPress: onDone }]);
@@ -538,6 +542,15 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
            : <TextInput value={vals[fld.name] || ''} onChangeText={(t) => setVal(fld.name, t)} style={[styles.authInput, fld.type === 'textarea' && { minHeight: 84, textAlignVertical: 'top' }]} multiline={fld.type === 'textarea'} placeholder={fld.hint || (fld.type === 'date' ? 'سنة-شهر-يوم' : '')} placeholderTextColor="#9aa4a0" />}
          {!!fld.hint && fld.type !== 'select' && <Text style={styles.shareHint}>{fld.hint}</Text>}
        </View>)}
+
+       <TouchableOpacity style={styles.consentRow} onPress={() => setRights((v) => !v)} activeOpacity={0.8}>
+         <View style={[styles.checkbox, rights && styles.checkboxOn]}>{rights && <Text style={styles.checkboxTick}>✓</Text>}</View>
+         <Text style={styles.consentTxt}>أقر بأن لدي الحق في مشاركة هذه المادة، وأن مشاركتها لا تخالف حقوق الآخرين.</Text>
+       </TouchableOpacity>
+       <TouchableOpacity style={styles.consentRow} onPress={() => setConsent((v) => !v)} activeOpacity={0.8}>
+         <View style={[styles.checkbox, consent && styles.checkboxOn]}>{consent && <Text style={styles.checkboxTick}>✓</Text>}</View>
+         <Text style={styles.consentTxt}>أوافق على مراجعة المادة من فريق الإشراف قبل نشرها.</Text>
+       </TouchableOpacity>
 
        {!!err && <Text style={styles.shareErr}>{err}</Text>}
        <TouchableOpacity style={[styles.authBtn, { marginTop: 18, opacity: busy ? 0.6 : 1 }]} onPress={submit} disabled={!!busy} activeOpacity={0.85}>
@@ -821,6 +834,11 @@ const styles = StyleSheet.create({
   shareOpt: { color: C.muted, fontSize: 12, fontWeight: '400' },
   shareHint: { color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 },
   shareErr: { color: C.danger, fontSize: 13, fontWeight: '700', textAlign: 'right', marginTop: 14 },
+  consentRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, marginTop: 12 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.brand, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  checkboxOn: { backgroundColor: C.brand },
+  checkboxTick: { color: '#fff', fontSize: 14, fontWeight: '900' },
+  consentTxt: { flex: 1, fontSize: 13, lineHeight: 22, color: C.ink, textAlign: 'right' },
   acctCard: { backgroundColor: C.white, borderRadius: 16, padding: 18, marginBottom: 12, borderWidth: 1, borderColor: C.line }, acctTitle: { fontSize: 18, fontWeight: '800', color: C.brand, textAlign: 'right' }, acctDesc: { fontSize: 13, color: C.muted, marginTop: 4, textAlign: 'right' }, authInput: { borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10, fontSize: 15, color: C.ink, textAlign: 'right', backgroundColor: C.ivory50 }, authBtn: { backgroundColor: C.brand, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 12 }, authBtnTxt: { color: C.white, fontWeight: '800', fontSize: 15 }, orRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 }, orLine: { flex: 1, height: 1, backgroundColor: C.line }, orTxt: { color: C.muted, fontSize: 12, fontWeight: '700' }, googleBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingVertical: 11 }, googleG: { color: '#4285F4', fontSize: 18, fontWeight: '900' }, googleTxt: { color: C.ink, fontWeight: '800', fontSize: 14 }, guestBtn: { marginTop: 10, alignItems: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line }, guestTxt: { color: C.brand, fontWeight: '800', fontSize: 14 }, logoutBtn: { marginTop: 12, alignSelf: 'flex-start', backgroundColor: '#f3e6e6', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 16 }, logoutTxt: { color: '#b23b3b', fontWeight: '800', fontSize: 13 }, footerText: { color: C.muted, textAlign: 'center', marginTop: 20, fontSize: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: C.brand, paddingBottom: 12, paddingHorizontal: 12 }, headerTitle: { color: C.white, fontSize: 17, fontWeight: '800', flex: 1, textAlign: 'center' }, backBtn: { width: 92, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, backgroundColor: '#ffffff22', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12 }, backChevron: { color: C.white, fontSize: 20, fontWeight: '900', lineHeight: 22, marginTop: -2 }, backTxt: { color: C.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   detailHead: { flexDirection: 'row', width: '100%' }, detailTitle: { fontSize: 24, fontWeight: '900', color: C.brand, textAlign: 'right' }, detailSub: { fontSize: 16, color: C.brand500, marginTop: 4, textAlign: 'right' }, detailPerson: { fontSize: 15, color: C.muted, marginTop: 4, textAlign: 'right' }, image: { width: '100%', height: 260, borderRadius: 16, marginTop: 16, backgroundColor: '#000' }, video: { width: '100%', height: 220, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
