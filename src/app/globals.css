@@ -123,10 +123,21 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
-.article-prose img,
 .article-prose table {
   max-width: 100%;
+}
+/* Images inside an article: dimensions are fully controlled here (not by any
+   inline size the editor produced), so an image can never distort the layout —
+   it fits the column width, never grows past a sensible height, sits centered
+   with breathing room, and matches the rounded look of the rest of the UI. */
+.article-prose img {
+  display: block;
+  max-width: 100%;
   height: auto;
+  max-height: 30rem;
+  margin: 1.25rem auto;
+  border-radius: 0.75rem;
+  object-fit: contain;
 }
 .article-prose > *:first-child {
   margin-top: 0;

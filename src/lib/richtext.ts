@@ -6,18 +6,24 @@ import { renderMarkdown } from './markdown';
 // safe HTML either way: HTML is sanitised against an allow‑list; anything that
 // isn't HTML falls back to the Markdown renderer.
 
-const HTML_RE = /<\/?(p|div|span|h[1-6]|ul|ol|li|blockquote|b|i|u|s|strong|em|br|a|font)\b/i;
+const HTML_RE = /<\/?(p|div|span|h[1-6]|ul|ol|li|blockquote|b|i|u|s|strong|em|br|a|font|img|figure)\b/i;
 
 const OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [
     'p', 'br', 'div', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
     'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'a', 'hr', 'font',
+    'img', 'figure', 'figcaption',
   ],
   allowedAttributes: {
     a: ['href', 'target', 'rel'],
     font: ['face', 'size', 'color'],
+    // Images carry only src/alt — every dimension is governed by CSS
+    // (.article-prose img), so a pasted/large image can never distort the
+    // layout, whatever inline size it was given in the editor.
+    img: ['src', 'alt'],
     '*': ['style', 'dir'],
   },
+  allowedSchemesByTag: { img: ['http', 'https'] },
   allowedStyles: {
     '*': {
       'font-family': [/^[\w\s,'"\-]+$/],

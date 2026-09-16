@@ -29,6 +29,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const ref = useRef<HTMLDivElement>(null);
   const selectionRef = useRef<Range | null>(null);
   const [empty, setEmpty] = useState(!value || !value.replace(/<[^>]*>/g, '').trim());
+  const [imgBusy, setImgBusy] = useState(false);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -65,6 +66,39 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   };
   const setBlock = (tag: string) => exec('formatBlock', tag);
   const addLink = () => { rememberSelection(); const url = window.prompt('أدخل الرابط:'); if (url) exec('createLink', url.trim()); };
+
+  // Insert an image into the article. The image is uploaded, then placed at the
+  // cursor centered and size-limited. Its dimensions are governed centrally (by
+  // `.article-prose img` when rendered, and by the inline caps here while
+  // editing), so no image can stretch out of the column or distort the layout.
+  const insertImage = () => {
+    rememberSelection();
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) { window.alert('حجم الصورة كبير — الحدّ الأقصى ٨ ميجابايت.'); return; }
+      setImgBusy(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) throw new Error(data.error || 'تعذّر رفع الصورة');
+        restoreSelection();
+        const html = `<p style="text-align:center"><img src="${data.url}" alt="" style="max-width:100%;max-height:22rem;height:auto;border-radius:12px;display:inline-block" /></p><p><br></p>`;
+        try { document.execCommand('insertHTML', false, html); } catch {}
+        sync();
+      } catch (e) {
+        window.alert(String((e as Error)?.message || e));
+      } finally {
+        setImgBusy(false);
+      }
+    };
+    input.click();
+  };
 
   // Paste as PLAIN TEXT. Pasting rich text from another app/site brought the
   // source's own <span style="font-family:…"> and per-line markup, so the text
@@ -108,7 +142,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
       <Btn title="عريض" onClick={() => exec('bold')}><b>ب</b></Btn><Btn title="مائل" onClick={() => exec('italic')}><i>م</i></Btn><Btn title="تحته خط" onClick={() => exec('underline')}><u>خ</u></Btn>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="عنوان" onClick={() => setBlock('H2')}>ع١</Btn><Btn title="عنوان فرعي" onClick={() => setBlock('H3')}>ع٢</Btn><Btn title="فقرة" onClick={() => setBlock('P')}>¶</Btn>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="محاذاة لليمين" onClick={() => exec('justifyRight')}>▷</Btn><Btn title="توسيط" onClick={() => exec('justifyCenter')}>≡</Btn><Btn title="محاذاة لليسار" onClick={() => exec('justifyLeft')}>◁</Btn><Btn title="ضبط" onClick={() => exec('justifyFull')}>☰</Btn>
-      <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="قائمة نقطية" onClick={() => exec('insertUnorderedList')}>•</Btn><Btn title="قائمة مرقّمة" onClick={() => exec('insertOrderedList')}>۱.</Btn><Btn title="اقتباس" onClick={() => setBlock('BLOCKQUOTE')}>❝</Btn><Btn title="رابط" onClick={addLink}>🔗</Btn>
+      <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="قائمة نقطية" onClick={() => exec('insertUnorderedList')}>•</Btn><Btn title="قائمة مرقّمة" onClick={() => exec('insertOrderedList')}>۱.</Btn><Btn title="اقتباس" onClick={() => setBlock('BLOCKQUOTE')}>❝</Btn><Btn title="رابط" onClick={addLink}>🔗</Btn><Btn title="إدراج صورة" onClick={insertImage}>{imgBusy ? '…' : '🖼'}</Btn>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
       {COLORS.map((c) => <button key={c} type="button" title="لون النص" aria-label={`لون النص ${c}`} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} onClick={() => exec('foreColor', c)} className="h-7 w-7 shrink-0 touch-manipulation rounded-full border border-black/10" style={{ backgroundColor: c }} />)}
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
