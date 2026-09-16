@@ -1,8 +1,8 @@
 diff --git a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
-index 0153c89..550e2bd 100644
+index 0153c89..dee3de3 100644
 --- a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
 +++ b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
-@@ -66,37 +66,67 @@ class ExpoShareIntentModule : Module() {
+@@ -66,37 +66,72 @@ class ExpoShareIntentModule : Module() {
                      "filePath" to instance?.getAbsolutePath(uri),
                  )
              }
@@ -45,6 +45,11 @@ index 0153c89..550e2bd 100644
 +                    mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase())
 +                }
 +            }
++            // Never return a null mimeType: the JS layer calls
++            // mimeType.startsWith(...) while parsing, so a null (common for
++            // .amr/.opus/.oga audio) would throw and the share would silently
++            // fail — the app then just opened to the home screen. Default it.
++            if (mimeType == null) mimeType = "application/octet-stream"
  
              var mediaWidth: String? = null;
              var mediaHeight: String? = null;

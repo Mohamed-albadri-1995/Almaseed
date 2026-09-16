@@ -123,6 +123,16 @@ function AppInner() {
         'يستقبل التطبيق ملفات الصوت أو الفيديو أو الصور. يبدو أنّ ما شاركته من هذا التطبيق رابطٌ أو نصّ لا الملف نفسه. جرّب المشاركة من «الملفات» أو «المعرض»، أو من مشغّلٍ يُشارك الملف الصوتي مباشرةً.',
       );
       setTimeout(() => { sharedHandled.current = false; }, 1500);
+    } else {
+      // A share arrived but we couldn't extract a file or text from it — never
+      // drop the user silently on the home screen; say what to do.
+      sharedHandled.current = true;
+      resetShareIntent();
+      Alert.alert(
+        'تعذّر فتح الملف المُشارَك',
+        'لم يتمكّن التطبيق من قراءة الملف من هذا المصدر. جرّب المشاركة من «الملفات» أو «المعرض».',
+      );
+      setTimeout(() => { sharedHandled.current = false; }, 1500);
     }
   }, [hasShareIntent, shareIntent]); // eslint-disable-line react-hooks/exhaustive-deps
 
