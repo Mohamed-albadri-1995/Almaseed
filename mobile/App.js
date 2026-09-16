@@ -494,6 +494,26 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
   };
   const fileKind = kindOf(file?.mimeType, file?.name);
 
+  // Some sources (notably the stock music player) hand us a content:// uri that
+  // React Native's multipart upload can't read directly — the POST then fails
+  // with "Network request failed" even though the form is valid. Copy such a
+  // uri to a real cache file first so the upload always has a readable file://
+  // path; file:// uris pass through unchanged.
+  const toUploadable = async (f) => {
+    if (!f?.uri || !f.uri.startsWith('content://')) return f;
+    try {
+      const safeName = (f.name || `share_${Date.now()}`).replace(/[^\p{L}\p{N}._-]/gu, '_');
+      const dest = FileSystem.cacheDirectory + safeName;
+      await FileSystem.deleteAsync(dest, { idempotent: true });
+      await FileSystem.copyAsync({ from: f.uri, to: dest });
+      let size = f.size;
+      try { const info = await FileSystem.getInfoAsync(dest, { size: true }); if (info?.size) size = info.size; } catch {}
+      return { ...f, uri: dest, size };
+    } catch {
+      return f; // fall back — the upload will surface any real error
+    }
+  };
+
   useEffect(() => { getAuth().then((a) => setAuthState(a || null)).catch(() => setAuthState(null)); }, []);
   useEffect(() => { api.fields().then(setSchema).catch((e) => setErr(String(e.message || e))); }, []);
   useEffect(() => {
@@ -517,7 +537,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
     if (!rights || !consent) { setErr('يجب الإقرار بحق المشاركة والموافقة على المراجعة قبل الإرسال.'); return; }
     try {
       setBusy('upload');
-      const up = await api.uploadFile(auth.token, file);
+      const up = await api.uploadFile(auth.token, await toUploadable(file));
       setBusy('submit');
       const clean = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, (v || '').trim()]));
       await api.submit(auth.token, {
