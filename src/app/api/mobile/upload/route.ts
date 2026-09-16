@@ -1,0 +1,54 @@
+import { NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
+import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
+import { FILE_KINDS } from '@/lib/constants';
+import { saveUpload } from '@/lib/storage';
+
+export const dynamic = 'force-dynamic';
+
+const MAX_SIZE = 200 * 1024 * 1024; // 200MB
+
+// Same extension → kind map as the website upload route (/api/upload).
+const EXT_KIND: Record<string, string> = {
+  mp3: FILE_KINDS.AUDIO, wav: FILE_KINDS.AUDIO, m4a: FILE_KINDS.AUDIO,
+  ogg: FILE_KINDS.AUDIO, oga: FILE_KINDS.AUDIO, aac: FILE_KINDS.AUDIO,
+  opus: FILE_KINDS.AUDIO, amr: FILE_KINDS.AUDIO, weba: FILE_KINDS.AUDIO,
+  mp4: FILE_KINDS.VIDEO, m4v: FILE_KINDS.VIDEO, mov: FILE_KINDS.VIDEO,
+  webm: FILE_KINDS.VIDEO, '3gp': FILE_KINDS.VIDEO, '3gpp': FILE_KINDS.VIDEO,
+  mkv: FILE_KINDS.VIDEO, avi: FILE_KINDS.VIDEO,
+  pdf: FILE_KINDS.DOCUMENT, doc: FILE_KINDS.DOCUMENT, docx: FILE_KINDS.DOCUMENT,
+  jpg: FILE_KINDS.IMAGE, jpeg: FILE_KINDS.IMAGE, png: FILE_KINDS.IMAGE, webp: FILE_KINDS.IMAGE,
+};
+
+// Bearer-authenticated upload for the app (shared-file submit). Mirrors the
+// website upload route but authenticates by mobile token instead of a cookie.
+export async function POST(req: Request) {
+  const auth = await verifyMobileToken(bearer(req));
+  if (!auth) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
+
+  const form = await req.formData();
+  const file = form.get('file');
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: 'لم يتم اختيار ملف' }, { status: 400 });
+  }
+  if (file.size > MAX_SIZE) {
+    return NextResponse.json({ error: 'حجم الملف يتجاوز الحد المسموح (200 ميجابايت)' }, { status: 400 });
+  }
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const kind = EXT_KIND[ext];
+  if (!kind) {
+    return NextResponse.json({ error: 'نوع الملف غير مدعوم' }, { status: 400 });
+  }
+
+  const name = `${randomBytes(8).toString('hex')}.${ext}`;
+  const bytes: Buffer = Buffer.from(await file.arrayBuffer());
+  try {
+    const url = await saveUpload(name, bytes, file.type || 'application/octet-stream');
+    return NextResponse.json({ url, fileKind: kind, fileType: ext.toUpperCase(), fileSize: bytes.length });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error('Mobile upload failed:', detail);
+    return NextResponse.json({ error: `تعذّر حفظ الملف: ${detail}` }, { status: 500 });
+  }
+}
