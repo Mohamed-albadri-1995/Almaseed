@@ -125,10 +125,14 @@ export function Navbar({ user }: { user: NavUser | null }) {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — a fixed overlay pinned between the header and the bottom
+          of the screen, scrolling on its own. This guarantees every item
+          (including «تسجيل الخروج» at the end) stays inside the viewport and is
+          reachable no matter how tall the list is or how the page is scrolled,
+          which an in-flow dropdown could not promise inside the app's WebView. */}
       {open && (
-        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-ivory-300 bg-ivory-50 lg:hidden">
-          <nav className="container-page flex flex-col py-3">
+        <div className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto overscroll-contain border-t border-ivory-300 bg-ivory-50 lg:hidden">
+          <nav className="container-page flex flex-col py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
             {NAV_LINKS.map((l) => (
               <Link
                 key={l.href}
