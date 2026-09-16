@@ -17,3 +17,5 @@ export async function GET() {
   const submittable = categories.filter((c) => CATEGORY_FORMS[c.slug]);
   return NextResponse.json({ categories: submittable, forms: CATEGORY_FORMS });
 }
+
+// redeploy marker: mobile submit endpoints (build 123)
