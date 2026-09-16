@@ -45,6 +45,25 @@ async function main() {
   if (existing > 0) {
     const del = await prisma.user.deleteMany({ where: { email: { in: DEMO_EMAILS } } });
     console.log(`↳ Materials present (${existing}) — removed ${del.count} demo account(s); skipping material seed.`);
+
+    // ---- One-time legacy cleanup (owner-requested) ------------------------
+    // «أرحموني ولا تقطعوني» is a legacy WRITTEN madeeh (an article with no
+    // file) that predates the «madeeh = audio/video only» rule. The owner
+    // asked to delete it. Match it tightly — exact title, the madeeh section,
+    // and no file — so only this one row is ever touched. All material
+    // relations cascade on delete, and it has no stored file to clean up.
+    // The submit form no longer allows an article in madeeh, so this exact
+    // condition cannot be recreated through the UI; the delete is idempotent
+    // (0 rows once it is gone) and safe to leave in place.
+    const legacyDel = await prisma.material.deleteMany({
+      where: {
+        title: 'أرحموني ولا تقطعوني',
+        fileUrl: null,
+        category: { slug: 'madeeh' },
+      },
+    });
+    if (legacyDel.count > 0) console.log(`↳ Removed ${legacyDel.count} legacy written-madeeh row (owner-requested).`);
+
     console.log('✅ Seed complete.');
     return;
   }
