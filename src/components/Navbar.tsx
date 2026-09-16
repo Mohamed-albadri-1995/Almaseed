@@ -127,7 +127,7 @@ export function Navbar({ user }: { user: NavUser | null }) {
 
       {/* Mobile menu */}
       {open && (
-        <div className="border-t border-ivory-300 bg-ivory-50 lg:hidden">
+        <div className="max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-ivory-300 bg-ivory-50 lg:hidden">
           <nav className="container-page flex flex-col py-3">
             {NAV_LINKS.map((l) => (
               <Link
