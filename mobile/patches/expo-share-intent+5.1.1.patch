@@ -1,0 +1,96 @@
+diff --git a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+index 0153c89..550e2bd 100644
+--- a/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
++++ b/node_modules/expo-share-intent/android/src/main/java/expo/modules/shareintent/ExpoShareIntentModule.kt
+@@ -66,37 +66,67 @@ class ExpoShareIntentModule : Module() {
+                     "filePath" to instance?.getAbsolutePath(uri),
+                 )
+             }
+-            val queryResult: Cursor = resolver.query(uri, null, null, null, null)!!
+-            queryResult.moveToFirst()
+-            val fileName = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+-            val fileSize = queryResult.getString(queryResult.getColumnIndex(OpenableColumns.SIZE))
+-            queryResult.close()
+ 
+-            val mimeType = resolver.getType(uri)!!
++            // Defensive: some source apps (e.g. the stock music player sharing a
++            // MediaStore audio uri) return a null cursor, omit OpenableColumns,
++            // or return a null mime type. The original code used `!!` and an
++            // unchecked getColumnIndex, so any of those threw on the main thread
++            // with no try/catch and crashed the app. Read everything null-safely
++            // and never throw — worst case we still return the uri + filePath.
++            var fileName: String? = null
++            var fileSize: String? = null
++            try {
++                val queryResult: Cursor? = resolver.query(uri, null, null, null, null)
++                queryResult?.use { c ->
++                    if (c.moveToFirst()) {
++                        val nameIdx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
++                        if (nameIdx >= 0) fileName = c.getString(nameIdx)
++                        val sizeIdx = c.getColumnIndex(OpenableColumns.SIZE)
++                        if (sizeIdx >= 0) fileSize = c.getString(sizeIdx)
++                    }
++                }
++            } catch (e: Exception) {
++                e.printStackTrace()
++            }
++
++            var mimeType: String? = try { resolver.getType(uri) } catch (e: Exception) { null }
++            if (mimeType == null) {
++                // Fall back to the extension of the name / uri path.
++                val ext = MimeTypeMap.getFileExtensionFromUrl(
++                    (fileName ?: uri.lastPathSegment ?: uri.toString())
++                )
++                if (!ext.isNullOrEmpty()) {
++                    mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase())
++                }
++            }
+ 
+             var mediaWidth: String? = null;
+             var mediaHeight: String? = null;
+             var mediaDuration: String? = null;
+-            if (mimeType.startsWith("image/")) {
+-                val options = BitmapFactory.Options().apply {
+-                    inJustDecodeBounds = true
++            try {
++                if (mimeType != null && mimeType!!.startsWith("image/")) {
++                    val options = BitmapFactory.Options().apply {
++                        inJustDecodeBounds = true
++                    }
++                    BitmapFactory.decodeStream(resolver.openInputStream(uri), null, options)
++                    mediaHeight = options.outHeight.toString()
++                    mediaWidth = options.outWidth.toString()
+                 }
+-                BitmapFactory.decodeStream(resolver.openInputStream(uri), null, options)
+-                mediaHeight = options.outHeight.toString()
+-                mediaWidth = options.outWidth.toString()
+-            }
+-            if (mimeType.startsWith("video/")) {
+-                val retriever = MediaMetadataRetriever()
+-                retriever.setDataSource(instance?.getAbsolutePath(uri))
+-                mediaWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt().toString() ?: null
+-                mediaHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt().toString() ?: null
+-                // Check orientation and flip size if required
+-                val metaRotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0;
+-                if (metaRotation == 90 || metaRotation == 270) {
+-                    mediaWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt().toString() ?: null
+-                    mediaHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt().toString() ?: null
++                if (mimeType != null && mimeType!!.startsWith("video/")) {
++                    val retriever = MediaMetadataRetriever()
++                    retriever.setDataSource(instance?.getAbsolutePath(uri))
++                    mediaWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt().toString() ?: null
++                    mediaHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt().toString() ?: null
++                    // Check orientation and flip size if required
++                    val metaRotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toInt() ?: 0;
++                    if (metaRotation == 90 || metaRotation == 270) {
++                        mediaWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toInt().toString() ?: null
++                        mediaHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toInt().toString() ?: null
++                    }
++                    mediaDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt().toString() ?: null
+                 }
+-                mediaDuration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toInt().toString() ?: null
++            } catch (e: Exception) {
++                e.printStackTrace()
+             }
+ 
+             return mapOf(

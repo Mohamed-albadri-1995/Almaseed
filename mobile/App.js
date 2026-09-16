@@ -101,10 +101,15 @@ function AppInner() {
     // A shared file can arrive under different field names depending on the
     // source app (path / filePath / a content:// uri), so accept any of them.
     const f = (shareIntent?.files || [])[0];
-    const uri = f && (f.path || f.filePath || f.contentUri || f.uri);
+    // Prefer a real file path for uploading; fall back to the content:// uri.
+    const uri = f && (f.filePath || f.path || f.contentUri || f.uri);
     if (uri) {
+      // Some sources omit the display name — derive one from the path so the
+      // file kind (audio/video/image) is still detected from its extension.
+      const fromPath = (f.filePath || f.path || f.contentUri || f.uri || '').split('?')[0].split('/').pop();
+      const name = f.fileName || f.name || (fromPath && fromPath.includes('.') ? decodeURIComponent(fromPath) : undefined);
       sharedHandled.current = true;
-      setStack((s) => [...s, { name: 'sharesubmit', params: { file: { uri, name: f.fileName || f.name, mimeType: f.mimeType, size: f.size } } }]);
+      setStack((s) => [...s, { name: 'sharesubmit', params: { file: { uri, name, mimeType: f.mimeType, size: f.size || f.fileSize } } }]);
       resetShareIntent();
       setTimeout(() => { sharedHandled.current = false; }, 1500);
     } else if (shareIntent && (shareIntent.text || shareIntent.webUrl)) {
