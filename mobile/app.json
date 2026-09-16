@@ -29,7 +29,8 @@
       "./plugins/with-force-rtl",
       "./plugins/with-release-signing",
       ["expo-share-intent", {
-        "androidIntentFilters": ["audio/*", "image/*", "video/*"]
+        "androidIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"],
+        "androidMultiIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"]
       }]
     ],
     "assetBundlePatterns": ["**/*"],
@@ -48,7 +49,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 128,
+      "versionCode": 129,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
