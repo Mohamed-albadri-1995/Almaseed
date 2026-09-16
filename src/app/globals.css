@@ -97,6 +97,30 @@
 /* Article typography for المقروءات (rendered Markdown + editor preview) */
 .article-prose {
   @apply text-[1.075rem] leading-[2.2] text-ink/90;
+  /* Keep every line inside the container. Long unbroken tokens (URLs, long
+     names, a poem line with no spaces) must wrap rather than push the width
+     out — otherwise, with the page-level `overflow-x: clip`, they get cut off
+     horizontally instead of scrolling (seen in the app's review WebView). */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.article-prose * {
+  max-width: 100%;
+}
+.article-prose p,
+.article-prose h1,
+.article-prose h2,
+.article-prose h3,
+.article-prose li,
+.article-prose blockquote {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.article-prose img,
+.article-prose table {
+  max-width: 100%;
+  height: auto;
 }
 .article-prose > *:first-child {
   margin-top: 0;
