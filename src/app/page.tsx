@@ -36,15 +36,41 @@ export default async function HomePage() {
       <section className="relative overflow-hidden bg-brand-900 text-ivory-50">
         {/* Cover banner (emblem + name + tagline are part of the artwork) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        {/* The banner artwork is very wide (1280×298), so at phone width it
-            renders as a thin strip. On small screens show a taller cropped band
-            (object-cover, centered on the mosque + name) so the hero reads big;
-            the emblem it crops on the left already appears in the navbar. On
-            sm+ the natural full-width banner is shown uncropped. */}
+        {/* The banner artwork is very wide (1280×298). On tablet/desktop it
+            reads well full-width, so it stays. On phones that ratio collapses
+            into a thin strip, so there we show a taller, purpose-built hero:
+            the mosque photo as a dimmed backdrop with the emblem and tagline
+            over it — real vertical presence instead of a sliver. */}
+        {/* Mobile hero (taller) */}
+        <div className="relative overflow-hidden bg-brand-900 sm:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/hero-bg.jpg"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-45"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-brand-900/70 via-brand-900/55 to-brand-900/85" />
+          <div className="pointer-events-none absolute -right-16 -top-10 h-52 w-52 rounded-full border border-gold-400/25" />
+          <div className="pointer-events-none absolute -left-12 bottom-0 h-56 w-56 rounded-full border border-gold-400/15" />
+          <div className="relative flex flex-col items-center px-4 py-11 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="الطريقة السمّانية — السجادة السليمانية"
+              className="h-40 w-40 object-contain drop-shadow-2xl"
+            />
+            <p className="mt-4 font-display text-2xl tracking-wide text-gold-200">
+              علم · ذكر · سلوك · نور
+            </p>
+          </div>
+        </div>
+        {/* Tablet / desktop banner (unchanged) */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/hero-banner.jpg"
           alt="الطريقة السمّانية — السجادة السليمانية · علم · ذكر · سلوك · نور"
-          className="block h-40 w-full object-cover object-center sm:h-auto sm:object-fill"
+          className="hidden h-auto w-full sm:block"
         />
 
         {/* Intro + search + actions */}
