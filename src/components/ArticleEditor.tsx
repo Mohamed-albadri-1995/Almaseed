@@ -14,6 +14,13 @@ const SIZES = [
 ];
 const COLORS = ['#2b2b2b', '#1f3d33', '#b47f33', '#c0554e', '#356b57', '#2c2c63'];
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function Btn({ title, onClick, children, active }: { title: string; onClick: () => void; children: React.ReactNode; active?: boolean }) {
   return <button type="button" title={title} aria-label={title} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} onClick={onClick} className={`flex h-9 min-w-9 shrink-0 touch-manipulation items-center justify-center rounded-md px-2 text-sm font-bold transition ${active ? 'bg-brand-100 text-brand-800' : 'text-brand-700 hover:bg-brand-100'}`}>{children}</button>;
 }
@@ -59,6 +66,36 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const setBlock = (tag: string) => exec('formatBlock', tag);
   const addLink = () => { rememberSelection(); const url = window.prompt('أدخل الرابط:'); if (url) exec('createLink', url.trim()); };
 
+  // Paste as PLAIN TEXT. Pasting rich text from another app/site brought the
+  // source's own <span style="font-family:…"> and per-line markup, so the text
+  // showed mixed fonts (even within one word) and staggered, misaligned lines.
+  // Stripping to plain text makes every pasted character adopt the editor's own
+  // font and clean layout; blank lines become paragraph breaks, single newlines
+  // line breaks — matching how the text reads to the contributor.
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    if (!text) return;
+    const normalized = text.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n');
+    // Build clean paragraphs so the pasted text keeps its stanzas without any
+    // inline styling from the source.
+    const html = normalized
+      .split(/\n{2,}/)
+      .map((para) => {
+        const lines = para.split('\n').map((l) => escapeHtml(l) || '<br>');
+        return `<p>${lines.join('<br>')}</p>`;
+      })
+      .join('');
+    restoreSelection();
+    try {
+      // insertHTML with our own clean <p>/<br> markup — no source styles survive.
+      document.execCommand('insertHTML', false, html);
+    } catch {
+      try { document.execCommand('insertText', false, normalized); } catch {}
+    }
+    sync();
+  };
+
   return <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-ivory-300 bg-white">
     <div className="flex min-h-12 flex-nowrap items-center gap-1 overflow-x-auto overscroll-contain rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <select title="نوع الخط" aria-label="نوع الخط" onMouseDown={() => rememberSelection()} onTouchStart={() => rememberSelection()} onChange={(e) => exec('fontName', e.target.value)} className="h-9 shrink-0 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800" defaultValue="">
@@ -77,7 +114,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
     </div>
     <div className="relative max-h-[52vh] overflow-y-auto">{empty && <span className="pointer-events-none absolute right-6 top-5 text-muted/70">{placeholder}</span>}
-      <div ref={ref} contentEditable dir="rtl" role="textbox" aria-multiline="true" aria-label="نص المقال" suppressContentEditableWarning onInput={sync} onBlur={sync} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onTouchEnd={rememberSelection} className="article-prose block w-full px-4 py-5 text-[16px] leading-8 outline-none sm:px-6 sm:text-base" style={{ minHeight }} />
+      <div ref={ref} contentEditable dir="rtl" role="textbox" aria-multiline="true" aria-label="نص المقال" suppressContentEditableWarning onInput={sync} onBlur={sync} onPaste={handlePaste} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onTouchEnd={rememberSelection} className="article-prose block w-full px-4 py-5 text-[16px] leading-8 outline-none sm:px-6 sm:text-base" style={{ minHeight }} />
     </div>
     <p className="border-t border-ivory-200 bg-ivory-50/60 px-4 py-2 text-xs text-muted">حرّر النص مباشرةً كما سيظهر للقارئ — شريط الأدوات يبقى متاحًا أثناء الكتابة والتمرير.</p>
   </div>;
