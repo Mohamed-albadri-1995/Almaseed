@@ -166,4 +166,47 @@ export const api = {
       },
       body: JSON.stringify({ token, platform }),
     }),
+
+  // Category form definitions (same source of truth as the website form), used
+  // by the native share-to-app submit screen so its fields always match.
+  fields: () => getCached('/api/mobile/fields', () => j('/api/mobile/fields')),
+
+  // Create a submission from the app (share-to-app). Same validation as the site.
+  submit: (token, body) =>
+    j('/api/mobile/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }),
+
+  // Upload a shared file. Separate from j(): multipart body (no Content-Type so
+  // fetch sets the boundary) and a long timeout for large audio/video.
+  uploadFile: async (token, file) => {
+    const form = new FormData();
+    form.append('file', { uri: file.uri, name: file.name || 'upload', type: file.mimeType || file.type || 'application/octet-stream' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+    try {
+      const res = await fetch(`${API_HOST}/api/mobile/upload`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'X-Almaseed-App': 'android',
+          Authorization: `Bearer ${token}`,
+        },
+        body: form,
+        signal: controller.signal,
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) || `خطأ ${res.status}` }; }
+      if (!res.ok) throw new Error(data.error || `خطأ ${res.status}`);
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('انتهت مهلة رفع الملف — تحقق من الاتصال');
+      throw new Error(error.message || 'فشل رفع الملف');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
 };
