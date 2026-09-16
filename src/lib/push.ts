@@ -206,7 +206,7 @@ export async function notifyReviewersNewSubmission(material: {
   id: string;
   title: string;
   category?: { slug?: string | null; name?: string | null } | null;
-}): Promise<void> {
+}, opts?: { resubmitted?: boolean }): Promise<void> {
   let rows: { token: string; user: { assignedCategories: string | null } | null }[] = [];
   try {
     rows = await prisma.pushToken.findMany({
@@ -230,9 +230,10 @@ export async function notifyReviewersNewSubmission(material: {
   if (tokens.length === 0) return;
 
   const section = material.category?.name ? `${material.category.name} · ` : '';
+  const resub = opts?.resubmitted;
   await pushToTokens(tokens, {
-    title: 'مادة جديدة بانتظار المراجعة',
+    title: resub ? 'مادة مُعدّلة بانتظار المراجعة' : 'مادة جديدة بانتظار المراجعة',
     body: `${section}${material.title}`,
-    data: { materialId: material.id, type: 'review_pending' },
+    data: { materialId: material.id, type: resub ? 'review_resubmitted' : 'review_pending' },
   });
 }

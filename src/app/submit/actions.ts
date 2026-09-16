@@ -146,5 +146,21 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
     },
   });
   await prisma.reviewNote.create({ data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' } });
+
+  // Tell the reviewers the edited material is back for review. The reviewer who
+  // asked for the edit (material.reviewedById) gets an in-app bell notification
+  // so they see it directly; the review pool for the section gets a push so it
+  // reaches their device even when the app is closed.
+  const newTitle = (f.title as string | null) || material.title;
+  if (material.reviewedById) {
+    await prisma.notification.create({
+      data: { userId: material.reviewedById, title: 'أُعيد إرسال مادة بعد التعديل', body: `«${newTitle}» عدّلها المساهم وأعاد إرسالها للمراجعة.`, link: `/admin/review/${id}` },
+    }).catch(() => {});
+  }
+  await notifyReviewersNewSubmission(
+    { id, title: newTitle, category: { slug: material.category.slug, name: material.category.name } },
+    { resubmitted: true },
+  ).catch(() => {});
+  await logActivity({ userId: user.id, action: 'resubmit', entity: 'material', entityId: id, meta: { title: newTitle } });
   redirect('/account?resubmitted=1');
 }
