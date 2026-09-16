@@ -45,10 +45,10 @@ export default async function HomePage() {
         <div className="relative overflow-hidden bg-brand-900 sm:hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/hero-bg.jpg"
+            src="/hero-portrait.jpg"
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 h-full w-full object-cover opacity-45"
+            className="absolute inset-0 h-full w-full object-cover object-top opacity-55"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-brand-900/70 via-brand-900/55 to-brand-900/85" />
           <div className="pointer-events-none absolute -right-16 -top-10 h-52 w-52 rounded-full border border-gold-400/25" />
