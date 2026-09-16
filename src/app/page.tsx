@@ -36,10 +36,15 @@ export default async function HomePage() {
       <section className="relative overflow-hidden bg-brand-900 text-ivory-50">
         {/* Cover banner (emblem + name + tagline are part of the artwork) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* The banner artwork is very wide (1280×298), so at phone width it
+            renders as a thin strip. On small screens show a taller cropped band
+            (object-cover, centered on the mosque + name) so the hero reads big;
+            the emblem it crops on the left already appears in the navbar. On
+            sm+ the natural full-width banner is shown uncropped. */}
         <img
           src="/hero-banner.jpg"
           alt="الطريقة السمّانية — السجادة السليمانية · علم · ذكر · سلوك · نور"
-          className="block h-auto w-full"
+          className="block h-40 w-full object-cover object-center sm:h-auto sm:object-fill"
         />
 
         {/* Intro + search + actions */}
