@@ -35,6 +35,7 @@ export function Navbar({ user }: { user: NavUser | null }) {
   const [open, setOpen] = useState(false);
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-ivory-300 bg-ivory-50/95 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         {/* Brand */}
@@ -124,12 +125,17 @@ export function Navbar({ user }: { user: NavUser | null }) {
           </button>
         </div>
       </div>
+    </header>
 
       {/* Mobile menu — a fixed overlay pinned between the header and the bottom
           of the screen, scrolling on its own. This guarantees every item
           (including «تسجيل الخروج» at the end) stays inside the viewport and is
-          reachable no matter how tall the list is or how the page is scrolled,
-          which an in-flow dropdown could not promise inside the app's WebView. */}
+          reachable no matter how tall the list is or how the page is scrolled.
+          It MUST live outside <header>: the header uses backdrop-blur, and a
+          backdrop-filter makes its box the containing block for position:fixed
+          descendants — which collapsed the overlay to zero height (it vanished
+          entirely). Rendered here as a sibling, `fixed` resolves against the
+          viewport as intended. */}
       {open && (
         <div className="fixed inset-x-0 bottom-0 top-16 z-40 overflow-y-auto overscroll-contain border-t border-ivory-300 bg-ivory-50 lg:hidden">
           <nav className="container-page flex flex-col py-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
@@ -173,6 +179,6 @@ export function Navbar({ user }: { user: NavUser | null }) {
           </nav>
         </div>
       )}
-    </header>
+    </>
   );
 }
