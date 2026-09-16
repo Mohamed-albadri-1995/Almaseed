@@ -15,6 +15,14 @@
     @apply bg-ivory-100 text-ink;
     font-family: var(--font-arabic);
     -webkit-font-smoothing: antialiased;
+    /* Never let a stray wide element push the page sideways (esp. inside the
+       app's WebView, where it showed content shifted with an empty margin).
+       `clip` avoids creating a scroll container, so sticky headers still work. */
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+  html {
+    overflow-x: clip;
   }
   h1, h2, h3, h4 {
     @apply text-brand-800;
