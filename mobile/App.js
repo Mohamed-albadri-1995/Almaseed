@@ -507,15 +507,34 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
     const raw = (f.name || f.uri).split('?')[0];
     const ext = ((raw.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '')).slice(0, 5) || 'dat';
     const dest = `${FileSystem.cacheDirectory}share_${Date.now()}.${ext}`;
-    try {
+    const doCopy = async () => {
       await FileSystem.deleteAsync(dest, { idempotent: true });
       await FileSystem.copyAsync({ from: f.uri, to: dest });
-    } catch {
-      // Copy failed (e.g. an unreadable content uri). If the original is itself
-      // a readable file, use it; otherwise ask the user to share another way.
-      const src = await FileSystem.getInfoAsync(f.uri, { size: true }).catch(() => null);
-      if (src?.exists && src.size) return { uri: f.uri, size: src.size, mimeType: f.mimeType };
-      throw new Error('تعذّر قراءة الملف المُشارَك من هذا التطبيق. جرّب المشاركة من «الملفات» أو «المعرض».');
+    };
+    try {
+      await doCopy();
+    } catch (e1) {
+      // A raw file:// path into another app's folder (e.g. WhatsApp mods like
+      // OBWhatsApp share file:///storage/emulated/0/OBWhatsApp/…) is blocked by
+      // Android scoped storage — there is no per-share grant like content:// has.
+      // Ask for read permission once and retry; if it still fails, guide the user.
+      if (f.uri.startsWith('file://')) {
+        try {
+          if (Platform.OS === 'android' && PermissionsAndroid?.PERMISSIONS?.READ_EXTERNAL_STORAGE) {
+            await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+          }
+        } catch {}
+        try { await MediaLibrary.requestPermissionsAsync(false); } catch {}
+        try {
+          await doCopy();
+        } catch (e2) {
+          throw new Error('تعذّر فتح هذا الملف — يبدو أنه داخل مجلد تطبيق لا يسمح بقراءته مباشرةً (مثل نسخ واتساب المعدّلة «OBWhatsApp»). احفظ الملف في هاتفك أولًا ثم شاركه من «الملفات» أو المعرض، أو استخدم واتساب الرسمي.');
+        }
+      } else {
+        const src = await FileSystem.getInfoAsync(f.uri, { size: true }).catch(() => null);
+        if (src?.exists && src.size) return { uri: f.uri, size: src.size, mimeType: f.mimeType };
+        throw new Error('تعذّر قراءة الملف المُشارَك من هذا التطبيق. جرّب المشاركة من «الملفات» أو «المعرض».');
+      }
     }
     const info = await FileSystem.getInfoAsync(dest, { size: true }).catch(() => null);
     if (!info?.exists || !info.size) throw new Error('الملف المُشارَك فارغ أو تعذّرت قراءته. جرّب المشاركة من «الملفات».');
