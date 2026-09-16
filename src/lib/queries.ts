@@ -202,8 +202,17 @@ export async function searchMaterials(filters: ArchiveFilters) {
   // «مقال» = a written material with NO file — the same definition used for the
   // card badge (isWritten = !fileUrl). Keying off bodyText was wrong: an audio
   // sermon that also has body text leaked into the «مقالات» filter.
+  //
+  // The reverse also happened: a written material (no file) can carry a stray
+  // fileKind (e.g. a legacy written madeeh saved with fileKind=AUDIO), which
+  // leaked into the «صوتيات»/«مرئيات» filters and showed there badged «مقال».
+  // A media filter must therefore also require an actual file, so every
+  // fileless material is treated as an article everywhere — matching the badge.
   if (fileKind === 'ARTICLE') where.fileUrl = null;
-  else if (fileKind) where.fileKind = fileKind;
+  else if (fileKind) {
+    where.fileKind = fileKind;
+    where.fileUrl = { not: null };
+  }
   if (docType) where.docType = docType;
   if (city) where.city = { contains: city };
   if (language) where.language = language;
