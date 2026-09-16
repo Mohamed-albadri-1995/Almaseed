@@ -20,6 +20,12 @@
        `clip` avoids creating a scroll container, so sticky headers still work. */
     overflow-x: clip;
     max-width: 100vw;
+    /* A long unbroken token (an email, a URL, a filename) must never force the
+       page wider than the screen. Without this it would overflow and — with
+       overflow-x: clip in RTL — get cut off the left edge, which is what showed
+       inside the app's review WebView. break-word only breaks such over-long
+       tokens; normal words keep wrapping as usual. */
+    overflow-wrap: break-word;
   }
   html {
     overflow-x: clip;

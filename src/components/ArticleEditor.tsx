@@ -59,7 +59,7 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const setBlock = (tag: string) => exec('formatBlock', tag);
   const addLink = () => { rememberSelection(); const url = window.prompt('أدخل الرابط:'); if (url) exec('createLink', url.trim()); };
 
-  return <div className="overflow-visible rounded-2xl border border-ivory-300 bg-white">
+  return <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-ivory-300 bg-white">
     <div className="flex min-h-12 flex-nowrap items-center gap-1 overflow-x-auto overscroll-contain rounded-t-2xl border-b border-ivory-200 bg-ivory-50 p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <select title="نوع الخط" aria-label="نوع الخط" onMouseDown={() => rememberSelection()} onTouchStart={() => rememberSelection()} onChange={(e) => exec('fontName', e.target.value)} className="h-9 shrink-0 rounded-md border border-ivory-300 bg-white px-2 text-sm text-brand-800" defaultValue="">
         {FONTS.map((f) => <option key={f.label} value={f.value}>{f.label}</option>)}

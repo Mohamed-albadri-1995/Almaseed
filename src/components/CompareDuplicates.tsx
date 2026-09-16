@@ -69,9 +69,9 @@ export function CompareDuplicates({
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         {/* Current material */}
-        <div className="rounded-2xl border border-brand-200 bg-brand-50/40 p-3">
+        <div className="min-w-0 rounded-2xl border border-brand-200 bg-brand-50/40 p-3">
           <p className="mb-2 flex items-center justify-between gap-2">
             <span className="rounded-full bg-brand-700 px-2.5 py-0.5 text-[11px] font-bold text-ivory-50">المادة الحالية</span>
             <span className="line-clamp-1 text-sm font-semibold text-brand-800">{current.title}</span>
@@ -81,7 +81,7 @@ export function CompareDuplicates({
         </div>
 
         {/* Suspected duplicate */}
-        <div className={`rounded-2xl border p-3 ${dup.exactFile ? 'border-red-200 bg-red-50/50' : 'border-amber-200 bg-amber-50/40'}`}>
+        <div className={`min-w-0 rounded-2xl border p-3 ${dup.exactFile ? 'border-red-200 bg-red-50/50' : 'border-amber-200 bg-amber-50/40'}`}>
           <p className="mb-2 flex items-center justify-between gap-2">
             <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${dup.exactFile ? 'bg-red-600 text-white' : 'bg-amber-500 text-white'}`}>المادة المشابهة</span>
             <Link href={`/admin/review/${dup.id}`} className="line-clamp-1 text-sm font-semibold text-brand-800 hover:text-brand-600">{dup.title}</Link>
