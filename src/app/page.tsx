@@ -5,6 +5,8 @@ import { MaterialCard } from '@/components/MaterialCard';
 import { MediaCarousel } from '@/components/MediaCarousel';
 import { SearchBox } from '@/components/SearchBox';
 import { AppDownload } from '@/components/AppDownload';
+import { GuideVideoCard } from '@/components/GuideVideoCard';
+import { getCurrentUser } from '@/lib/session';
 import {
   getCategoriesWithCounts,
   getHomeStats,
@@ -15,6 +17,12 @@ import {
 import { formatCount } from '@/lib/format';
 
 export default async function HomePage() {
+  const user = await getCurrentUser();
+  // Show the right short tutorial clip: signed-out visitors see how to sign in;
+  // signed-in ones see how to share a material from the website.
+  const guide = user
+    ? { src: '/guide/guide_share_web.mp4', poster: '/guide/guide_share_web_poster.jpg', title: 'كيف تشارك مادة من الموقع', subtitle: 'خطوات الإرسال للمراجعة في أقل من دقيقة', href: '/guide/upload', hrefLabel: 'الدليل خطوة بخطوة ←' }
+    : { src: '/guide/guide_login.mp4', poster: '/guide/guide_login_poster.jpg', title: 'أنشئ حسابك وسجّل الدخول', subtitle: 'ابدأ المساهمة في حفظ التراث', href: '/guide/register', hrefLabel: 'الدليل خطوة بخطوة ←' };
   const [categories, stats, latest, mostPlayed, showcase] = await Promise.all([
     getCategoriesWithCounts(),
     getHomeStats(),
@@ -81,6 +89,22 @@ export default async function HomePage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ---------------- Quick guide video ---------------- */}
+      <section className="container-page pt-12">
+        <div className="mb-6 text-center">
+          <p className="eyebrow">دليل سريع</p>
+          <h2 className="section-title mt-1">{user ? 'شارك مادة في خطوات' : 'ابدأ من هنا'}</h2>
+        </div>
+        <GuideVideoCard
+          src={guide.src}
+          poster={guide.poster}
+          title={guide.title}
+          subtitle={guide.subtitle}
+          href={guide.href}
+          hrefLabel={guide.hrefLabel}
+        />
       </section>
 
       {/* ---------------- Categories ---------------- */}
