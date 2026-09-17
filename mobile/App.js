@@ -325,11 +325,12 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled }) 
   return (
     <View style={{ flex: 1 }}>
       <View style={[styles.topbar, { paddingTop: STATUSBAR_H + 12 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, marginLeft: 8 }}>
           <Image source={require('./assets/emblem.png')} style={styles.topLogo} />
-          <View><Text style={styles.topTitle}>الطريقة السمّانية</Text><Text style={styles.topSub}>السجادة السليمانية</Text></View>
+          <View style={{ flexShrink: 1 }}><Text style={styles.topTitle} numberOfLines={1}>الطريقة السمّانية</Text><Text style={styles.topSub} numberOfLines={1}>السجادة السليمانية</Text></View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ alignItems: 'center', justifyContent: 'center' }}><AttnRing /><TouchableOpacity onPress={() => openContribute(push)} style={[styles.iconBtn, styles.iconBtnGold]} activeOpacity={0.8}><Ionicons name="add" size={26} color={C.brand} /></TouchableOpacity></View><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
+        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ alignItems: 'center', justifyContent: 'center' }}><AttnRing /><TouchableOpacity onPress={() => openContribute(push)} style={[styles.iconBtn, styles.iconBtnGold]} activeOpacity={0.8}><Ionicons name="add" size={26} color={C.brand} /></TouchableOpacity></View><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="☰" onPress={() => push('account')} /></View>
+        <AddButtonCue enabled={cuesEnabled} />
       </View>
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
@@ -369,17 +370,6 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled }) 
               />
             </FirstUseCue>
           )}
-          {/* Contribute CTA — a clear way to share a material straight from home. */}
-          <FirstUseCue flag="home-contribute" label="ساهم من هنا" enabled={cuesEnabled}>
-            <TouchableOpacity style={styles.contribCard} activeOpacity={0.9} onPress={() => openContribute(push)}>
-              <View style={styles.contribIcon}><Ionicons name="cloud-upload-outline" size={24} color={C.brand} /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.contribTitle}>المساهمة في النشر</Text>
-                <Text style={styles.contribSub}>شارك صوتًا أو فيديو أو صورة — تُراجَع ثم تُنشر في الأرشيف</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color={C.gold} />
-            </TouchableOpacity>
-          </FirstUseCue>
           {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
         </ScrollView>
       )}
@@ -402,6 +392,28 @@ function useBob(active) {
   return bob;
 }
 
+// A one-time bobbing pill under the topbar «+» button, telling first-time users
+// this is where they contribute. Waits until onboarding finishes (`enabled`).
+function AddButtonCue({ enabled }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    let on = true;
+    getFlag('home-add').then((seen) => { if (on && !seen) { setShow(true); setFlag('home-add'); } });
+    return () => { on = false; };
+  }, [enabled]);
+  const bob = useBob(show);
+  if (!show) return null;
+  return (
+    <Animated.View pointerEvents="box-none" style={[styles.addCue, { transform: [{ translateY: bob }] }]}>
+      <Text style={styles.addCueArrow}>▲</Text>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => setShow(false)} style={cueStyles.pill}>
+        <Text style={cueStyles.pillTxt}>👆 شارك مادة من هنا</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 // A continuously pulsing gold ring that expands and fades behind an icon to
 // draw the eye to it (used on the topbar «ساهم في النشر» action).
 function AttnRing() {
@@ -411,8 +423,8 @@ function AttnRing() {
     loop.start();
     return () => loop.stop();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const scale = a.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.7] });
-  const opacity = a.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.6, 0] });
+  const scale = a.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.4] });
+  const opacity = a.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.55, 0] });
   return <Animated.View pointerEvents="none" style={[styles.attnRing, { opacity, transform: [{ scale }] }]} />;
 }
 
@@ -1244,7 +1256,7 @@ function Loader() { return <View style={styles.center}><ActivityIndicator color=
 function ErrorBox({ msg, onRetry }) { return <View style={styles.center}><Text style={{ color: C.danger, textAlign: 'center', marginBottom: 12 }}>{msg}</Text>{onRetry && <TouchableOpacity style={styles.searchGo} onPress={onRetry}><Text style={{ color: C.brand, fontWeight: '800' }}>إعادة المحاولة</Text></TouchableOpacity>}</View>; }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ivory }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnGold: { backgroundColor: C.gold }, attnRing: { position: 'absolute', width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: C.gold }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' }, notifItemReview: { borderColor: C.gold, borderWidth: 1.5, backgroundColor: '#fcf7ea' }, notifLeadReview: { color: '#b5892a' }, newDotReview: { backgroundColor: C.gold },
+  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnGold: { backgroundColor: C.gold }, attnRing: { position: 'absolute', width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: C.gold }, addCue: { position: 'absolute', bottom: -2, left: 0, right: 0, alignItems: 'center', zIndex: 60 }, addCueArrow: { color: C.gold, fontSize: 18, marginBottom: -3, textShadowColor: '#0006', textShadowRadius: 3 }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' }, notifItemReview: { borderColor: C.gold, borderWidth: 1.5, backgroundColor: '#fcf7ea' }, notifLeadReview: { color: '#b5892a' }, newDotReview: { backgroundColor: C.gold },
   searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12 }, search: { flex: 1, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchClear: { paddingRight: 8, paddingLeft: 4 }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, sugBox: { backgroundColor: '#ffffff', marginHorizontal: 12, marginTop: -4, marginBottom: 4, borderRadius: 12, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }, sugRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }, sugTitle: { color: C.ink, fontSize: 14, fontWeight: '700', textAlign: 'right' }, sugSub: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 2 }, chips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, typeChips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, filterCap: { color: C.gold, fontSize: 12, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch', width: '100%', paddingHorizontal: 14, marginTop: 8 }, filterDivider: { height: 1, backgroundColor: C.line, marginHorizontal: 12, marginTop: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
   shareFileCard: { backgroundColor: C.white, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.line, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },

@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import { Icon, DynamicIcon } from './icons';
 import { ArticleEditor } from './ArticleEditor';
 import { Tip } from './Tip';
+import { FirstUseCue } from './FirstUseCue';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
 
@@ -181,7 +182,9 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
         <div>
           <h2 className="mb-1 text-xl font-bold text-brand-800">اختر نوع المادة</h2>
           <p className="mb-4 text-sm text-muted">حدد التصنيف المناسب للمادة التي تريد مشاركتها.</p>
-          <Tip>اختر القسم الأنسب ليسهل العثور على مادتك لاحقًا. أقسام المدائح والمحاضرات والندوات والمناسبات تقبل <span className="font-semibold">الصوت والفيديو فقط</span>.</Tip>
+          <FirstUseCue id="submit-type-tip" label="ابدأ من هنا" align="center">
+            <Tip>اختر القسم الأنسب ليسهل العثور على مادتك لاحقًا. أقسام المدائح والمحاضرات والندوات والمناسبات تقبل <span className="font-semibold">الصوت والفيديو فقط</span>.</Tip>
+          </FirstUseCue>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.filter((c) => CATEGORY_FORMS[c.slug]).map((c) => (
               <button key={c.slug} type="button" onClick={() => { setSlug(c.slug); setFile(null); setStep(2); }} className={`flex items-center gap-3 rounded-2xl border p-4 text-right transition ${slug === c.slug ? 'border-brand-400 bg-brand-50' : 'border-ivory-300 bg-white hover:border-brand-200 hover:bg-brand-50/40'}`}>
