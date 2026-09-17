@@ -323,11 +323,11 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
         <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
             <GuideVideoCard
-              key={guideAuth ? 'g-app' : 'g-login'}
-              url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_login'}.mp4`}
-              poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_login'}_poster.jpg`}
-              title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'أنشئ حسابك وسجّل الدخول'}
-              subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'ابدأ المساهمة في حفظ التراث'}
+              key={guideAuth ? 'g-app' : 'g-applogin'}
+              url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
+              poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
+              title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
+              subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
             />
           )}
           {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
