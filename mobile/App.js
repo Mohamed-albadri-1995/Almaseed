@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler, Share,
-  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard, PermissionsAndroid,
+  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard, PermissionsAndroid, Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -22,7 +22,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
-import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth } from './storage';
+import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 import { EMBLEM_DATA_URI } from './emblemData';
 import { useShareIntent } from 'expo-share-intent';
@@ -322,13 +322,15 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
       {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
         <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
-            <GuideVideoCard
-              key={guideAuth ? 'g-app' : 'g-applogin'}
-              url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
-              poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
-              title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
-              subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
-            />
+            <FirstUseCue flag="home-guide" label={guideAuth ? 'شاهد كيف تشارك' : 'ابدأ من هنا'}>
+              <GuideVideoCard
+                key={guideAuth ? 'g-app' : 'g-applogin'}
+                url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
+                poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
+                title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
+                subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
+              />
+            </FirstUseCue>
           )}
           {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
         </ScrollView>
@@ -336,6 +338,49 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
     </View>
   );
 }
+// A gentle, one-time «look here» coach-mark for the very first launch. It floats
+// a softly bobbing «👀 …» pill above whatever it wraps and marks itself seen the
+// moment it appears, so it never shows again. Tapping the pill hides it too.
+function FirstUseCue({ flag, label, children }) {
+  const [show, setShow] = useState(false);
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let on = true;
+    getFlag(flag).then((seen) => {
+      if (on && !seen) { setShow(true); setFlag(flag); } // one-time: mark seen on first appearance
+    });
+    return () => { on = false; };
+  }, [flag]);
+  useEffect(() => {
+    if (!show) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(bob, { toValue: -6, duration: 700, useNativeDriver: true }),
+      Animated.timing(bob, { toValue: 0, duration: 700, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <View>
+      {children}
+      {show && (
+        <Animated.View pointerEvents="box-none" style={[cueStyles.wrap, { transform: [{ translateY: bob }] }]}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setShow(false)} style={cueStyles.pill}>
+            <Text style={cueStyles.pillTxt}>👀 {label}</Text>
+          </TouchableOpacity>
+          <Text style={cueStyles.arrow}>▾</Text>
+        </Animated.View>
+      )}
+    </View>
+  );
+}
+const cueStyles = StyleSheet.create({
+  wrap: { position: 'absolute', top: 6, left: 0, right: 0, alignItems: 'center', zIndex: 30 },
+  pill: { backgroundColor: '#cd9b44', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
+  pillTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
+  arrow: { color: '#cd9b44', fontSize: 20, marginTop: -3, textShadowColor: '#0003', textShadowRadius: 3 },
+});
+
 // A short tutorial clip on the home feed: shows a poster with a play button and
 // only starts (and downloads) the video when tapped — data-friendly. The videos
 // are hosted on the website (/guide/*.mp4) so they can be updated without an app

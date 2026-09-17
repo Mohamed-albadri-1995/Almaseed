@@ -192,3 +192,16 @@ input[type='range'] {
 @media (prefers-reduced-motion: reduce) {
   .guide-attn { animation: none; }
 }
+
+/* First-use «look here» pointer — a gentle up/down bob that draws the eye to a
+   key element the very first time a user sees it. */
+@keyframes cueFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.cue-float {
+  animation: cueFloat 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cue-float { animation: none; }
+}

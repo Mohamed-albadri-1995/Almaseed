@@ -75,3 +75,12 @@ export async function setAuth(auth) {
 export async function clearAuth() {
   try { await AsyncStorage.removeItem(AUTH_KEY); } catch {}
 }
+
+// One-time UI flags (e.g. first-use coach-marks): getFlag returns true once the
+// flag has been set, so a cue shows only on the very first encounter.
+export async function getFlag(key) {
+  try { return (await AsyncStorage.getItem('almaseed.flag.' + key)) === '1'; } catch { return false; }
+}
+export async function setFlag(key) {
+  try { await AsyncStorage.setItem('almaseed.flag.' + key, '1'); } catch {}
+}

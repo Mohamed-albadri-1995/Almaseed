@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { SubmitForm } from '@/components/SubmitForm';
 import { ContributorGuide } from '@/components/ContributorGuide';
+import { FirstUseCue } from '@/components/FirstUseCue';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
@@ -28,7 +29,9 @@ export default async function SubmitPage() {
 
         {user ? (
           <>
-            <ContributorGuide />
+            <FirstUseCue id="submit-helper" label="ابدأ من هنا">
+              <ContributorGuide />
+            </FirstUseCue>
             <div className="card p-6 sm:p-8">
               <SubmitForm categories={categories} />
             </div>

@@ -6,6 +6,7 @@ import { MediaCarousel } from '@/components/MediaCarousel';
 import { SearchBox } from '@/components/SearchBox';
 import { AppDownload } from '@/components/AppDownload';
 import { GuideVideoCard } from '@/components/GuideVideoCard';
+import { FirstUseCue } from '@/components/FirstUseCue';
 import { getCurrentUser } from '@/lib/session';
 import {
   getCategoriesWithCounts,
@@ -77,9 +78,11 @@ export default async function HomePage() {
                 استكشف الأرشيف
                 <Icon.arrowLeft width={18} height={18} />
               </Link>
-              <Link href="/submit" className="btn-outline btn-lg border-ivory-100/40 text-ivory-50 hover:bg-white/10">
-                ساهم في الحفظ
-              </Link>
+              <FirstUseCue id="home-contribute" label="ساهم من هنا" align="center">
+                <Link href="/submit" className="btn-outline btn-lg border-ivory-100/40 text-ivory-50 hover:bg-white/10">
+                  ساهم في الحفظ
+                </Link>
+              </FirstUseCue>
             </div>
           </div>
         </div>
