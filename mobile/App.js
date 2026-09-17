@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView, View, Text, TouchableOpacity, ScrollView, ActivityIndicator,
   TextInput, StyleSheet, I18nManager, Alert, Image, RefreshControl, Linking, BackHandler, Share,
-  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard, PermissionsAndroid, Animated,
+  Platform, StatusBar as RNStatusBar, PanResponder, Keyboard, PermissionsAndroid, Animated, useWindowDimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
@@ -76,6 +76,30 @@ function ensureTrackPlayer() {
   return trackPlayerReady;
 }
 
+// Open the contribution flow (submit a material). The web submit form is opened
+// inside the app through the SSO bridge so a signed-in user is already
+// authenticated; camera/mic permissions are requested first so the form's
+// «تسجيل صوت/فيديو» buttons work. Used from the home CTA, the topbar, and the
+// onboarding tour.
+async function openContribute(push) {
+  if (Platform.OS === 'android') {
+    try {
+      await PermissionsAndroid.requestMultiple([
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+      ]);
+    } catch {}
+  }
+  const a = await getAuth().catch(() => null);
+  const to = '/submit';
+  push('web', {
+    url: a?.token
+      ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(a.token)}`
+      : `${API_BASE}${to}`,
+    title: 'المساهمة في النشر',
+  });
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -90,6 +114,12 @@ function AppInner() {
   const push = (name, params = {}) => setStack((s) => [...s, { name, params }]);
   const pop = useCallback(() => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s)), []);
   const top = stack[stack.length - 1];
+
+  // First-launch onboarding journey: guide new users to register and to
+  // contribute. Shown once (per device); replayable from the account screen.
+  const [showTour, setShowTour] = useState(false);
+  useEffect(() => { getFlag('onboarded').then((seen) => { if (!seen) setShowTour(true); }).catch(() => {}); }, []);
+  const finishTour = useCallback(() => { setShowTour(false); setFlag('onboarded'); }, []);
 
   // Share-to-app: when the user shares a file to «أرشيف المسيد» from the
   // gallery / files / audio app, open the native submit screen with that file
@@ -234,12 +264,19 @@ function AppInner() {
         {top.name === 'googlelogin' && <GoogleLoginScreen onBack={pop} />}
         {top.name === 'library' && <Library push={push} onBack={pop} />}
         {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
-        {top.name === 'account' && <Account push={push} onBack={pop} />}
+        {top.name === 'account' && <Account push={push} onBack={pop} onTour={() => setShowTour(true)} />}
         {top.name === 'sharesubmit' && <ShareSubmitScreen file={top.params.file} push={push} onBack={pop} onDone={() => setStack([{ name: 'home', params: {} }])} />}
         {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
         {top.name === 'pdf' && <PdfScreen url={top.params.url} title={top.params.title} onBack={pop} />}
       </View>
       {now && !hideMini && <MiniPlayer item={now} onClose={stopNow} onOpen={openNow} bottomInset={insets.bottom} />}
+      {showTour && (
+        <Onboarding
+          onDone={finishTour}
+          onRegister={() => { finishTour(); push('account'); }}
+          onContribute={() => { finishTour(); openContribute(push); }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -292,7 +329,7 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
           <Image source={require('./assets/emblem.png')} style={styles.topLogo} />
           <View><Text style={styles.topTitle}>الطريقة السمّانية</Text><Text style={styles.topSub}>السجادة السليمانية</Text></View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
+        <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity onPress={() => openContribute(push)} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="cloud-upload-outline" size={20} color={C.white} /></TouchableOpacity><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
       </View>
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
@@ -322,16 +359,25 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
       {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
         <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
-            <FirstUseCue flag="home-guide" label={guideAuth ? 'شاهد كيف تشارك' : 'ابدأ من هنا'}>
-              <GuideVideoCard
-                key={guideAuth ? 'g-app' : 'g-applogin'}
-                url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
-                poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
-                title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
-                subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
-              />
-            </FirstUseCue>
+            <GuideVideoCard
+              key={guideAuth ? 'g-app' : 'g-applogin'}
+              url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
+              poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
+              title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
+              subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
+            />
           )}
+          {/* Contribute CTA — a clear way to share a material straight from home. */}
+          <FirstUseCue flag="home-contribute" label="ساهم من هنا">
+            <TouchableOpacity style={styles.contribCard} activeOpacity={0.9} onPress={() => openContribute(push)}>
+              <View style={styles.contribIcon}><Ionicons name="cloud-upload-outline" size={24} color={C.brand} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.contribTitle}>المساهمة في النشر</Text>
+                <Text style={styles.contribSub}>شارك صوتًا أو فيديو أو صورة — تُراجَع ثم تُنشر في الأرشيف</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color={C.gold} />
+            </TouchableOpacity>
+          </FirstUseCue>
           {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
         </ScrollView>
       )}
@@ -379,6 +425,109 @@ const cueStyles = StyleSheet.create({
   pill: { backgroundColor: '#cd9b44', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   pillTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   arrow: { color: '#cd9b44', fontSize: 20, marginTop: -3, textShadowColor: '#0003', textShadowRadius: 3 },
+});
+
+// Interactive first-launch journey for new users. A swipeable, 4-step tour that
+// welcomes the visitor, shows that browsing is free, then guides them to create
+// an account (via Google) and to contribute a material. Shown once per device
+// and replayable from the account screen.
+const ONB_SLIDES = [
+  {
+    icon: 'sparkles-outline',
+    title: 'أهلاً بك في أرشيف المسيد',
+    body: 'منصّة تحفظ مدائح ومحاضرات وندوات ومواعظ ومناسبات وصور الطريقة السمّانية — السجادة السليمانية، وتُبقيها قريبة منك.',
+  },
+  {
+    icon: 'headset-outline',
+    title: 'تصفّح واستمع بحرية',
+    body: 'ابحث في الأرشيف، استمع، وحمّل المواد للاستماع دون اتصال — كل ذلك متاح للجميع دون حساب.',
+  },
+  {
+    icon: 'person-add-outline',
+    title: 'أنشئ حسابك عبر Google',
+    body: 'أسهل طريقة للدخول. سجّل لتساهم بموادك، وتتابع حالتها، وتصلك الإشعارات.',
+    cta: 'register',
+    ctaLabel: 'سجّل الدخول عبر Google',
+  },
+  {
+    icon: 'cloud-upload-outline',
+    title: 'شارك مادة في الأرشيف',
+    body: 'اختر النوع، أرفِق الملف (صوت أو فيديو أو صورة)، وأرسله للمراجعة — ثم يُنشر ليصل إلى الجميع.',
+    cta: 'contribute',
+    ctaLabel: 'ابدأ المساهمة',
+  },
+];
+function Onboarding({ onDone, onRegister, onContribute }) {
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const ref = useRef(null);
+  const [i, setI] = useState(0);
+  const last = ONB_SLIDES.length - 1;
+  const goTo = (n) => { const t = Math.max(0, Math.min(last, n)); ref.current?.scrollTo({ x: t * width, animated: true }); setI(t); };
+  const slide = ONB_SLIDES[i];
+  const runCta = (cta) => { if (cta === 'register') onRegister(); else if (cta === 'contribute') onContribute(); };
+  return (
+    <View style={[onb.overlay, { paddingTop: insets.top }]}>
+      <View style={onb.topRow}>
+        <TouchableOpacity onPress={onDone} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} activeOpacity={0.7}>
+          <Text style={onb.skip}>تخطٍّ</Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView
+        ref={ref}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => setI(Math.round(e.nativeEvent.contentOffset.x / width))}
+        style={{ flexGrow: 0 }}
+      >
+        {ONB_SLIDES.map((s) => (
+          <View key={s.title} style={[onb.slide, { width }]}>
+            <View style={onb.iconWrap}><Ionicons name={s.icon} size={54} color={C.brand} /></View>
+            <Text style={onb.title}>{s.title}</Text>
+            <Text style={onb.body}>{s.body}</Text>
+          </View>
+        ))}
+      </ScrollView>
+      <View style={[onb.footer, { paddingBottom: (insets.bottom || 12) + 8 }]}>
+        <View style={onb.dots}>
+          {ONB_SLIDES.map((_, n) => <View key={n} style={[onb.dot, n === i && onb.dotOn]} />)}
+        </View>
+        {slide.cta ? (
+          <>
+            <TouchableOpacity style={onb.primary} activeOpacity={0.85} onPress={() => runCta(slide.cta)}>
+              {slide.cta === 'register' && <Text style={onb.googleG}>G</Text>}
+              <Text style={onb.primaryTxt}>{slide.ctaLabel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => (i === last ? onDone() : goTo(i + 1))} activeOpacity={0.7} style={{ padding: 10 }}>
+              <Text style={onb.secondaryTxt}>{i === last ? 'ابدأ الاستكشاف' : 'لاحقًا'}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={onb.primary} activeOpacity={0.85} onPress={() => goTo(i + 1)}>
+            <Text style={onb.primaryTxt}>التالي</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+const onb = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: C.brand, zIndex: 50 },
+  topRow: { flexDirection: 'row', justifyContent: 'flex-start', paddingHorizontal: 20, paddingTop: 8 },
+  skip: { color: '#e7d9b6', fontSize: 14, fontWeight: '700' },
+  slide: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 },
+  iconWrap: { width: 116, height: 116, borderRadius: 58, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center', marginBottom: 30, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
+  title: { color: C.white, fontSize: 24, fontWeight: '800', textAlign: 'center', marginBottom: 14 },
+  body: { color: '#dfeae4', fontSize: 15.5, lineHeight: 27, textAlign: 'center' },
+  footer: { paddingHorizontal: 24, paddingTop: 8, alignItems: 'center' },
+  dots: { flexDirection: 'row', gap: 7, marginBottom: 18 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ffffff33' },
+  dotOn: { backgroundColor: C.gold, width: 22 },
+  primary: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.gold, borderRadius: 16, paddingVertical: 15, width: '100%' },
+  primaryTxt: { color: C.brand, fontSize: 16, fontWeight: '800' },
+  googleG: { color: '#4285F4', fontSize: 18, fontWeight: '900', backgroundColor: '#fff', width: 26, height: 26, borderRadius: 13, textAlign: 'center', lineHeight: 26, overflow: 'hidden' },
+  secondaryTxt: { color: '#e7d9b6', fontSize: 14, fontWeight: '700', textAlign: 'center' },
 });
 
 // A short tutorial clip on the home feed: shows a poster with a play button and
@@ -490,7 +639,7 @@ function NotificationsScreen({ push, onBack }) {
     </View>
   );
 }
-function Account({ push, onBack }) {
+function Account({ push, onBack, onTour }) {
   const [auth, setAuthState] = useState(null);
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -569,6 +718,7 @@ function Account({ push, onBack }) {
         <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/account', 'حسابي')}><Text style={styles.acctTitle}>صفحة المساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity>
         <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/admin', 'لوحة الإشراف')}><Text style={styles.acctTitle}>لوحة الإشراف</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity>
+        {onTour && <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => { onBack(); onTour(); }}><Text style={styles.acctTitle}>الجولة التعريفية</Text><Text style={styles.acctDesc}>أعد مشاهدة رحلة التعرّف على التطبيق</Text></TouchableOpacity>}
         <Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text>
         <Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text>
       </ScrollView>
@@ -1049,6 +1199,7 @@ const styles = StyleSheet.create({
   detailHead: { flexDirection: 'row', width: '100%' }, detailTitle: { fontSize: 24, fontWeight: '900', color: C.brand, textAlign: 'right' }, detailSub: { fontSize: 16, color: C.brand500, marginTop: 4, textAlign: 'right' }, detailPerson: { fontSize: 15, color: C.muted, marginTop: 4, textAlign: 'right' }, image: { width: '100%', height: 260, borderRadius: 16, marginTop: 16, backgroundColor: '#000' }, video: { width: '100%', height: 220, borderRadius: 16, marginTop: 16, backgroundColor: '#000' },
   documentCard: { marginTop: 16, backgroundColor: C.ivory50, borderRadius: 18, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: C.line }, documentIcon: { fontSize: 42, marginBottom: 8 }, documentTitle: { color: C.brand, fontSize: 18, fontWeight: '900' }, documentHint: { color: C.muted, fontSize: 12, lineHeight: 20, textAlign: 'center', marginTop: 6 },
   docBtns: { flexDirection: 'row', gap: 10, marginTop: 14 }, docViewBtn: { backgroundColor: C.brand, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 }, docViewTxt: { color: C.white, fontWeight: '800', fontSize: 14 }, docOpenBtn: { backgroundColor: C.gold, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 }, docOpenTxt: { color: C.brand, fontWeight: '800', fontSize: 14 }, pdfFooter: { backgroundColor: '#12241d', paddingVertical: 10, alignItems: 'center' }, pdfFooterTxt: { color: C.gold300, fontWeight: '800', fontSize: 13 },
+  contribCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.white, borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1.5, borderColor: C.gold }, contribIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.ivory, alignItems: 'center', justifyContent: 'center' }, contribTitle: { fontSize: 15.5, fontWeight: '800', color: C.brand, textAlign: 'right' }, contribSub: { fontSize: 12, color: C.muted, marginTop: 3, textAlign: 'right', lineHeight: 18 },
   guideCard: { backgroundColor: C.white, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line, overflow: 'hidden' }, guideMediaWrap: { width: '100%', height: 230, backgroundColor: '#12241d', position: 'relative' }, guidePlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0e1c1740' }, guidePlayCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' }, guidePlayIcon: { color: C.brand, fontSize: 24, fontWeight: '900', marginRight: -3 }, guideTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right' }, guideSub: { fontSize: 12.5, color: C.muted, marginTop: 3, textAlign: 'right' },
   videoWrap: { marginTop: 16 }, videoInline: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: '#000' }, videoBtns: { flexDirection: 'row', gap: 10, marginTop: 10 }, fsBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.brand }, fsBtnAlt: { backgroundColor: '#294a3d' }, fsIcon: { color: C.gold300, fontSize: 16, fontWeight: '900' }, fsTxt: { color: C.white, fontSize: 14, fontWeight: '800' }, videoErr: { color: C.danger, fontSize: 13, marginTop: 10, textAlign: 'center' },
   pip: { position: 'absolute', width: 168, height: 112, borderRadius: 12, backgroundColor: '#000', overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, zIndex: 50 }, pipVideo: { width: '100%', height: '100%' }, pipTap: { ...StyleSheet.absoluteFillObject }, pipPause: { position: 'absolute', left: '50%', top: '50%', width: 40, height: 40, marginLeft: -20, marginTop: -20, borderRadius: 20, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center' }, pipClose: { position: 'absolute', top: 5, right: 5, width: 28, height: 28, borderRadius: 14, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center' }, pipCtrlIcon: { color: '#fff', fontSize: 15, fontWeight: '900' },
