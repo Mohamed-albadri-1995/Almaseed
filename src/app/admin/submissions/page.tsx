@@ -129,9 +129,13 @@ export default async function SubmissionsPage({
                     <td className="px-4 py-3 text-muted">{timeAgo(m.createdAt)}</td>
                     <td className="px-4 py-3"><StatusBadge status={m.status} /></td>
                     <td className="px-4 py-3">
-                      <Link href={`/admin/review/${m.id}`} className="btn-outline px-3 py-1.5 text-xs">
-                        فتح المراجعة
-                      </Link>
+                      {me?.id && m.submittedById === me.id
+                        // You can't review your own submission — offer to edit it
+                        // instead (edit is allowed for your own needs-edit/draft items).
+                        ? (m.status === MATERIAL_STATUS.NEEDS_EDIT || m.status === MATERIAL_STATUS.DRAFT
+                            ? <Link href={`/account/edit/${m.id}`} className="btn-primary px-3 py-1.5 text-xs">تعديل وإعادة الإرسال</Link>
+                            : <span className="text-xs text-muted">مادتك — تُراجَع بواسطة غيرك</span>)
+                        : <Link href={`/admin/review/${m.id}`} className="btn-outline px-3 py-1.5 text-xs">فتح المراجعة</Link>}
                     </td>
                   </tr>
                 ))}
