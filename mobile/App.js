@@ -258,7 +258,7 @@ function AppInner() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <View style={{ flex: 1, paddingBottom: (now && !hideMini) ? 0 : insets.bottom }}>
-        {top.name === 'home' && <Feed push={push} active={feedCat} setActive={setFeedCat} kind={feedKind} setKind={setFeedKind} q={feedQ} setQ={setFeedQ} />}
+        {top.name === 'home' && <Feed push={push} active={feedCat} setActive={setFeedCat} kind={feedKind} setKind={setFeedKind} q={feedQ} setQ={setFeedQ} cuesEnabled={!showTour} />}
         {top.name === 'material' && <MaterialScreen id={top.params.id} push={push} onBack={pop} onPlay={play} onStop={stopNow} nowId={now?.id} />}
         {top.name === 'notifications' && <NotificationsScreen push={push} onBack={pop} />}
         {top.name === 'googlelogin' && <GoogleLoginScreen onBack={pop} />}
@@ -281,7 +281,7 @@ function AppInner() {
   );
 }
 
-function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
+function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled }) {
   const [cats, setCats] = useState([]);
   const [items, setItems] = useState(null);
   const [err, setErr] = useState('');
@@ -329,7 +329,7 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
           <Image source={require('./assets/emblem.png')} style={styles.topLogo} />
           <View><Text style={styles.topTitle}>الطريقة السمّانية</Text><Text style={styles.topSub}>السجادة السليمانية</Text></View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 8 }}><TouchableOpacity onPress={() => openContribute(push)} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="cloud-upload-outline" size={20} color={C.white} /></TouchableOpacity><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
+        <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ alignItems: 'center', justifyContent: 'center' }}><AttnRing /><TouchableOpacity onPress={() => openContribute(push)} style={[styles.iconBtn, styles.iconBtnGold]} activeOpacity={0.8}><Ionicons name="add" size={26} color={C.brand} /></TouchableOpacity></View><TouchableOpacity onPress={() => push('notifications')} style={styles.iconBtn} activeOpacity={0.8}><Ionicons name="notifications-outline" size={21} color={C.white} />{unread > 0 && <View style={styles.badge}><Text style={styles.badgeTxt}>{unread > 9 ? '9+' : unread}</Text></View>}</TouchableOpacity><IconBtn label="⤓" onPress={() => push('library')} /><IconBtn label="☰" onPress={() => push('account')} /></View>
       </View>
       <View style={styles.searchWrap}>
         <View style={styles.searchBox}>
@@ -359,16 +359,18 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
       {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
         <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
-            <GuideVideoCard
-              key={guideAuth ? 'g-app' : 'g-applogin'}
-              url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
-              poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
-              title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
-              subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
-            />
+            <FirstUseCue flag="home-guide" label="شاهد الفيديو التعريفي" enabled={cuesEnabled}>
+              <GuideVideoCard
+                key={guideAuth ? 'g-app' : 'g-applogin'}
+                url={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}.mp4`}
+                poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
+                title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
+                subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
+              />
+            </FirstUseCue>
           )}
           {/* Contribute CTA — a clear way to share a material straight from home. */}
-          <FirstUseCue flag="home-contribute" label="ساهم من هنا">
+          <FirstUseCue flag="home-contribute" label="ساهم من هنا" enabled={cuesEnabled}>
             <TouchableOpacity style={styles.contribCard} activeOpacity={0.9} onPress={() => openContribute(push)}>
               <View style={styles.contribIcon}><Ionicons name="cloud-upload-outline" size={24} color={C.brand} /></View>
               <View style={{ flex: 1 }}>
@@ -384,34 +386,65 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ }) {
     </View>
   );
 }
-// A gentle, one-time «look here» coach-mark for the very first launch. It floats
-// a softly bobbing «👀 …» pill above whatever it wraps and marks itself seen the
-// moment it appears, so it never shows again. Tapping the pill hides it too.
-function FirstUseCue({ flag, label, children }) {
-  const [show, setShow] = useState(false);
+// A soft up/down bob animation, started only while `active`. Shared by the
+// coach-marks so the pointer gently draws the eye.
+function useBob(active) {
   const bob = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    let on = true;
-    getFlag(flag).then((seen) => {
-      if (on && !seen) { setShow(true); setFlag(flag); } // one-time: mark seen on first appearance
-    });
-    return () => { on = false; };
-  }, [flag]);
-  useEffect(() => {
-    if (!show) return;
+    if (!active) return;
     const loop = Animated.loop(Animated.sequence([
       Animated.timing(bob, { toValue: -6, duration: 700, useNativeDriver: true }),
       Animated.timing(bob, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]));
     loop.start();
     return () => loop.stop();
-  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+  return bob;
+}
+
+// A continuously pulsing gold ring that expands and fades behind an icon to
+// draw the eye to it (used on the topbar «ساهم في النشر» action).
+function AttnRing() {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(a, { toValue: 1, duration: 1500, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const scale = a.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.7] });
+  const opacity = a.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.6, 0] });
+  return <Animated.View pointerEvents="none" style={[styles.attnRing, { opacity, transform: [{ scale }] }]} />;
+}
+
+// A gentle «look here» coach-mark. It floats a softly bobbing «👀 …» pill above
+// whatever it wraps. Two modes:
+//  • flag mode (default): shows once per device (marks the flag seen the first
+//    time it actually appears), and only while `enabled` — so a cue behind the
+//    onboarding overlay is NOT consumed; it waits until the tour finishes.
+//  • controlled mode (`controlled` passed): visibility follows the prop, so a
+//    caller can show it after a specific event (e.g. right after login).
+// Tapping the pill hides it.
+function FirstUseCue({ flag, label, children, enabled = true, controlled }) {
+  const isControlled = controlled !== undefined;
+  const [show, setShow] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  useEffect(() => {
+    if (isControlled || !enabled) return;
+    let on = true;
+    getFlag(flag).then((seen) => {
+      if (on && !seen) { setShow(true); setFlag(flag); } // one-time: mark seen on first appearance
+    });
+    return () => { on = false; };
+  }, [flag, enabled, isControlled]);
+  const visible = isControlled ? (controlled && !dismissed) : show;
+  const bob = useBob(visible);
+  const hide = () => (isControlled ? setDismissed(true) : setShow(false));
   return (
     <View>
       {children}
-      {show && (
+      {visible && (
         <Animated.View pointerEvents="box-none" style={[cueStyles.wrap, { transform: [{ translateY: bob }] }]}>
-          <TouchableOpacity activeOpacity={0.85} onPress={() => setShow(false)} style={cueStyles.pill}>
+          <TouchableOpacity activeOpacity={0.85} onPress={hide} style={cueStyles.pill}>
             <Text style={cueStyles.pillTxt}>👀 {label}</Text>
           </TouchableOpacity>
           <Text style={cueStyles.arrow}>▾</Text>
@@ -420,11 +453,26 @@ function FirstUseCue({ flag, label, children }) {
     </View>
   );
 }
+// A standalone bobbing pointer aimed upward at the header back button, shown
+// right after a fresh sign-in to guide the user back to the home screen.
+function BackHint({ onDismiss }) {
+  const bob = useBob(true);
+  return (
+    <Animated.View pointerEvents="box-none" style={[cueStyles.backHint, { top: STATUSBAR_H + 46, transform: [{ translateY: bob }] }]}>
+      <Text style={cueStyles.backArrow}>▲</Text>
+      <TouchableOpacity activeOpacity={0.85} onPress={onDismiss} style={cueStyles.pill}>
+        <Text style={cueStyles.pillTxt}>👆 للرجوع للرئيسية</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
 const cueStyles = StyleSheet.create({
   wrap: { position: 'absolute', top: 6, left: 0, right: 0, alignItems: 'center', zIndex: 30 },
   pill: { backgroundColor: '#cd9b44', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   pillTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   arrow: { color: '#cd9b44', fontSize: 20, marginTop: -3, textShadowColor: '#0003', textShadowRadius: 3 },
+  backHint: { position: 'absolute', right: 16, alignItems: 'center', zIndex: 40 },
+  backArrow: { color: '#cd9b44', fontSize: 20, marginBottom: -3, textShadowColor: '#0003', textShadowRadius: 3 },
 });
 
 // Interactive first-launch journey for new users. A swipeable, 4-step tour that
@@ -644,6 +692,11 @@ function Account({ push, onBack, onTour }) {
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
+  // After a fresh sign-in, point the user back to the home screen and to the
+  // guided tour with gentle cues.
+  const [showBackCue, setShowBackCue] = useState(false);
+  const [showTourCue, setShowTourCue] = useState(false);
+  const cueAfterLogin = () => { setShowBackCue(true); setShowTourCue(true); };
   useEffect(() => { getAuth().then((a) => setAuthState(a)).catch(() => {}); }, []);
   const doLogin = async () => {
     if (!email.trim() || !pass) { Alert.alert('بيانات ناقصة', 'أدخل البريد وكلمة المرور.'); return; }
@@ -651,6 +704,7 @@ function Account({ push, onBack, onTour }) {
       setBusy(true);
       const r = await api.login(email.trim().toLowerCase(), pass);
       await setAuth(r); setAuthState(r); setPass('');
+      cueAfterLogin();
       // Refresh this device's role on the server so staff get review alerts.
       reregisterPush();
       Alert.alert('تم الدخول', r.user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك.');
@@ -667,7 +721,7 @@ function Account({ push, onBack, onTour }) {
       const error = decodeURIComponent((result.url.match(/[?&]error=([^&#]+)/) || [])[1] || '');
       if (error || !token) { Alert.alert('تعذّر الدخول عبر Google', error === 'notconfigured' ? 'خدمة Google غير مُفعّلة بعد على الخادم.' : 'حاول مرة أخرى.'); return; }
       const { user } = await api.me(token);
-      await setAuth({ token, user }); setAuthState({ token, user }); reregisterPush();
+      await setAuth({ token, user }); setAuthState({ token, user }); cueAfterLogin(); reregisterPush();
       Alert.alert('تم الدخول', user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك عبر Google.');
     } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); }
   };
@@ -694,6 +748,7 @@ function Account({ push, onBack, onTour }) {
   return (
     <View style={{ flex: 1 }}>
       <Header title="الدخول والإدارة" onBack={onBack} />
+      {showBackCue && <BackHint onDismiss={() => setShowBackCue(false)} />}
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         {auth ? (
           <View style={styles.acctCard}>
@@ -718,7 +773,11 @@ function Account({ push, onBack, onTour }) {
         <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/account', 'حسابي')}><Text style={styles.acctTitle}>صفحة المساهم</Text><Text style={styles.acctDesc}>إرسال مادة ومتابعة موادك</Text></TouchableOpacity>
         <TouchableOpacity style={styles.acctCard} onPress={() => openWeb('/admin', 'لوحة الإشراف')}><Text style={styles.acctTitle}>لوحة الإشراف</Text><Text style={styles.acctDesc}>مراجعة المحتوى وإدارة الأرشيف</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => push('library')}><Text style={styles.acctTitle}>التنزيلات المحفوظة</Text><Text style={styles.acctDesc}>الاستماع دون اتصال</Text></TouchableOpacity>
-        {onTour && <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => { onBack(); onTour(); }}><Text style={styles.acctTitle}>الجولة التعريفية</Text><Text style={styles.acctDesc}>أعد مشاهدة رحلة التعرّف على التطبيق</Text></TouchableOpacity>}
+        {onTour && (
+          <FirstUseCue controlled={showTourCue} label="جرّب الجولة التعريفية">
+            <TouchableOpacity style={[styles.acctCard, { backgroundColor: C.ivory50 }]} onPress={() => { onBack(); onTour(); }}><Text style={styles.acctTitle}>الجولة التعريفية</Text><Text style={styles.acctDesc}>أعد مشاهدة رحلة التعرّف على التطبيق</Text></TouchableOpacity>
+          </FirstUseCue>
+        )}
         <Text style={styles.footerText}>الطريقة السمّانية — السجادة السليمانية</Text>
         <Text style={styles.footerText}>إصدار التطبيق: {BUILD}</Text>
       </ScrollView>
@@ -1179,7 +1238,7 @@ function Loader() { return <View style={styles.center}><ActivityIndicator color=
 function ErrorBox({ msg, onRetry }) { return <View style={styles.center}><Text style={{ color: C.danger, textAlign: 'center', marginBottom: 12 }}>{msg}</Text>{onRetry && <TouchableOpacity style={styles.searchGo} onPress={onRetry}><Text style={{ color: C.brand, fontWeight: '800' }}>إعادة المحاولة</Text></TouchableOpacity>}</View>; }
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.ivory }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' }, notifItemReview: { borderColor: C.gold, borderWidth: 1.5, backgroundColor: '#fcf7ea' }, notifLeadReview: { color: '#b5892a' }, newDotReview: { backgroundColor: C.gold },
+  topbar: { backgroundColor: C.brand, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 14 }, topLogo: { width: 38, height: 38 }, topTitle: { color: C.white, fontSize: 20, fontWeight: '900' }, topSub: { color: C.gold300, fontSize: 12, marginTop: 2 }, iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#ffffff22', alignItems: 'center', justifyContent: 'center' }, iconBtnGold: { backgroundColor: C.gold }, attnRing: { position: 'absolute', width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: C.gold }, iconBtnTxt: { color: C.white, fontSize: 20, fontWeight: '900' }, badge: { position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: '#d9534f', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }, badgeTxt: { color: C.white, fontSize: 10, fontWeight: '900' }, notifItem: { backgroundColor: C.white, borderRadius: 14, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, notifThumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, notifLead: { fontSize: 11, color: C.gold, fontWeight: '800', textAlign: 'right' }, notifTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right', marginTop: 2 }, notifTime: { fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 3 }, newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#d9534f' }, notifItemReview: { borderColor: C.gold, borderWidth: 1.5, backgroundColor: '#fcf7ea' }, notifLeadReview: { color: '#b5892a' }, newDotReview: { backgroundColor: C.gold },
   searchWrap: { backgroundColor: C.brand, flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 12, gap: 8 }, searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 12 }, search: { flex: 1, paddingHorizontal: 14, paddingVertical: 9, textAlign: 'right', color: C.ink }, searchClear: { paddingRight: 8, paddingLeft: 4 }, searchGo: { backgroundColor: C.gold, borderRadius: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }, sugBox: { backgroundColor: '#ffffff', marginHorizontal: 12, marginTop: -4, marginBottom: 4, borderRadius: 12, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } }, sugRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }, sugTitle: { color: C.ink, fontSize: 14, fontWeight: '700', textAlign: 'right' }, sugSub: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 2 }, chips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, typeChips: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8, gap: 8 }, filterCap: { color: C.gold, fontSize: 12, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl', alignSelf: 'stretch', width: '100%', paddingHorizontal: 14, marginTop: 8 }, filterDivider: { height: 1, backgroundColor: C.line, marginHorizontal: 12, marginTop: 8 }, chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, marginLeft: 8 }, chipActive: { backgroundColor: C.brand, borderColor: C.brand }, chipTxt: { color: C.brand, fontWeight: '700', fontSize: 13 }, chipTxtActive: { color: C.white },
   feedCard: { backgroundColor: C.white, borderRadius: 16, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.line }, thumb: { width: 96, height: 96, borderRadius: 12, backgroundColor: C.brand, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, thumbVideo: { width: 120, height: 78, backgroundColor: '#12241d' }, thumbGlyph: { color: C.gold300, fontSize: 30, fontWeight: '900' }, kindBadge: { position: 'absolute', bottom: 6, right: 6, backgroundColor: '#00000066', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }, kindBadgeTxt: { color: C.white, fontSize: 10, fontWeight: '700' }, feedTitle: { fontSize: 16, fontWeight: '800', color: C.brand, textAlign: 'right' }, feedPerson: { fontSize: 13, color: C.muted, marginTop: 3, textAlign: 'right' }, feedCat: { fontSize: 11, color: C.gold, marginTop: 4, textAlign: 'right', fontWeight: '700' }, empty: { textAlign: 'center', color: C.muted, marginTop: 40 },
   shareFileCard: { backgroundColor: C.white, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.line, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
