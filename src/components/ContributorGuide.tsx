@@ -70,17 +70,18 @@ const STEPS: { icon: keyof typeof Icon; title: string; body: React.ReactNode }[]
 export function ContributorGuide() {
   return (
     <details
-      open
       className="group mb-6 overflow-hidden rounded-2xl border-2 border-gold-300 bg-white shadow-card"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 bg-gold-50 px-5 py-4">
         <span className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold-500 text-white">
+          {/* Gentle pulse to invite a first-time contributor to open it; it
+              stops once the guide is expanded. */}
+          <span className="guide-attn group-open:[animation:none] flex h-11 w-11 items-center justify-center rounded-full bg-gold-500 text-white">
             <Icon.sparkle width={22} height={22} />
           </span>
           <span>
             <span className="block text-base font-extrabold text-brand-800">مساعد المساهمين</span>
-            <span className="block text-xs text-brand-700/80">خطوات بسيطة تجعل نشر مادتك أسهل وأسرع قبولاً — اضغط للطي.</span>
+            <span className="block text-xs text-brand-700/80">نصائح بسيطة تُسرّع قبول مادتك — <span className="font-bold text-gold-700 group-open:hidden">اضغط للفتح</span><span className="hidden font-bold text-gold-700 group-open:inline">اضغط للطي</span>.</span>
           </span>
         </span>
         <Icon.chevronLeft

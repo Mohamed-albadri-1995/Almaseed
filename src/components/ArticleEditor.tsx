@@ -30,6 +30,12 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const selectionRef = useRef<Range | null>(null);
   const [empty, setEmpty] = useState(!value || !value.replace(/<[^>]*>/g, '').trim());
   const [imgBusy, setImgBusy] = useState(false);
+  const [savedDraft, setSavedDraft] = useState<string | null>(null);
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Per-page draft key, so /submit and each /account/edit/[id] keep their own
+  // autosaved draft (recovered if the tab closes, the connection drops, or a
+  // submit fails — nothing the contributor typed is lost).
+  const draftKey = typeof window !== 'undefined' ? `almaseed:draft:${window.location.pathname}` : 'almaseed:draft';
 
   useEffect(() => {
     if (!ref.current) return;
@@ -37,6 +43,16 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
     setEmpty(!ref.current.textContent?.trim());
     try { document.execCommand('styleWithCSS', false, 'true'); } catch {}
   }, [value]);
+
+  // On first mount: if a saved draft exists and the editor is empty, offer to
+  // restore it (rather than silently loading, so we never overwrite real content).
+  useEffect(() => {
+    try {
+      const d = localStorage.getItem(draftKey);
+      const curEmpty = !value || !value.replace(/<[^>]*>/g, '').trim();
+      if (d && d.replace(/<[^>]*>/g, '').trim() && curEmpty) setSavedDraft(d);
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rememberSelection = () => {
     const editor = ref.current, selection = window.getSelection();
@@ -47,6 +63,11 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
   const sync = () => {
     const html = ref.current?.innerHTML ?? '', text = ref.current?.textContent?.trim() ?? '';
     setEmpty(!text); onChange(html === '<br>' ? '' : html); rememberSelection();
+    // Autosave a local draft (debounced) so a lost tab/connection never loses work.
+    if (draftTimer.current) clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      try { if (text) localStorage.setItem(draftKey, html); } catch {}
+    }, 700);
   };
   const restoreSelection = () => {
     const editor = ref.current, range = selectionRef.current;
@@ -139,6 +160,8 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
         {SIZES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
       </select>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
+      <Btn title="تراجع" onClick={() => exec('undo')}>↶</Btn><Btn title="إعادة" onClick={() => exec('redo')}>↷</Btn>
+      <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" />
       <Btn title="عريض" onClick={() => exec('bold')}><b>ب</b></Btn><Btn title="مائل" onClick={() => exec('italic')}><i>م</i></Btn><Btn title="تحته خط" onClick={() => exec('underline')}><u>خ</u></Btn>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="عنوان" onClick={() => setBlock('H2')}>ع١</Btn><Btn title="عنوان فرعي" onClick={() => setBlock('H3')}>ع٢</Btn><Btn title="فقرة" onClick={() => setBlock('P')}>¶</Btn>
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="محاذاة لليمين" onClick={() => exec('justifyRight')}>▷</Btn><Btn title="توسيط" onClick={() => exec('justifyCenter')}>≡</Btn><Btn title="محاذاة لليسار" onClick={() => exec('justifyLeft')}>◁</Btn><Btn title="ضبط" onClick={() => exec('justifyFull')}>☰</Btn>
@@ -147,6 +170,15 @@ export function ArticleEditor({ value, onChange, placeholder = 'اكتب مقا�
       {COLORS.map((c) => <button key={c} type="button" title="لون النص" aria-label={`لون النص ${c}`} onMouseDown={(e) => e.preventDefault()} onTouchStart={(e) => e.preventDefault()} onClick={() => exec('foreColor', c)} className="h-7 w-7 shrink-0 touch-manipulation rounded-full border border-black/10" style={{ backgroundColor: c }} />)}
       <span className="mx-1 h-6 w-px shrink-0 bg-ivory-300" /><Btn title="مسح التنسيق" onClick={() => exec('removeFormat')}>⌫</Btn>
     </div>
+    {savedDraft && (
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gold-300 bg-gold-50 px-4 py-2 text-xs">
+        <span className="font-medium text-brand-800">وُجدت مسودة محفوظة لم تُرسَل — هل تستعيدها؟</span>
+        <span className="flex gap-2">
+          <button type="button" onClick={() => { if (ref.current) ref.current.innerHTML = savedDraft; onChange(savedDraft); setEmpty(!savedDraft.replace(/<[^>]*>/g, '').trim()); setSavedDraft(null); }} className="rounded-md bg-brand-700 px-3 py-1 font-bold text-ivory-50">استعادة</button>
+          <button type="button" onClick={() => { try { localStorage.removeItem(draftKey); } catch {} setSavedDraft(null); }} className="rounded-md px-2 py-1 font-bold text-muted hover:bg-ivory-200">تجاهل</button>
+        </span>
+      </div>
+    )}
     <div className="relative max-h-[52vh] overflow-y-auto">{empty && <span className="pointer-events-none absolute right-6 top-5 text-muted/70">{placeholder}</span>}
       <div ref={ref} contentEditable dir="rtl" role="textbox" aria-multiline="true" aria-label="نص المقال" suppressContentEditableWarning onInput={sync} onBlur={sync} onPaste={handlePaste} onKeyUp={rememberSelection} onMouseUp={rememberSelection} onTouchEnd={rememberSelection} className="article-prose block w-full px-4 py-5 text-[16px] leading-8 outline-none sm:px-6 sm:text-base" style={{ minHeight }} />
     </div>
