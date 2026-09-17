@@ -105,6 +105,8 @@ export const DOC_TYPES = [
   { value: 'article', label: 'مقال' },
   { value: 'manuscript', label: 'مخطوط' },
   { value: 'written_madeeh', label: 'مدحة مكتوبة' },
+  { value: 'written_poem', label: 'قصيدة مكتوبة' },
+  { value: 'poetry', label: 'شعر' },
   { value: 'written_sermon', label: 'موعظة مكتوبة' },
   { value: 'text', label: 'نص / وثيقة أخرى' },
 ] as const;

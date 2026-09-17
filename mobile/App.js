@@ -90,6 +90,7 @@ async function openContribute(push) {
       ]);
     } catch {}
   }
+  setFlag('home-add-used'); // once they contribute, stop nudging the «+»
   const a = await getAuth().catch(() => null);
   const to = '/submit';
   push('web', {
@@ -397,9 +398,10 @@ function useBob(active) {
 function AddButtonCue({ enabled }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) { setShow(false); return; }
     let on = true;
-    getFlag('home-add').then((seen) => { if (on && !seen) { setShow(true); setFlag('home-add'); } });
+    // Keep nudging toward «+» on every launch until the user actually contributes.
+    getFlag('home-add-used').then((used) => { if (on && !used) setShow(true); });
     return () => { on = false; };
   }, [enabled]);
   const bob = useBob(show);
@@ -1150,7 +1152,7 @@ function buildArticlePdfHtml(material, stamp, person) {
     .map((s) => s.trim()).filter(Boolean)
     .map((s) => `<p class="stanza">${esc(s).replace(/\n/g, '<br>')}</p>`).join('');
   const body = looksHtml ? raw : stanzas(raw);
-  const meta = [material.subtitle ? esc(material.subtitle) : '', person ? `الكاتب: ${esc(person)}` : '']
+  const meta = [material.subtitle ? esc(material.subtitle) : '', person ? `الكاتب: ${esc(person)}` : '', material.contributor ? `شاركها: ${esc(material.contributor)}` : '']
     .filter(Boolean).join(' · ');
   const img = stamp ? `<img src="${stamp}" alt="">` : '';
   const source = `almaseeed.com/material/${material.id}`;
