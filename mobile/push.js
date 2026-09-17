@@ -81,7 +81,7 @@ export async function reregisterPush() {
 export function attachNotificationTap(onOpenMaterial) {
   const handle = (response) => {
     const data = response?.notification?.request?.content?.data || {};
-    if (data.materialId) onOpenMaterial(String(data.materialId), data.type ? String(data.type) : undefined);
+    if (data.materialId) onOpenMaterial(String(data.materialId), data.type ? String(data.type) : undefined, data);
   };
 
   // Cold start: app opened by tapping a notification.

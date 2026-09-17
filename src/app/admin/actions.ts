@@ -158,15 +158,23 @@ export async function reviewDecisionAction(formData: FormData) {
     const body = `«${material.title}» — ${STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]}${
       reason ? ` (${reason})` : ''
     }`;
+    // The exact page this decision should open. A NEEDS_EDIT material is not
+    // public, so it must go to the edit page (not the public detail, which 404s
+    // — the reported «غير موجودة» bug); a published one opens its detail; anything
+    // else (held/draft) goes to the account page.
+    const to =
+      newStatus === MATERIAL_STATUS.NEEDS_EDIT ? `/account/edit/${material.id}`
+      : newStatus === MATERIAL_STATUS.PUBLISHED ? `/material/${material.id}`
+      : '/account';
     await prisma.notification.create({
-      data: { userId: material.submittedById, title: notifyTitle, body, link: '/account' },
+      data: { userId: material.submittedById, title: notifyTitle, body, link: to },
     });
     // Also push to the contributor's device so accept / needs-edit / (a first
     // rejection shows as «معلّقة») reach them even when the app is closed.
     await pushToUsers([material.submittedById], {
       title: notifyTitle,
       body,
-      data: { materialId: material.id, type: 'review_decision' },
+      data: { materialId: material.id, type: 'review_decision', to },
     }).catch(() => {});
   }
 

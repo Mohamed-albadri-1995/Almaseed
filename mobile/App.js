@@ -170,14 +170,27 @@ function AppInner() {
   // notification opens the material detail.
   useEffect(() => {
     registerForPush();
-    const detach = attachNotificationTap(async (materialId, type) => {
-      if (type === 'review_pending') {
-        const a = await getAuth().catch(() => null);
-        const to = `/admin/review/${materialId}`;
+    const detach = attachNotificationTap(async (materialId, type, data) => {
+      const a = await getAuth().catch(() => null);
+      // Open a website page inside the app, signed-in via the SSO bridge when we
+      // have a token (needed for non-public pages like review/edit).
+      const openWeb = (to, title) => {
         const url = a?.token
           ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(a.token)}`
           : `${API_BASE}${to}`;
-        push('web', { url, title: 'مراجعة المادة' });
+        push('web', { url, title });
+      };
+      if (type === 'review_pending' || type === 'review_resubmitted' || type === 'review_hold') {
+        // Reviewer notifications → the (signed-in) web review page. The material
+        // is still pending/held, so the public detail screen would 404.
+        openWeb(`/admin/review/${materialId}`, 'مراجعة المادة');
+      } else if (type === 'review_decision') {
+        // The contributor's own decision (published / needs-edit / held). The
+        // server sends the exact page in `to`; a needs-edit material is NOT public,
+        // so it must open the edit page, not the public detail (which 404s).
+        const to = (data && data.to) || '/account';
+        if (to.startsWith('/material/')) push('material', { id: materialId });
+        else openWeb(to, 'مادتي');
       } else {
         push('material', { id: materialId });
       }
