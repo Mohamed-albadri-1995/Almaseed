@@ -35,7 +35,8 @@ export const GUIDE_FLOWS: GuideFlow[] = [
     id: 'register', group: 'contributor', title: 'إنشاء حساب', role: 'زائر جديد', icon: '📝',
     where: 'القائمة ☰ ← تسجيل الدخول ← «إنشاء حساب»',
     steps: [
-      { t: 'افتح القائمة <strong>☰</strong>، اختر <strong>«تسجيل الدخول»</strong>، ثم من صفحة الدخول اضغط رابط <strong>«إنشاء حساب»</strong>.', shot: '/guide/drawer_login.png', cap: 'من القائمة: زرّ «تسجيل الدخول» داخل الحلقة' },
+      { t: 'افتح القائمة <strong>☰</strong> واختر <strong>«تسجيل الدخول»</strong>.', shot: '/guide/drawer_login.png', cap: 'من القائمة: زرّ «تسجيل الدخول» داخل الحلقة' },
+      { t: 'في صفحة الدخول اضغط رابط <strong>«أنشئ حساباً»</strong> أسفل النموذج.', shot: '/guide/s03_reg_link.png', cap: 'رابط «أنشئ حساباً» داخل الحلقة' },
       { t: 'اكتب <strong>الاسم</strong>.', shot: '/guide/s04_reg_name.png', cap: 'حقل الاسم داخل الحلقة' },
       { t: 'اكتب <strong>البريد الإلكتروني</strong>.', shot: '/guide/s05_reg_email.png', cap: 'حقل البريد داخل الحلقة' },
       { t: 'اكتب <strong>كلمة المرور</strong> (٦ أحرف على الأقل).', shot: '/guide/s06_reg_pass.png', cap: 'حقل كلمة المرور داخل الحلقة' },
