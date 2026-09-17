@@ -186,6 +186,7 @@ export default async function MaterialPage({
                     kind={material.fileKind}
                     title={material.title}
                     poster={material.coverImage}
+                    countPlayId={material.id}
                   />
                 </div>
               )}

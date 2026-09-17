@@ -35,10 +35,18 @@ export async function GET(
     return NextResponse.json({ error: 'المادة غير منشورة' }, { status: 403 });
   }
 
-  await prisma.material.update({
-    where: { id: params.id },
-    data: { downloads: { increment: 1 } },
-  }).catch(() => {});
+  // Count a download only for the INITIAL request. Browsers and media players
+  // issue many Range requests per file (seeking, resuming, chunked streaming);
+  // counting each one inflated «مرات التحميل» massively. A request with no Range
+  // header, or one that starts at byte 0, is the real start of a download.
+  const range = req.headers.get('range');
+  const isInitial = !range || /^bytes=0-/.test(range.trim());
+  if (isInitial) {
+    await prisma.material.update({
+      where: { id: params.id },
+      data: { downloads: { increment: 1 } },
+    }).catch(() => {});
+  }
 
   const fileUrl = new URL(material.fileUrl, req.url).toString();
   const name = fileNameFor(material.title, fileUrl, material.fileType);
@@ -46,7 +54,6 @@ export async function GET(
 
   try {
     // Forward Range so seeking/resumable downloads keep working for big media.
-    const range = req.headers.get('range');
     const upstream = await fetch(fileUrl, {
       headers: range ? { Range: range } : {},
     });

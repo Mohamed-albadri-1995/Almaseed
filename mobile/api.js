@@ -167,6 +167,18 @@ export const api = {
       body: JSON.stringify({ token, platform }),
     }),
 
+  // Count one listen when a track starts playing. Best-effort and fire-and-forget
+  // — never block or surface errors during playback. The app calls this once per
+  // track open (see the player effect), so replays of the same track don't inflate.
+  registerPlay: (id) => {
+    try {
+      fetch(`${API_HOST}/api/materials/${id}/play`, {
+        method: 'POST',
+        headers: { 'X-Almaseed-App': 'android' },
+      }).catch(() => {});
+    } catch {}
+  },
+
   // Category form definitions (same source of truth as the website form), used
   // by the native share-to-app submit screen so its fields always match.
   fields: () => getCached('/api/mobile/fields', () => j('/api/mobile/fields')),

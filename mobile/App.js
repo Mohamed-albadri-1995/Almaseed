@@ -196,6 +196,7 @@ function AppInner() {
           artist: now.person || 'الطريقة السمّانية — السجادة السليمانية', artwork: now.poster || `${API_BASE}/logo.png` });
         await TrackPlayer.setRate(1);
         await TrackPlayer.play();
+        if (!cancelled) api.registerPlay(now.id); // count one listen per track open
       } catch (e) { if (!cancelled) Alert.alert('تعذّر التشغيل', String(e.message || e)); }
     })();
     return () => { cancelled = true; };

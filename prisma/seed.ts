@@ -85,6 +85,27 @@ async function main() {
       console.log(`↳ Visit counter baseline reset: removed ${cleared.count} DailyView row(s) before ${todayStr}.`);
     }
 
+    // ---- One-time play/download counter reset (owner-requested) -----------
+    // «مرات الاستماع» و«مرات التحميل» carried inflated/legacy values (old seed
+    // figures + downloads double-counted per Range request, and plays that were
+    // no longer wired to real playback). Now that both are counted correctly
+    // (one listen per playback, downloads only on the initial request), the
+    // owner asked to zero them for a clean, trustworthy baseline. Guarded by an
+    // ActivityLog marker so it runs EXACTLY once.
+    const countsReset = await prisma.activityLog.findFirst({
+      where: { action: 'COUNTS_RESET', entity: 'Material' },
+    });
+    if (!countsReset) {
+      const zeroed = await prisma.material.updateMany({
+        where: { OR: [{ plays: { gt: 0 } }, { downloads: { gt: 0 } }] },
+        data: { plays: 0, downloads: 0 },
+      });
+      await prisma.activityLog.create({
+        data: { action: 'COUNTS_RESET', entity: 'Material', meta: `zeroed plays/downloads on ${zeroed.count} materials` },
+      });
+      console.log(`↳ Reset play/download counters on ${zeroed.count} materials for a clean start.`);
+    }
+
     console.log('✅ Seed complete.');
     return;
   }

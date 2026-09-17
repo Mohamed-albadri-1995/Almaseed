@@ -10,13 +10,18 @@ interface Props {
   kind?: string | null;
   title: string;
   poster?: string | null;
+  // When set, a real listen/view is counted ONCE per mount (deduped) the first
+  // time playback starts. Only the public material page passes this — the admin
+  // compare view leaves it off so previewing never inflates the numbers.
+  countPlayId?: string | null;
 }
 
-export function MediaPlayer({ src, kind, title, poster }: Props) {
+export function MediaPlayer({ src, kind, title, poster, countPlayId }: Props) {
   const isVideo = kind === 'VIDEO';
   const isImage = kind === 'IMAGE';
   const isDoc = kind === 'DOCUMENT';
   const ref = useRef<HTMLMediaElement | null>(null);
+  const counted = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -28,15 +33,26 @@ export function MediaPlayer({ src, kind, title, poster }: Props) {
     const onTime = () => setCurrent(el.currentTime);
     const onMeta = () => setDuration(el.duration || 0);
     const onEnd = () => setPlaying(false);
+    // Count one listen the first time the user actually starts playback. Guarded
+    // by a ref so replays, pauses, and seeks never add more than one per visit.
+    const onPlay = () => {
+      if (!countPlayId || counted.current) return;
+      counted.current = true;
+      try {
+        fetch(`/api/materials/${countPlayId}/play`, { method: 'POST', keepalive: true }).catch(() => {});
+      } catch {}
+    };
     el.addEventListener('timeupdate', onTime);
     el.addEventListener('loadedmetadata', onMeta);
     el.addEventListener('ended', onEnd);
+    el.addEventListener('play', onPlay);
     return () => {
       el.removeEventListener('timeupdate', onTime);
       el.removeEventListener('loadedmetadata', onMeta);
       el.removeEventListener('ended', onEnd);
+      el.removeEventListener('play', onPlay);
     };
-  }, [src]);
+  }, [src, countPlayId]);
 
   const toggle = () => {
     const el = ref.current;
