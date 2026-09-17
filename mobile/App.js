@@ -264,7 +264,7 @@ function AppInner() {
         {top.name === 'googlelogin' && <GoogleLoginScreen onBack={pop} />}
         {top.name === 'library' && <Library push={push} onBack={pop} />}
         {top.name === 'offline' && <OfflineScreen item={top.params.item} onBack={pop} />}
-        {top.name === 'account' && <Account push={push} onBack={pop} onTour={() => setShowTour(true)} />}
+        {top.name === 'account' && <Account push={push} onBack={pop} onTour={() => setShowTour(true)} cueGoogle={!!top.params?.cueGoogle} />}
         {top.name === 'sharesubmit' && <ShareSubmitScreen file={top.params.file} push={push} onBack={pop} onDone={() => setStack([{ name: 'home', params: {} }])} />}
         {top.name === 'web' && <WebScreen url={top.params.url} title={top.params.title} onBack={pop} />}
         {top.name === 'pdf' && <PdfScreen url={top.params.url} title={top.params.title} onBack={pop} />}
@@ -273,7 +273,7 @@ function AppInner() {
       {showTour && (
         <Onboarding
           onDone={finishTour}
-          onRegister={() => { finishTour(); push('account'); }}
+          onRegister={() => { finishTour(); push('account', { cueGoogle: true }); }}
           onContribute={() => { finishTour(); openContribute(push); }}
         />
       )}
@@ -424,7 +424,7 @@ function AttnRing() {
 //  • controlled mode (`controlled` passed): visibility follows the prop, so a
 //    caller can show it after a specific event (e.g. right after login).
 // Tapping the pill hides it.
-function FirstUseCue({ flag, label, children, enabled = true, controlled }) {
+function FirstUseCue({ flag, label, children, enabled = true, controlled, placement = 'inside' }) {
   const isControlled = controlled !== undefined;
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -443,7 +443,7 @@ function FirstUseCue({ flag, label, children, enabled = true, controlled }) {
     <View>
       {children}
       {visible && (
-        <Animated.View pointerEvents="box-none" style={[cueStyles.wrap, { transform: [{ translateY: bob }] }]}>
+        <Animated.View pointerEvents="box-none" style={[placement === 'above' ? cueStyles.wrapAbove : cueStyles.wrap, { transform: [{ translateY: bob }] }]}>
           <TouchableOpacity activeOpacity={0.85} onPress={hide} style={cueStyles.pill}>
             <Text style={cueStyles.pillTxt}>👀 {label}</Text>
           </TouchableOpacity>
@@ -468,6 +468,7 @@ function BackHint({ onDismiss }) {
 }
 const cueStyles = StyleSheet.create({
   wrap: { position: 'absolute', top: 6, left: 0, right: 0, alignItems: 'center', zIndex: 30 },
+  wrapAbove: { position: 'absolute', bottom: '100%', left: 0, right: 0, alignItems: 'center', zIndex: 30, marginBottom: 2 },
   pill: { backgroundColor: '#cd9b44', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 4 },
   pillTxt: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   arrow: { color: '#cd9b44', fontSize: 20, marginTop: -3, textShadowColor: '#0003', textShadowRadius: 3 },
@@ -687,7 +688,7 @@ function NotificationsScreen({ push, onBack }) {
     </View>
   );
 }
-function Account({ push, onBack, onTour }) {
+function Account({ push, onBack, onTour, cueGoogle }) {
   const [auth, setAuthState] = useState(null);
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -696,7 +697,10 @@ function Account({ push, onBack, onTour }) {
   // guided tour with gentle cues.
   const [showBackCue, setShowBackCue] = useState(false);
   const [showTourCue, setShowTourCue] = useState(false);
-  const cueAfterLogin = () => { setShowBackCue(true); setShowTourCue(true); };
+  // When arriving from the onboarding «سجّل الدخول عبر Google» step, point at the
+  // actual Google button so the guidance continues here.
+  const [showGoogleCue, setShowGoogleCue] = useState(!!cueGoogle);
+  const cueAfterLogin = () => { setShowBackCue(true); setShowTourCue(true); setShowGoogleCue(false); };
   useEffect(() => { getAuth().then((a) => setAuthState(a)).catch(() => {}); }, []);
   const doLogin = async () => {
     if (!email.trim() || !pass) { Alert.alert('بيانات ناقصة', 'أدخل البريد وكلمة المرور.'); return; }
@@ -765,7 +769,9 @@ function Account({ push, onBack, onTour }) {
             <TouchableOpacity style={styles.authBtn} onPress={doLogin} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>دخول</Text>}</TouchableOpacity>
             <TouchableOpacity onPress={() => push('web', { url: `${API_BASE}/forgot-password`, title: 'استعادة كلمة المرور' })} style={{ marginTop: 12 }} activeOpacity={0.7}><Text style={{ color: C.gold, textAlign: 'center', fontWeight: '700', fontSize: 13 }}>نسيت كلمة المرور؟</Text></TouchableOpacity>
             <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orTxt}>أو</Text><View style={styles.orLine} /></View>
-            <TouchableOpacity style={styles.googleBtn} onPress={googleLogin} activeOpacity={0.85}><Text style={styles.googleG}>G</Text><Text style={styles.googleTxt}>الدخول عبر Google</Text></TouchableOpacity>
+            <FirstUseCue controlled={showGoogleCue} placement="above" label="سجّل الدخول من هنا">
+              <TouchableOpacity style={styles.googleBtn} onPress={googleLogin} activeOpacity={0.85}><Text style={styles.googleG}>G</Text><Text style={styles.googleTxt}>الدخول عبر Google</Text></TouchableOpacity>
+            </FirstUseCue>
             <Text style={[styles.acctDesc, { marginTop: 12 }]}>التصفّح متاح للجميع دون حساب — التسجيل اختياري وهو للمشرفين والمساهمين.</Text>
             <TouchableOpacity style={styles.guestBtn} onPress={onBack} activeOpacity={0.85}><Text style={styles.guestTxt}>متابعة كزائر</Text></TouchableOpacity>
           </View>
