@@ -20,9 +20,17 @@ export default async function HomePage() {
   const user = await getCurrentUser();
   // Show the right short tutorial clip: signed-out visitors see how to sign in;
   // signed-in ones see how to share a material from the website.
+  // One elegant branded cover is used as the poster for both states, so the card
+  // looks polished before play; the clip itself differs by sign-in state.
   const guide = user
-    ? { src: '/guide/guide_share_web.mp4', poster: '/guide/guide_share_web_poster.jpg', title: 'كيف تشارك مادة من الموقع', subtitle: 'خطوات الإرسال للمراجعة في أقل من دقيقة', href: '/guide/upload', hrefLabel: 'الدليل خطوة بخطوة ←' }
-    : { src: '/guide/guide_login.mp4', poster: '/guide/guide_login_poster.jpg', title: 'أنشئ حسابك وسجّل الدخول', subtitle: 'ابدأ المساهمة في حفظ التراث', href: '/guide/register', hrefLabel: 'الدليل خطوة بخطوة ←' };
+    ? { src: '/guide/guide_share_web.mp4', poster: '/guide/guide_home_cover.jpg', title: 'كيف تشارك مادة من الموقع', subtitle: 'خطوات الإرسال للمراجعة في أقل من دقيقة' }
+    : { src: '/guide/guide_login.mp4', poster: '/guide/guide_home_cover.jpg', title: 'أنشئ حسابك وسجّل الدخول', subtitle: 'ابدأ المساهمة في حفظ التراث' };
+  // The three contribution steps shown beneath the clip.
+  const guideSteps: { icon: keyof typeof Icon; n: string; label: string }[] = [
+    { icon: 'user', n: '١', label: 'أنشئ حسابك' },
+    { icon: 'archive', n: '٢', label: 'اختر النوع وأرفِق' },
+    { icon: 'check', n: '٣', label: 'أرسل للمراجعة' },
+  ];
   const [categories, stats, latest, mostPlayed, showcase] = await Promise.all([
     getCategoriesWithCounts(),
     getHomeStats(),
@@ -95,16 +103,44 @@ export default async function HomePage() {
       <section className="container-page pt-12">
         <div className="mb-6 text-center">
           <p className="eyebrow">دليل سريع</p>
-          <h2 className="section-title mt-1">{user ? 'شارك مادة في خطوات' : 'ابدأ من هنا'}</h2>
+          <h2 className="section-title mt-1">ابدأ المساهمة في خطوات</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+            شاهد الفيديو، ثم اتبع الخطوات الثلاث.
+          </p>
         </div>
-        <GuideVideoCard
-          src={guide.src}
-          poster={guide.poster}
-          title={guide.title}
-          subtitle={guide.subtitle}
-          href={guide.href}
-          hrefLabel={guide.hrefLabel}
-        />
+        <div className="mx-auto w-full max-w-sm">
+          <GuideVideoCard
+            src={guide.src}
+            poster={guide.poster}
+            title={guide.title}
+            subtitle={guide.subtitle}
+          />
+          {/* Three-step strip */}
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            {guideSteps.map((s) => {
+              const I = Icon[s.icon] as (p: { width: number; height: number }) => JSX.Element;
+              return (
+                <div
+                  key={s.n}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl bg-ivory-50 px-2 py-3 text-center ring-1 ring-ivory-300"
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-brand-700 ring-1 ring-brand-100">
+                    <I width={18} height={18} />
+                  </span>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-700 text-[11px] font-extrabold text-ivory-50">
+                    {s.n}
+                  </span>
+                  <span className="text-xs font-bold leading-tight text-brand-800">{s.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          {/* Full illustrated guide */}
+          <Link href="/guide" className="btn-gold btn-lg mt-4 w-full">
+            الدليل المصوّر كامل
+            <Icon.arrowLeft width={18} height={18} />
+          </Link>
+        </div>
       </section>
 
       {/* ---------------- Categories ---------------- */}
