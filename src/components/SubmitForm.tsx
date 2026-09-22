@@ -39,13 +39,18 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-function Field({ field }: { field: FieldDef }) {
+function Field({ field, suggestions }: { field: FieldDef; suggestions?: string[] }) {
   const common = {
     id: field.name,
     name: field.name,
     required: !!field.required,
     className: 'input',
   };
+  // A datalist turns a plain text field into a "choose an existing value OR type
+  // a new one" control — used for المناسبة so contributors reuse the same
+  // occasion names instead of coining slight variants.
+  const hasList = !!suggestions && suggestions.length > 0 && field.type !== 'textarea' && field.type !== 'select' && field.type !== 'date';
+  const listId = `${field.name}-options`;
   return (
     <div className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
       <label className="mb-1.5 block text-sm font-medium text-brand-800" htmlFor={field.name}>
@@ -64,9 +69,17 @@ function Field({ field }: { field: FieldDef }) {
           {field.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ) : (
-        <input {...common} type={field.type === 'date' ? 'date' : 'text'} />
+        <>
+          <input {...common} type={field.type === 'date' ? 'date' : 'text'} list={hasList ? listId : undefined} autoComplete="off" />
+          {hasList && (
+            <datalist id={listId}>
+              {suggestions!.map((s) => <option key={s} value={s} />)}
+            </datalist>
+          )}
+        </>
       )}
       {field.hint && <p className="field-hint">{field.hint}</p>}
+      {hasList && <p className="field-hint">اختر من القائمة أو اكتب مناسبة جديدة.</p>}
     </div>
   );
 }
@@ -157,7 +170,7 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
   );
 }
 
-export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
+export function SubmitForm({ categories, occasions = [] }: { categories: CategoryOption[]; occasions?: string[] }) {
   const [state, action] = useFormState(submitMaterialAction, initial);
   const [step, setStep] = useState(1);
   const [slug, setSlug] = useState('');
@@ -221,7 +234,7 @@ export function SubmitForm({ categories }: { categories: CategoryOption[] }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2"><label className="label" htmlFor="title">{config.titleLabel}<span className="font-bold text-danger"> *</span></label><input id="title" name="title" required className="input" /></div>
               <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">{config.subtitleLabel}<span className="mr-1 text-xs font-normal text-muted">(اختياري)</span></label><input id="subtitle" name="subtitle" className="input" /></div>
-              {config.fields.map((f) => <Field key={f.name} field={f} />)}
+              {config.fields.map((f) => <Field key={f.name} field={f} suggestions={f.name === 'occasion' ? occasions : undefined} />)}
             </div>
             {config.cover !== false && <div className="mt-6"><CoverUpload onUploaded={setCover} cover={cover} /></div>}
             <div className="mt-8 flex justify-between"><button type="button" onClick={() => setStep(2)} className="btn-outline">السابق</button><button type="button" onClick={() => setStep(4)} className="btn-primary">التالي</button></div>

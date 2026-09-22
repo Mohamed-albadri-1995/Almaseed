@@ -354,6 +354,106 @@ export async function getFilterFacets(categorySlug?: string) {
   return { cities, languages, years, fields };
 }
 
+// Distinct occasion names already used in the archive — for the «المناسبة»
+// choose-or-add list on the submit/edit forms (published + unpublished, so a
+// contributor sees occasions others have entered even before publishing).
+export async function getOccasions(): Promise<string[]> {
+  const rows = await prisma.material.findMany({
+    where: { occasion: { not: null } },
+    select: { occasion: true },
+    distinct: ['occasion'],
+  });
+  return Array.from(
+    new Set(rows.map((r) => (r.occasion || '').trim()).filter((v) => v.length > 0)),
+  ).sort((a, b) => a.localeCompare(b, 'ar'));
+}
+
+// Aggregate statistics for the review/admin stats page: totals, per-category
+// breakdown (with distinct contributors), counts by file kind, and the ranked
+// person/occasion tallies requested (المادح/الراوي/المحاضر, والمناسبات). Counts
+// reflect the PUBLISHED archive — what's actually live on the site.
+export interface RankedCount { name: string; count: number }
+export async function getReviewStats() {
+  const [categories, rows] = await Promise.all([
+    prisma.category.findMany({ orderBy: { order: 'asc' }, select: { id: true, slug: true, name: true } }),
+    prisma.material.findMany({
+      where: PUBLIC_WHERE,
+      select: {
+        categoryId: true, submittedById: true,
+        fileUrl: true, fileKind: true, fileType: true,
+        performer: true, narrator: true, speaker: true, occasion: true,
+        category: { select: { slug: true } },
+      },
+    }),
+  ]);
+
+  const total = rows.length;
+
+  // Per-category: total count + distinct contributors in that category.
+  const catContribs = new Map<string, Set<string>>();
+  const catCount = new Map<string, number>();
+  for (const r of rows) {
+    catCount.set(r.categoryId, (catCount.get(r.categoryId) ?? 0) + 1);
+    if (r.submittedById) {
+      let s = catContribs.get(r.categoryId);
+      if (!s) { s = new Set(); catContribs.set(r.categoryId, s); }
+      s.add(r.submittedById);
+    }
+  }
+  const perCategory = categories.map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    count: catCount.get(c.id) ?? 0,
+    contributors: catContribs.get(c.id)?.size ?? 0,
+  }));
+
+  // Total distinct contributors across the whole published archive.
+  const allContribs = new Set<string>();
+  for (const r of rows) if (r.submittedById) allContribs.add(r.submittedById);
+  const totalContributors = allContribs.size;
+
+  // By file kind. «مكتوبة» = no file (an article); «PDF» = a document file whose
+  // type/extension is pdf; the rest by fileKind.
+  const isPdf = (r: { fileType: string | null; fileUrl: string | null }) =>
+    (r.fileType || '').toLowerCase().includes('pdf') || /\.pdf(\?|$)/i.test(r.fileUrl || '');
+  const byKind = { image: 0, video: 0, audio: 0, written: 0, pdf: 0 };
+  for (const r of rows) {
+    if (!r.fileUrl) { byKind.written += 1; continue; }
+    if (isPdf(r)) { byKind.pdf += 1; continue; }
+    if (r.fileKind === 'IMAGE') byKind.image += 1;
+    else if (r.fileKind === 'VIDEO') byKind.video += 1;
+    else if (r.fileKind === 'AUDIO') byKind.audio += 1;
+    else byKind.written += 1; // a fileless/other written material
+  }
+
+  // Ranked tallies. A small helper counts non-empty values into a sorted list.
+  const rank = (vals: (string | null)[]): RankedCount[] => {
+    const m = new Map<string, number>();
+    for (const v of vals) {
+      const name = (v || '').trim();
+      if (!name) continue;
+      m.set(name, (m.get(name) ?? 0) + 1);
+    }
+    return Array.from(m.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
+  };
+
+  const madeehRows = rows.filter((r) => r.category?.slug === 'madeeh');
+  const lectureRows = rows.filter((r) => r.category?.slug === 'lectures');
+
+  return {
+    total,
+    totalContributors,
+    perCategory,
+    byKind,
+    madeehByPerformer: rank(madeehRows.map((r) => r.performer)),
+    madeehByNarrator: rank(madeehRows.map((r) => r.narrator)),
+    lecturesBySpeaker: rank(lectureRows.map((r) => r.speaker)),
+    byOccasion: rank(rows.map((r) => r.occasion)),
+  };
+}
+
 // Lightweight autocomplete suggestions for the search box.
 export async function getSuggestions(q: string, take = 6) {
   const norm = normalizeArabic(q);

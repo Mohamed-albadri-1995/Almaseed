@@ -17,6 +17,7 @@ export default async function AdminLayout({
   const role = user.role as Role;
   const nav = [
     { href: '/admin', label: 'لوحة التحكم', icon: 'chart', show: true },
+    { href: '/admin/stats', label: 'الإحصائيات', icon: 'chart', show: can.reviewContent(role) },
     { href: '/admin/submissions', label: 'المراجعة', icon: 'file', show: can.reviewContent(role) },
     { href: '/admin/materials', label: 'إدارة المواد', icon: 'archive', show: can.reviewContent(role) },
     { href: '/admin/categories', label: 'التصنيفات', icon: 'book-open', show: can.editContent(role) },

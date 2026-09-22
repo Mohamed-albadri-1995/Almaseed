@@ -37,9 +37,14 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="section-title">لوحة التحكم</h1>
-        <p className="text-muted">نظرة عامة على حالة الأرشيف والمراجعة.</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="section-title">لوحة التحكم</h1>
+          <p className="text-muted">نظرة عامة على حالة الأرشيف والمراجعة.</p>
+        </div>
+        <Link href="/admin/stats" className="btn-outline text-sm">
+          <Icon.chart width={16} height={16} /> عرض الإحصائيات
+        </Link>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
