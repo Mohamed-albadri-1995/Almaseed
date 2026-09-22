@@ -69,7 +69,7 @@ export function CompareDuplicates({
         </div>
       )}
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
         {/* Current material */}
         <div className="min-w-0 rounded-2xl border border-brand-200 bg-brand-50/40 p-3">
           <p className="mb-2 flex items-center justify-between gap-2">
@@ -77,7 +77,7 @@ export function CompareDuplicates({
             <span className="line-clamp-1 text-sm font-semibold text-brand-800">{current.title}</span>
           </p>
           <MediaPlayer src={current.fileUrl} kind={current.fileKind} title={current.title} poster={current.coverImage} />
-          <p className="mt-2 text-[11px] text-muted">{current.fileType ?? '—'} · {formatFileSize(current.fileSize)}</p>
+          <p className="mt-2 text-[11px] text-muted">{current.fileType ?? '—'} · {formatFileSize(current.fileSize)}{current.fileUrl && <> · <a href={current.fileUrl} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">فتح في نافذة</a></>}</p>
         </div>
 
         {/* Suspected duplicate */}
@@ -92,6 +92,7 @@ export function CompareDuplicates({
               <span key={r} className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${dup.exactFile ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>{r}</span>
             ))}
             <span className="text-[11px] text-muted">{dup.fileType ?? '—'} · {formatFileSize(dup.fileSize)}</span>
+            {dup.fileUrl && <a href={dup.fileUrl} target="_blank" rel="noreferrer" className="text-[11px] text-brand-600 hover:underline">· فتح في نافذة</a>}
             <span className="text-[11px] text-muted">· {dup.status === 'PUBLISHED' ? 'منشورة' : dup.status === 'PENDING' ? 'قيد المراجعة' : dup.status === 'HELD' ? 'معلّقة' : dup.status}</span>
           </div>
         </div>
