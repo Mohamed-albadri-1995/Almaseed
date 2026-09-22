@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'الأسئلة الشائعة' };
+export const metadata: Metadata = {
+  title: 'الأسئلة الشائعة',
+  description: 'إجابات عن أكثر الأسئلة تكرارًا حول أرشيف المسيد: كيفية التصفّح والتنزيل، إرسال المواد ومراجعتها، والحسابات.',
+  alternates: { canonical: '/faq' },
+};
 
 const FAQS = [
   {
@@ -29,9 +33,20 @@ const FAQS = [
   },
 ];
 
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+
 export default function FaqPage() {
   return (
     <div className="container-page py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd).replace(/</g, '\\u003c') }} />
       <div className="mx-auto max-w-3xl">
         <div className="mb-8 text-center">
           <p className="eyebrow">مساعدة</p>

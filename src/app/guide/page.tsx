@@ -5,6 +5,7 @@ import { GUIDE_GROUPS, GUIDE_FLOWS } from '@/lib/guide-data';
 export const metadata: Metadata = {
   title: 'الدليل المصوّر',
   description: 'دليل مصوّر خطوة بخطوة لاستخدام أرشيف المسيد: إنشاء الحساب، رفع المواد، المراجعة بخياراتها، والحذف بالتصويت — لكل خطوة لقطة حقيقية والزرّ المطلوب داخل حلقة.',
+  alternates: { canonical: '/guide' },
 };
 
 export default function GuideIndex() {

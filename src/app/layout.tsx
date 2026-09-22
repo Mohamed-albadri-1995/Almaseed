@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
@@ -6,18 +6,62 @@ import { Footer } from '@/components/Footer';
 import { getCurrentUser } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { recordVisit } from '@/lib/stats';
+import { SITE_URL, SITE_NAME, SITE_NAME_SHORT, SITE_DESCRIPTION, OG_IMAGE, websiteJsonLd, organizationJsonLd, jsonLdString } from '@/lib/seo';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'الطريقة السمّانية — السجادة السليمانية',
-    template: '%s • الطريقة السمّانية السجادة السليمانية',
+    default: SITE_NAME,
+    template: `%s • ${SITE_NAME_SHORT}`,
   },
-  description:
-    'أرشيف الطريقة السمّانية السجادة السليمانية للمدائح والمحاضرات والندوات والمواعظ والمناسبات، نجمع فيه ما يستحق أن يبقى قريباً من القلب.',
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME_SHORT,
+  keywords: [
+    'الطريقة السمّانية', 'السجادة السليمانية', 'أرشيف المسيد', 'المدائح', 'محاضرات', 'مواعظ',
+    'ندوات', 'مناسبات', 'إنشاد', 'مديح', 'الطرق الصوفية', 'التصوف', 'السودان', 'مدائح نبوية',
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'religion',
+  alternates: { canonical: '/' },
+  formatDetection: { telephone: false },
   icons: {
     icon: [{ url: '/logo.png', type: 'image/png' }],
     apple: [{ url: '/logo.png' }],
   },
+  openGraph: {
+    type: 'website',
+    locale: 'ar_AR',
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: SITE_NAME }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#1f3d33',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default async function RootLayout({
@@ -45,6 +89,10 @@ export default async function RootLayout({
         />
       </head>
       <body className="flex min-h-screen flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdString([websiteJsonLd(), organizationJsonLd()]) }}
+        />
         <Navbar
           user={
             user

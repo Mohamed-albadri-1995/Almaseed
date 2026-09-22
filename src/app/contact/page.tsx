@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import { ContactForm } from '@/components/ContactForm';
 
-export const metadata: Metadata = { title: 'تواصل معنا' };
+export const metadata: Metadata = {
+  title: 'تواصل معنا',
+  description: 'تواصل مع فريق أرشيف الطريقة السمّانية السجادة السليمانية لأي استفسار أو ملاحظة أو مساهمة.',
+  alternates: { canonical: '/contact' },
+};
 
 export default function ContactPage() {
   return (

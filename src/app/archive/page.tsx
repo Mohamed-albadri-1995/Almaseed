@@ -8,11 +8,35 @@ import {
   getFilterFacets,
   searchMaterials,
 } from '@/lib/queries';
+import type { Metadata } from 'next';
+import { prisma } from '@/lib/prisma';
 import { CONTENT_FORMS, SORT_OPTIONS, DOC_TYPES, DOC_TYPE_LABELS } from '@/lib/constants';
 import { getPrimaryPerson, getFacetFields } from '@/lib/fields';
 import { formatCount } from '@/lib/format';
+import { SITE_NAME_SHORT } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+// Per-category metadata with a canonical that ignores volatile filter params
+// (q, sort, page, person…), so filtered views consolidate onto one URL.
+export async function generateMetadata({ searchParams }: { searchParams: { category?: string } }): Promise<Metadata> {
+  const slug = searchParams.category;
+  if (slug) {
+    const cat = await prisma.category.findUnique({ where: { slug }, select: { name: true, description: true } }).catch(() => null);
+    if (cat) {
+      return {
+        title: cat.name,
+        description: cat.description || `تصفّح ${cat.name} في أرشيف الطريقة السمّانية السجادة السليمانية — استمع وشاهد ونزّل.`,
+        alternates: { canonical: `/archive?category=${encodeURIComponent(slug)}` },
+      };
+    }
+  }
+  return {
+    title: 'الأرشيف',
+    description: `تصفّح كامل أرشيف ${SITE_NAME_SHORT}: المدائح والمحاضرات والندوات والمواعظ والمناسبات والصور والمكتبة.`,
+    alternates: { canonical: '/archive' },
+  };
+}
 
 // The category-specific facet fields the archive can filter by.
 const FACET_KEYS = ['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author'] as const;

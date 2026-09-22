@@ -26,6 +26,23 @@ import {
   splitKeywords,
   decodeEntities,
 } from '@/lib/format';
+import { absUrl, clampDescription, materialJsonLd, breadcrumbJsonLd, jsonLdString, OG_IMAGE, SITE_URL } from '@/lib/seo';
+
+// A rich, human-readable description for search results and social cards: the
+// material's own description/summary, else a sentence built from its type +
+// the main person (المادح/المحاضر/الكاتب).
+function metaDescription(m: {
+  description?: string | null; summary?: string | null; bodyText?: string | null;
+  title: string; category?: { name?: string | null; slug?: string | null } | null;
+} & Record<string, unknown>): string {
+  const own = clampDescription(m.description || m.summary || m.bodyText);
+  if (own) return own;
+  const person = m.category?.slug ? (m[getPrimaryPerson(m.category.slug)?.field ?? ''] as string | undefined) : undefined;
+  const cat = m.category?.name || 'مادة';
+  const label = m.category?.slug ? getPrimaryPerson(m.category.slug)?.label : null;
+  const who = person && label ? ` — ${label}: ${person}` : '';
+  return `${cat}: ${m.title}${who} — من أرشيف الطريقة السمّانية السجادة السليمانية. استمع أو شاهد أو نزّل المادة.`;
+}
 
 export async function generateMetadata({
   params,
@@ -34,7 +51,37 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const m = await getMaterial(params.id);
   if (!m) return { title: 'مادة غير موجودة' };
-  return { title: m.title, description: m.description ?? m.summary ?? undefined };
+  const rec = m as unknown as Record<string, unknown>;
+  const description = metaDescription(m as never);
+  const cover = absUrl((m.coverImage as string) || (m.fileKind === 'IMAGE' ? (m.fileUrl as string) : null)) || OG_IMAGE;
+  const isVideo = !!m.fileUrl && m.fileKind === 'VIDEO';
+  const canonical = `/material/${m.id}`;
+  const keywords = splitKeywords((rec.keywords as string) || '');
+  const author = (rec.author as string) || (m.category?.slug ? (rec[getPrimaryPerson(m.category.slug)?.field ?? ''] as string) : undefined);
+  return {
+    title: m.title,
+    description,
+    keywords: keywords.length ? keywords : undefined,
+    alternates: { canonical },
+    openGraph: {
+      type: 'article',
+      url: `${SITE_URL}${canonical}`,
+      title: m.title,
+      description,
+      publishedTime: m.publishedAt ? new Date(m.publishedAt).toISOString() : undefined,
+      modifiedTime: m.updatedAt ? new Date(m.updatedAt).toISOString() : undefined,
+      section: m.category?.name || undefined,
+      authors: author ? [author] : undefined,
+      tags: keywords,
+      images: [{ url: cover, alt: m.title }],
+    },
+    twitter: {
+      card: isVideo ? 'player' : 'summary_large_image',
+      title: m.title,
+      description,
+      images: [cover],
+    },
+  };
 }
 
 export default async function MaterialPage({
@@ -119,8 +166,32 @@ export default async function MaterialPage({
 
   const keywords = splitKeywords(material.keywords);
 
+  // Structured data: the material itself (typed by media kind) + a breadcrumb.
+  const ld = [
+    materialJsonLd({
+      id: material.id,
+      title: material.title,
+      description: material.description || material.summary || material.bodyText,
+      fileUrl: material.fileUrl,
+      fileKind: material.fileKind,
+      coverImage: material.coverImage,
+      durationSec: material.durationSec,
+      publishedAt: material.publishedAt,
+      updatedAt: material.updatedAt,
+      author: (primaryPersonValue as string) || material.author,
+      categoryName: material.category?.name,
+      contributor: material.submittedBy?.name,
+    }),
+    breadcrumbJsonLd([
+      { name: 'الرئيسية', url: '/' },
+      { name: material.category?.name || 'الأرشيف', url: `/archive?category=${material.category?.slug ?? ''}` },
+      { name: material.title, url: `/material/${material.id}` },
+    ]),
+  ];
+
   return (
     <div className="container-page py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(ld) }} />
       {/* Breadcrumb */}
       <nav className="mb-4 flex items-center gap-1 text-sm text-muted">
         <Link href="/" className="hover:text-brand-600">الرئيسية</Link>

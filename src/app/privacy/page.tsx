@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'سياسة الخصوصية — تطبيق أرشيف المسيد',
   description:
     'سياسة خصوصية تطبيق الطريقة السمّانية — السجادة السليمانية: ما البيانات التي نجمعها، ولماذا، وكيف نحميها.',
+  alternates: { canonical: '/privacy' },
 };
 
 // Dedicated privacy policy for the Android app (required by Google Play). Kept at

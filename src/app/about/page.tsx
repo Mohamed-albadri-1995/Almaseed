@@ -2,7 +2,11 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
 
-export const metadata: Metadata = { title: 'عن الطريقة السمّانية السجادة السليمانية' };
+export const metadata: Metadata = {
+  title: 'عن الطريقة السمّانية السجادة السليمانية',
+  description: 'تعرّف على الطريقة السمّانية السجادة السليمانية ورسالة أرشيف المسيد في حفظ وتنظيم ونشر المدائح والمحاضرات والندوات والمواعظ والمناسبات.',
+  alternates: { canonical: '/about' },
+};
 
 const VALUES = [
   {

@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'السياسات وشروط النشر' };
+export const metadata: Metadata = {
+  title: 'السياسات وشروط النشر',
+  description: 'سياسات وشروط النشر والمساهمة في أرشيف الطريقة السمّانية السجادة السليمانية، وحقوق المواد وآلية المراجعة.',
+  alternates: { canonical: '/policy' },
+};
 
 export default function PolicyPage() {
   return (
