@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
+import { TopBarChart } from '@/components/TopBarChart';
 import { getReviewStats, type RankedCount } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
@@ -162,8 +163,20 @@ export default async function StatsPage() {
         </div>
       </div>
 
-      {/* Ranked person/occasion tallies */}
-      <div className="mt-8 grid gap-5 lg:grid-cols-2">
+      {/* Top-N charts (visual, magnitude by identity) */}
+      <div className="mt-8">
+        <h2 className="mb-3 text-lg font-bold text-brand-800">الأعلى مساهمةً</h2>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <TopBarChart title="أكثر المادحين" subtitle="أعلى المادحين عددًا للمدائح" rows={stats.madeehByPerformer} unitLabel="مدحة" />
+          <TopBarChart title="أكثر المحاضرين" subtitle="أعلى المحاضرين عددًا للمحاضرات" rows={stats.lecturesBySpeaker} unitLabel="محاضرة" />
+          <TopBarChart title="أكثر الرواة" subtitle="أعلى الرواة عددًا في المدائح" rows={stats.madeehByNarrator} unitLabel="مدحة" />
+          <TopBarChart title="أكثر المناسبات" subtitle="أعلى المناسبات عددًا للمواد" rows={stats.byOccasion} unitLabel="مادة" />
+        </div>
+      </div>
+
+      {/* Ranked person/occasion tallies (full, collapsible) */}
+      <h2 className="mt-8 mb-3 text-lg font-bold text-brand-800">القوائم الكاملة</h2>
+      <div className="grid gap-5 lg:grid-cols-2">
         <RankTable title="المدائح حسب المادح" subtitle="عدد المدائح لكل مادح" rows={stats.madeehByPerformer} unitLabel="مدحة" />
         <RankTable title="المدائح حسب الراوي" subtitle="عدد المدائح لكل راوٍ" rows={stats.madeehByNarrator} unitLabel="مدحة" />
         <RankTable title="المحاضرات حسب المحاضر" subtitle="عدد المحاضرات لكل محاضر" rows={stats.lecturesBySpeaker} unitLabel="محاضرة" />
