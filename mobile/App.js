@@ -373,6 +373,7 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled }) 
                 poster={`${API_BASE}/guide/${guideAuth ? 'guide_share_app' : 'guide_app_login'}_poster.jpg`}
                 title={guideAuth ? 'كيف تشارك مادة من التطبيق' : 'سجّل الدخول عبر Google'}
                 subtitle={guideAuth ? 'شارك صوتًا أو فيديو أو صورة مباشرةً إلى الأرشيف' : 'أسهل طريقة للدخول في التطبيق'}
+                onGuide={() => push('web', { url: `${API_BASE}/guide`, title: 'الدليل المصوّر' })}
               />
             </FirstUseCue>
           )}
@@ -602,26 +603,43 @@ const onb = StyleSheet.create({
 // only starts (and downloads) the video when tapped — data-friendly. The videos
 // are hosted on the website (/guide/*.mp4) so they can be updated without an app
 // build. Which clip shows is chosen by the caller based on sign-in state.
-function GuideVideoCard({ url, poster, title, subtitle }) {
+function GuideVideoCard({ url, poster, title, subtitle, onGuide }) {
   const ref = useRef(null);
   const [play, setPlay] = useState(false);
   const player = useVideoPlayer(url, (p) => { p.loop = false; });
   useEffect(() => { if (play) { try { player.play(); } catch {} } }, [play]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <View style={styles.guideCard}>
-      <View style={styles.guideMediaWrap}>
-        {play ? (
+      {play ? (
+        // Compact, screen-fitting player (tap ⛶ for fullscreen). Not the full
+        // phone-height video, so the home stays usable.
+        <View style={styles.guidePlayer}>
           <VideoView ref={ref} player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls allowsFullscreen />
-        ) : (
-          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0.9} onPress={() => setPlay(true)}>
-            {poster ? <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="contain" /> : null}
-            <View style={styles.guidePlayOverlay}><View style={styles.guidePlayCircle}><Text style={styles.guidePlayIcon}>▶</Text></View></View>
+        </View>
+      ) : (
+        // Collapsed by default: a small preview + title, opened only on demand.
+        <TouchableOpacity style={styles.guideCompact} activeOpacity={0.9} onPress={() => setPlay(true)}>
+          <View style={styles.guideThumb}>
+            {poster ? <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
+            <View style={styles.guideThumbPlay}><Text style={styles.guidePlayIcon}>▶</Text></View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.guideTitle} numberOfLines={2}>{title}</Text>
+            {!!subtitle && <Text style={styles.guideSub} numberOfLines={2}>{subtitle}</Text>}
+          </View>
+        </TouchableOpacity>
+      )}
+      <View style={styles.guideBtns}>
+        <TouchableOpacity style={styles.guidePlayBtn} activeOpacity={0.85} onPress={() => setPlay((p) => !p)}>
+          <Ionicons name={play ? 'close' : 'play'} size={16} color={C.white} />
+          <Text style={styles.guidePlayTxt}>{play ? 'إغلاق الفيديو' : 'شغّل الفيديو التعريفي'}</Text>
+        </TouchableOpacity>
+        {onGuide && (
+          <TouchableOpacity style={styles.guideDocBtn} activeOpacity={0.85} onPress={onGuide}>
+            <Ionicons name="book-outline" size={16} color={C.brand} />
+            <Text style={styles.guideDocTxt}>الدليل المصوّر</Text>
           </TouchableOpacity>
         )}
-      </View>
-      <View style={{ padding: 12 }}>
-        <Text style={styles.guideTitle}>{title}</Text>
-        {!!subtitle && <Text style={styles.guideSub}>{subtitle}</Text>}
       </View>
     </View>
   );
@@ -1284,7 +1302,19 @@ const styles = StyleSheet.create({
   documentCard: { marginTop: 16, backgroundColor: C.ivory50, borderRadius: 18, padding: 22, alignItems: 'center', borderWidth: 1, borderColor: C.line }, documentIcon: { fontSize: 42, marginBottom: 8 }, documentTitle: { color: C.brand, fontSize: 18, fontWeight: '900' }, documentHint: { color: C.muted, fontSize: 12, lineHeight: 20, textAlign: 'center', marginTop: 6 },
   docBtns: { flexDirection: 'row', gap: 10, marginTop: 14 }, docViewBtn: { backgroundColor: C.brand, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 }, docViewTxt: { color: C.white, fontWeight: '800', fontSize: 14 }, docOpenBtn: { backgroundColor: C.gold, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 18 }, docOpenTxt: { color: C.brand, fontWeight: '800', fontSize: 14 }, pdfFooter: { backgroundColor: '#12241d', paddingVertical: 10, alignItems: 'center' }, pdfFooterTxt: { color: C.gold300, fontWeight: '800', fontSize: 13 },
   contribCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.white, borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1.5, borderColor: C.gold }, contribIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.ivory, alignItems: 'center', justifyContent: 'center' }, contribTitle: { fontSize: 15.5, fontWeight: '800', color: C.brand, textAlign: 'right' }, contribSub: { fontSize: 12, color: C.muted, marginTop: 3, textAlign: 'right', lineHeight: 18 },
-  guideCard: { backgroundColor: C.white, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line, overflow: 'hidden' }, guideMediaWrap: { width: '100%', aspectRatio: 9 / 16, backgroundColor: '#12241d', position: 'relative' }, guidePlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0e1c1740' }, guidePlayCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' }, guidePlayIcon: { color: C.brand, fontSize: 24, fontWeight: '900', marginRight: -3 }, guideTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right' }, guideSub: { fontSize: 12.5, color: C.muted, marginTop: 3, textAlign: 'right' },
+  guideCard: { backgroundColor: C.white, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line, overflow: 'hidden' },
+  guidePlayer: { width: '100%', height: 360, backgroundColor: '#12241d' },
+  guideCompact: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 12 },
+  guideThumb: { width: 84, height: 84, borderRadius: 12, backgroundColor: '#12241d', overflow: 'hidden', position: 'relative' },
+  guideThumbPlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  guidePlayIcon: { color: C.white, fontSize: 24, fontWeight: '900', marginRight: -3, textShadowColor: '#0009', textShadowRadius: 6 },
+  guideTitle: { fontSize: 15, fontWeight: '800', color: C.brand, textAlign: 'right' },
+  guideSub: { fontSize: 12.5, color: C.muted, marginTop: 3, textAlign: 'right' },
+  guideBtns: { flexDirection: 'row-reverse', gap: 8, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 2 },
+  guidePlayBtn: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.brand, borderRadius: 12, paddingVertical: 10 },
+  guidePlayTxt: { color: C.white, fontSize: 13.5, fontWeight: '800' },
+  guideDocBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1.5, borderColor: C.brand, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12 },
+  guideDocTxt: { color: C.brand, fontSize: 13.5, fontWeight: '800' },
   videoWrap: { marginTop: 16 }, videoInline: { width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: '#000' }, videoBtns: { flexDirection: 'row', gap: 10, marginTop: 10 }, fsBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.brand }, fsBtnAlt: { backgroundColor: '#294a3d' }, fsIcon: { color: C.gold300, fontSize: 16, fontWeight: '900' }, fsTxt: { color: C.white, fontSize: 14, fontWeight: '800' }, videoErr: { color: C.danger, fontSize: 13, marginTop: 10, textAlign: 'center' },
   pip: { position: 'absolute', width: 168, height: 112, borderRadius: 12, backgroundColor: '#000', overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, zIndex: 50 }, pipVideo: { width: '100%', height: '100%' }, pipTap: { ...StyleSheet.absoluteFillObject }, pipPause: { position: 'absolute', left: '50%', top: '50%', width: 40, height: 40, marginLeft: -20, marginTop: -20, borderRadius: 20, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center' }, pipClose: { position: 'absolute', top: 5, right: 5, width: 28, height: 28, borderRadius: 14, backgroundColor: '#00000088', alignItems: 'center', justifyContent: 'center' }, pipCtrlIcon: { color: '#fff', fontSize: 15, fontWeight: '900' },
   playCard: { height: 150, borderRadius: 16, marginTop: 16, overflow: 'hidden', backgroundColor: C.brand }, playCardVideo: { height: 200, backgroundColor: '#12241d' }, playCardOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: '#00000055', gap: 8 }, playCircle: { width: 62, height: 62, borderRadius: 31, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' }, playCircleIcon: { color: C.brand, fontSize: 24, fontWeight: '900', marginLeft: 3 }, playCardLabel: { color: C.white, fontSize: 15, fontWeight: '800' }, playCardHint: { color: '#e6efe9', fontSize: 11 },
