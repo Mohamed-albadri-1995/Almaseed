@@ -1016,7 +1016,47 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
      </ScrollView>}
   </View>;
 }
-function WebScreen({ url, title, onBack }) { return <View style={{ flex: 1 }}><Header title={title} onBack={onBack} /><WebView source={{ uri: url }} startInLoadingState renderLoading={() => <Loader />} javaScriptEnabled domStorageEnabled allowFileAccess allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} mediaCapturePermissionGrantType="grant" allowsProtectedMedia scalesPageToFit useWideViewPort injectedJavaScriptBeforeContentLoaded={FIT_VIEWPORT} injectedJavaScript={FIT_VIEWPORT} /></View>; }
+function WebScreen({ url, title, onBack }) {
+  // «رجوع» should walk BACK through the web history first (so after finishing a
+  // review the admin returns to the review list to review more), and only close
+  // the whole WebView once there's nowhere left to go back to inside it.
+  const webRef = useRef(null);
+  const canGoBack = useRef(false);
+  const handleBack = useCallback(() => {
+    if (canGoBack.current && webRef.current) { try { webRef.current.goBack(); return; } catch {} }
+    onBack();
+  }, [onBack]);
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (canGoBack.current && webRef.current) { try { webRef.current.goBack(); return true; } catch {} }
+      return false; // let the app stack handle it (pop the WebView)
+    });
+    return () => sub.remove();
+  }, []);
+  return (
+    <View style={{ flex: 1 }}>
+      <Header title={title} onBack={handleBack} />
+      <WebView
+        ref={webRef}
+        source={{ uri: url }}
+        onNavigationStateChange={(s) => { canGoBack.current = s.canGoBack; }}
+        startInLoadingState
+        renderLoading={() => <Loader />}
+        javaScriptEnabled
+        domStorageEnabled
+        allowFileAccess
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        mediaCapturePermissionGrantType="grant"
+        allowsProtectedMedia
+        scalesPageToFit
+        useWideViewPort
+        injectedJavaScriptBeforeContentLoaded={FIT_VIEWPORT}
+        injectedJavaScript={FIT_VIEWPORT}
+      />
+    </View>
+  );
+}
 // Google sign-in via the website: the web handles Google OAuth (no native SDK,
 // no app-signing SHA-1), then redirects to /mobile-login/done?token=… which we
 // intercept here to capture the session and hand it to the app.
