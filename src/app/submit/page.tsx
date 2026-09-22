@@ -6,15 +6,15 @@ import { FirstUseCue } from '@/components/FirstUseCue';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
-import { getOccasions } from '@/lib/queries';
+import { getFieldSuggestions } from '@/lib/queries';
 
 export const metadata: Metadata = { title: 'إرسال مادة' };
 
 export default async function SubmitPage() {
   const user = await getCurrentUser();
-  const [categories, occasions] = await Promise.all([
+  const [categories, suggestions] = await Promise.all([
     prisma.category.findMany({ orderBy: { order: 'asc' } }),
-    getOccasions(),
+    getFieldSuggestions(),
   ]);
 
   return (
@@ -37,7 +37,7 @@ export default async function SubmitPage() {
               <ContributorGuide />
             </FirstUseCue>
             <div className="card p-6 sm:p-8">
-              <SubmitForm categories={categories} occasions={occasions} />
+              <SubmitForm categories={categories} suggestions={suggestions} />
             </div>
           </>
         ) : (

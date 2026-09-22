@@ -47,8 +47,8 @@ function Field({ field, suggestions }: { field: FieldDef; suggestions?: string[]
     className: 'input',
   };
   // A datalist turns a plain text field into a "choose an existing value OR type
-  // a new one" control — used for المناسبة so contributors reuse the same
-  // occasion names instead of coining slight variants.
+  // a new one" control — so contributors reuse the same names already in the
+  // archive instead of coining slight variants (a big source of duplicates).
   const hasList = !!suggestions && suggestions.length > 0 && field.type !== 'textarea' && field.type !== 'select' && field.type !== 'date';
   const listId = `${field.name}-options`;
   return (
@@ -79,7 +79,7 @@ function Field({ field, suggestions }: { field: FieldDef; suggestions?: string[]
         </>
       )}
       {field.hint && <p className="field-hint">{field.hint}</p>}
-      {hasList && <p className="field-hint">اختر من القائمة أو اكتب مناسبة جديدة.</p>}
+      {hasList && <p className="field-hint">اختر من الموجود أو اكتب اسمًا جديدًا (لتفادي التكرار).</p>}
     </div>
   );
 }
@@ -170,7 +170,7 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
   );
 }
 
-export function SubmitForm({ categories, occasions = [] }: { categories: CategoryOption[]; occasions?: string[] }) {
+export function SubmitForm({ categories, suggestions = {} }: { categories: CategoryOption[]; suggestions?: Record<string, string[]> }) {
   const [state, action] = useFormState(submitMaterialAction, initial);
   const [step, setStep] = useState(1);
   const [slug, setSlug] = useState('');
@@ -234,7 +234,7 @@ export function SubmitForm({ categories, occasions = [] }: { categories: Categor
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2"><label className="label" htmlFor="title">{config.titleLabel}<span className="font-bold text-danger"> *</span></label><input id="title" name="title" required className="input" /></div>
               <div className="sm:col-span-2"><label className="label" htmlFor="subtitle">{config.subtitleLabel}<span className="mr-1 text-xs font-normal text-muted">(اختياري)</span></label><input id="subtitle" name="subtitle" className="input" /></div>
-              {config.fields.map((f) => <Field key={f.name} field={f} suggestions={f.name === 'occasion' ? occasions : undefined} />)}
+              {config.fields.map((f) => <Field key={f.name} field={f} suggestions={suggestions[f.name]} />)}
             </div>
             {config.cover !== false && <div className="mt-6"><CoverUpload onUploaded={setCover} cover={cover} /></div>}
             <div className="mt-8 flex justify-between"><button type="button" onClick={() => setStep(2)} className="btn-outline">السابق</button><button type="button" onClick={() => setStep(4)} className="btn-primary">التالي</button></div>

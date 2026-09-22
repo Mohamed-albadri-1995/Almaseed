@@ -368,6 +368,31 @@ export async function getOccasions(): Promise<string[]> {
   ).sort((a, b) => a.localeCompare(b, 'ar'));
 }
 
+// Distinct values already used for each name/text field, so EVERY form field can
+// suggest what's already in the archive (choose-or-add). This is what keeps the
+// same person from being entered under slight variants — «أحمد الشريف هارون» vs
+// «الشريف أحمد الشريف هارون». Scanned across all materials (published or not).
+const SUGGEST_FIELDS = ['performer', 'narrator', 'speaker', 'host', 'organizer', 'author', 'occasion', 'topic', 'city', 'place', 'source'] as const;
+export type SuggestMap = Partial<Record<(typeof SUGGEST_FIELDS)[number], string[]>>;
+export async function getFieldSuggestions(): Promise<SuggestMap> {
+  const rows = await prisma.material.findMany({
+    select: {
+      performer: true, narrator: true, speaker: true, host: true, organizer: true,
+      author: true, occasion: true, topic: true, city: true, place: true, source: true,
+    },
+  });
+  const out: SuggestMap = {};
+  for (const f of SUGGEST_FIELDS) {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const v = ((r as Record<string, string | null>)[f] || '').trim();
+      if (v) set.add(v);
+    }
+    if (set.size) out[f] = Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+  }
+  return out;
+}
+
 // Aggregate statistics for the review/admin stats page: totals, per-category
 // breakdown (with distinct contributors), counts by file kind, and the ranked
 // person/occasion tallies requested (المادح/الراوي/المحاضر, والمناسبات). Counts

@@ -65,7 +65,7 @@ function CoverField({ initial }: { initial?: string | null }) {
   );
 }
 
-export function MaterialEditForm({ material, categories, saved, occasions = [] }: { material: MaterialData; categories: { slug: string; name: string }[]; saved?: boolean; occasions?: string[] }) {
+export function MaterialEditForm({ material, categories, saved, suggestions = {} }: { material: MaterialData; categories: { slug: string; name: string }[]; saved?: boolean; suggestions?: Record<string, string[]> }) {
   const [slug, setSlug] = useState(material.categorySlug);
   const form = CATEGORY_FORMS[slug];
   const bodyTextRef = useRef<HTMLInputElement>(null);
@@ -82,9 +82,10 @@ export function MaterialEditForm({ material, categories, saved, occasions = [] }
 
         {form?.fields.map((f) => {
           const val = (material[f.name as keyof MaterialData] as string | null) ?? '';
-          const hasList = f.name === 'occasion' && occasions.length > 0 && f.type !== 'textarea' && f.type !== 'select' && f.type !== 'date';
+          const sugg = suggestions[f.name];
+          const hasList = !!sugg && sugg.length > 0 && f.type !== 'textarea' && f.type !== 'select' && f.type !== 'date';
           const listId = `${f.name}-edit-options`;
-          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? <span className="font-bold text-danger"> *</span> : <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <><input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" list={hasList ? listId : undefined} autoComplete="off" />{hasList && <datalist id={listId}>{occasions.map((o) => <option key={o} value={o} />)}</datalist>}</>}{f.hint && <p className="field-hint">{f.hint}</p>}{hasList && <p className="field-hint">اختر من القائمة أو اكتب مناسبة جديدة.</p>}</div>;
+          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? <span className="font-bold text-danger"> *</span> : <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <><input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" list={hasList ? listId : undefined} autoComplete="off" />{hasList && <datalist id={listId}>{sugg!.map((o) => <option key={o} value={o} />)}</datalist>}</>}{f.hint && <p className="field-hint">{f.hint}</p>}{hasList && <p className="field-hint">اختر من الموجود أو اكتب اسمًا جديدًا (لتفادي التكرار).</p>}</div>;
         })}
 
         {form?.article && <div className="min-w-0 sm:col-span-2"><label className="label">النص المكتوب</label><input ref={bodyTextRef} type="hidden" name="bodyText" defaultValue={material.bodyText ?? ''} /><ArticleEditor value={material.bodyText ?? ''} onChange={(html) => { if (bodyTextRef.current) bodyTextRef.current.value = html; }} /></div>}
