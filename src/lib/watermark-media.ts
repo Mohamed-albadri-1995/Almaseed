@@ -112,12 +112,18 @@ export async function watermarkVideoInPlace(
     await writeFile(labelPath, await buildBrandLabel(contributor));
     await runFfmpeg([
       '-y',
+      // Single-threaded decode/filter/encode keeps peak RAM low on the small
+      // shared container (x264 frame-threading buffers were a big spike).
+      '-threads', '1',
+      '-filter_complex_threads', '1',
       '-i', inPath,
       '-i', labelPath,
       '-filter_complex',
       '[1:v]format=rgba,scale=200:-1[lg];[0:v][lg]overlay=W-w-20:H-h-20[v]',
       '-map', '[v]',
       '-map', '0:a?',
+      '-threads', '1',
+      '-max_muxing_queue_size', '1024',
       '-c:a', 'copy',
       outPath,
     ]);
@@ -156,7 +162,7 @@ export async function watermarkAudioInPlace(
     // the branded cover — either way the brand ends up in the player.
     let art: Buffer | null = null;
     try {
-      await runFfmpeg(['-y', '-i', inPath, '-an', '-frames:v', '1', artPath]);
+      await runFfmpeg(['-y', '-threads', '1', '-i', inPath, '-an', '-frames:v', '1', artPath]);
       const raw = await readFile(artPath).catch(() => null);
       if (raw && raw.length > 0) art = await watermarkImage(raw, 'jpg', await buildBrandLabel(contributor));
     } catch { /* no embedded art */ }
@@ -166,6 +172,7 @@ export async function watermarkAudioInPlace(
     const isMp3 = (ext || '').toLowerCase() === 'mp3';
     await runFfmpeg([
       '-y',
+      '-threads', '1',
       '-i', inPath,
       '-i', artWm,
       '-map', '0:a',

@@ -4,6 +4,14 @@
 // memory from the web server. Disable with WATERMARK_WORKER=off.
 import { startWorkerLoop } from '../src/lib/watermark-worker';
 
+// Keep native memory flat on the small (≈512MB) Railway container: libvips (sharp)
+// otherwise spins up one worker thread per CPU and keeps an operation cache, and
+// those native allocations — added to the web server sharing this container —
+// are what got the process OOM-killed. One thread, no cache: slower, but steady.
+import('sharp')
+  .then((m) => { m.default.cache(false); m.default.concurrency(1); })
+  .catch(() => { /* sharp not present — image stamps just get skipped */ });
+
 if (process.env.WATERMARK_WORKER === 'off') {
   console.log('[watermark] background worker disabled (WATERMARK_WORKER=off)');
 } else {
