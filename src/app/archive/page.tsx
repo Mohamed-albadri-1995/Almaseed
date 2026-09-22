@@ -9,10 +9,14 @@ import {
   searchMaterials,
 } from '@/lib/queries';
 import { CONTENT_FORMS, SORT_OPTIONS, DOC_TYPES, DOC_TYPE_LABELS } from '@/lib/constants';
-import { getPrimaryPerson } from '@/lib/fields';
+import { getPrimaryPerson, getFacetFields } from '@/lib/fields';
 import { formatCount } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
+
+// The category-specific facet fields the archive can filter by.
+const FACET_KEYS = ['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author'] as const;
+type FacetKey = (typeof FACET_KEYS)[number];
 
 interface SearchParams {
   category?: string;
@@ -26,6 +30,13 @@ interface SearchParams {
   language?: string;
   sort?: string;
   page?: string;
+  performer?: string;
+  narrator?: string;
+  speaker?: string;
+  topic?: string;
+  host?: string;
+  organizer?: string;
+  author?: string;
 }
 
 function buildQuery(base: SearchParams, override: Partial<SearchParams>) {
@@ -38,6 +49,13 @@ function buildQuery(base: SearchParams, override: Partial<SearchParams>) {
   return `/archive${s ? `?${s}` : ''}`;
 }
 
+// Switching category clears the per-category facet params and docType (they
+// belong to the previous category's fields), keeping the query and content-kind.
+const CLEAR_FACETS: Partial<SearchParams> = { performer: '', narrator: '', speaker: '', topic: '', host: '', organizer: '', author: '', docType: '', page: '' };
+function switchCategory(base: SearchParams, category: string) {
+  return buildQuery(base, { ...CLEAR_FACETS, category });
+}
+
 export default async function ArchivePage({
   searchParams,
 }: {
@@ -47,9 +65,16 @@ export default async function ArchivePage({
   // المعرض: the الصور section is a gallery that aggregates EVERY image across all
   // sections, not just materials filed under it.
   const isGallery = searchParams.category === 'images';
+  // Facet fields defined by the selected category (مديح → المادح/الراوي, …).
+  const facetFields = searchParams.category ? getFacetFields(searchParams.category) : [];
+  const selectedFacets: Partial<Record<FacetKey, string>> = {};
+  for (const f of facetFields) {
+    const v = searchParams[f.name as FacetKey];
+    if (v) selectedFacets[f.name as FacetKey] = v;
+  }
   const [categories, facets, result] = await Promise.all([
     getCategoriesWithCounts(),
-    getFilterFacets(),
+    getFilterFacets(isGallery ? undefined : searchParams.category),
     searchMaterials({
       categorySlug: isGallery ? undefined : searchParams.category,
       q: searchParams.q,
@@ -60,11 +85,18 @@ export default async function ArchivePage({
       occasion: searchParams.occasion,
       year: searchParams.year,
       language: searchParams.language,
+      facets: selectedFacets,
       sort: searchParams.sort,
       page,
       perPage: isGallery ? 30 : undefined,
     }),
   ]);
+
+  // Only offer a facet dropdown for a field that actually has values in this
+  // category — empty facets would just be dead "الكل"-only selects.
+  const categoryFacetFilters = facetFields
+    .map((f) => ({ name: f.name as FacetKey, label: f.label, value: searchParams[f.name as FacetKey], options: facets.fields[f.name] ?? [] }))
+    .filter((f) => f.options.length > 0);
 
   const activeCat = categories.find((c) => c.slug === searchParams.category);
   const title = activeCat ? activeCat.name : 'الأرشيف';
@@ -89,7 +121,7 @@ export default async function ArchivePage({
   ].filter(Boolean) as { name: string; label: string; value?: string; options: string[] }[];
 
   const advancedActive =
-    !!searchParams.person || !!searchParams.occasion || extraFilters.some((f) => f.value);
+    !!searchParams.person || !!searchParams.occasion || extraFilters.some((f) => f.value) || categoryFacetFilters.some((f) => f.value);
 
   const kindLabel = CONTENT_FORMS.find((f) => f.value === searchParams.kind)?.label;
   const activeChips = [
@@ -101,6 +133,9 @@ export default async function ArchivePage({
     searchParams.language && { key: 'language', label: searchParams.language },
     searchParams.occasion && { key: 'occasion', label: `المناسبة: ${searchParams.occasion}` },
     searchParams.person && { key: 'person', label: `${personLabel}: ${searchParams.person}` },
+    ...categoryFacetFilters
+      .filter((f) => f.value)
+      .map((f) => ({ key: f.name, label: `${f.label}: ${f.value}` })),
   ].filter(Boolean) as { key: string; label: string }[];
 
   return (
@@ -126,7 +161,7 @@ export default async function ArchivePage({
       {/* Category chips (horizontal, scrollable) */}
       <div className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
         <Link
-          href={buildQuery(searchParams, { category: '', page: '' })}
+          href={switchCategory(searchParams, '')}
           className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
             !searchParams.category ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-100 text-brand-700 hover:bg-ivory-200'
           }`}
@@ -136,7 +171,7 @@ export default async function ArchivePage({
         {categories.map((c) => (
           <Link
             key={c.id}
-            href={buildQuery(searchParams, { category: c.slug, page: '' })}
+            href={switchCategory(searchParams, c.slug)}
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold transition ${
               searchParams.category === c.slug ? 'bg-brand-700 text-ivory-50' : 'bg-ivory-100 text-brand-700 hover:bg-ivory-200'
             }`}
@@ -250,6 +285,18 @@ export default async function ArchivePage({
                 ))}
               </select>
             </label>
+            {/* Category-specific facets: مديح → المادح/الراوي, محاضرات → المحاضر/الموضوع, … */}
+            {categoryFacetFilters.map((f) => (
+              <label key={f.name} className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
+                <select name={f.name} defaultValue={f.value ?? ''} className="input">
+                  <option value="">الكل</option>
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </select>
+              </label>
+            ))}
             {extraFilters.map((f) => (
               <label key={f.name} className="block">
                 <span className="mb-1 block text-xs font-medium text-muted">{f.label}</span>
@@ -261,15 +308,19 @@ export default async function ArchivePage({
                 </select>
               </label>
             ))}
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted">{personLabel}</span>
-              <input
-                name="person"
-                defaultValue={searchParams.person ?? ''}
-                placeholder="الاسم…"
-                className="input"
-              />
-            </label>
+            {/* The broad name search stays only when NO category is picked —
+                a chosen category exposes its own specific person facets above. */}
+            {categoryFacetFilters.length === 0 && (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">{personLabel}</span>
+                <input
+                  name="person"
+                  defaultValue={searchParams.person ?? ''}
+                  placeholder="الاسم…"
+                  className="input"
+                />
+              </label>
+            )}
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted">المناسبة</span>
               <input

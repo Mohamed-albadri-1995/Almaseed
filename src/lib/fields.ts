@@ -154,3 +154,16 @@ const PRIMARY_PERSON: Record<string, { field: string; label: string }> = {
 export function getPrimaryPerson(slug: string): { field: string; label: string } | null {
   return PRIMARY_PERSON[slug] ?? null;
 }
+
+// Category-specific fields that make good FACET filters on the archive page:
+// short, single-value person/subject fields drawn from each category's own
+// form (so مديح filters by المادح/الراوي, محاضرات by المحاضر/الموضوع, …). The
+// title is excluded (that's the search box), as are long-text/select/date
+// fields and the shared city/occasion/year filters handled separately.
+const FACET_FIELD_NAMES = new Set(['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author']);
+
+export function getFacetFields(slug: string): FieldDef[] {
+  const form = CATEGORY_FORMS[slug];
+  if (!form) return [];
+  return form.fields.filter((f) => FACET_FIELD_NAMES.has(f.name));
+}

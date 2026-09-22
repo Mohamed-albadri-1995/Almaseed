@@ -178,6 +178,8 @@ export interface ArchiveFilters {
   sort?: string;
   page?: number;
   perPage?: number;
+  // Per-category facet filters, matched exactly against their own field.
+  facets?: Partial<Record<'performer' | 'narrator' | 'speaker' | 'topic' | 'host' | 'organizer' | 'author', string>>;
 }
 
 export async function searchMaterials(filters: ArchiveFilters) {
@@ -191,6 +193,7 @@ export async function searchMaterials(filters: ArchiveFilters) {
     occasion,
     year,
     language,
+    facets,
     sort = 'newest',
     page = 1,
     perPage = 12,
@@ -199,6 +202,15 @@ export async function searchMaterials(filters: ArchiveFilters) {
   const where: Prisma.MaterialWhereInput = { ...PUBLIC_WHERE };
 
   if (categorySlug) where.category = { slug: categorySlug };
+  // Category-specific facets: an exact match on the field itself (the value
+  // came from that category's distinct-value list), so مديح filters by المادح,
+  // محاضرات by المحاضر/الموضوع, and so on.
+  if (facets) {
+    for (const key of ['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author'] as const) {
+      const v = facets[key];
+      if (v) (where as Record<string, unknown>)[key] = v;
+    }
+  }
   // «مقال» = a written material with NO file — the same definition used for the
   // card badge (isWritten = !fileUrl). Keying off bodyText was wrong: an audio
   // sermon that also has body text leaked into the «مقالات» filter.
@@ -300,18 +312,26 @@ export async function getRelatedMaterials(
   });
 }
 
-// Distinct city / year / language values for filter dropdowns.
-export async function getFilterFacets() {
+// Distinct filter values for the dropdowns. When a category is given, the
+// per-field facets (المادح، الراوي، الموضوع، …) are scoped to that category so
+// each section filters by its OWN fields; otherwise only the shared
+// city/year/language facets are meaningful.
+export async function getFilterFacets(categorySlug?: string) {
+  const where: Prisma.MaterialWhereInput = categorySlug
+    ? { ...PUBLIC_WHERE, category: { slug: categorySlug } }
+    : PUBLIC_WHERE;
   const rows = await prisma.material.findMany({
-    where: PUBLIC_WHERE,
-    select: { city: true, language: true, recordDate: true },
+    where,
+    select: {
+      city: true, language: true, recordDate: true,
+      performer: true, narrator: true, speaker: true, topic: true,
+      host: true, organizer: true, author: true, occasion: true,
+    },
   });
-  const cities = Array.from(
-    new Set(rows.map((r) => r.city).filter(Boolean) as string[]),
-  ).sort();
-  const languages = Array.from(
-    new Set(rows.map((r) => r.language).filter(Boolean) as string[]),
-  ).sort();
+  const distinct = (vals: (string | null)[]) =>
+    Array.from(new Set(vals.filter((v): v is string => !!v && v.trim().length > 0).map((v) => v.trim()))).sort((a, b) => a.localeCompare(b, 'ar'));
+  const cities = distinct(rows.map((r) => r.city));
+  const languages = distinct(rows.map((r) => r.language));
   const years = Array.from(
     new Set(
       rows
@@ -319,7 +339,19 @@ export async function getFilterFacets() {
         .filter(Boolean) as number[],
     ),
   ).sort((a, b) => b - a);
-  return { cities, languages, years };
+  // Per-field distinct values, keyed by field name so the page can render a
+  // dropdown for whichever facet fields the selected category defines.
+  const fields: Record<string, string[]> = {
+    performer: distinct(rows.map((r) => r.performer)),
+    narrator: distinct(rows.map((r) => r.narrator)),
+    speaker: distinct(rows.map((r) => r.speaker)),
+    topic: distinct(rows.map((r) => r.topic)),
+    host: distinct(rows.map((r) => r.host)),
+    organizer: distinct(rows.map((r) => r.organizer)),
+    author: distinct(rows.map((r) => r.author)),
+    occasion: distinct(rows.map((r) => r.occasion)),
+  };
+  return { cities, languages, years, fields };
 }
 
 // Lightweight autocomplete suggestions for the search box.
