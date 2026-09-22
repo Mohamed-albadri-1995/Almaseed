@@ -84,3 +84,10 @@ export async function getFlag(key) {
 export async function setFlag(key) {
   try { await AsyncStorage.setItem('almaseed.flag.' + key, '1'); } catch {}
 }
+// A togglable flag (can be turned OFF again) — used for the offline-mode switch.
+export async function setFlagValue(key, on) {
+  try {
+    if (on) await AsyncStorage.setItem('almaseed.flag.' + key, '1');
+    else await AsyncStorage.removeItem('almaseed.flag.' + key);
+  } catch {}
+}
