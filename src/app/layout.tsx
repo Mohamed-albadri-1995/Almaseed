@@ -24,7 +24,10 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   publisher: SITE_NAME,
   category: 'religion',
-  alternates: { canonical: '/' },
+  alternates: {
+    canonical: '/',
+    types: { 'application/rss+xml': `${SITE_URL}/feed.xml` },
+  },
   formatDetection: { telephone: false },
   icons: {
     icon: [{ url: '/logo.png', type: 'image/png' }],

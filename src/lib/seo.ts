@@ -80,6 +80,23 @@ export function breadcrumbJsonLd(items: { name: string; url: string }[]): Json {
   };
 }
 
+// An ordered list of links (categories on the home page, results on a listing
+// page) — helps search engines understand the page as a collection.
+export function itemListJsonLd(name: string, items: { name: string; url: string }[]): Json {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: items.length,
+    itemListElement: items.map((it, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: it.name,
+      url: absUrl(it.url),
+    })),
+  };
+}
+
 // The main entity for a single material, typed by its media kind so search
 // engines index it as audio / video / image / article correctly.
 export function materialJsonLd(m: {

@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma';
 import { CONTENT_FORMS, SORT_OPTIONS, DOC_TYPES, DOC_TYPE_LABELS } from '@/lib/constants';
 import { getPrimaryPerson, getFacetFields } from '@/lib/fields';
 import { formatCount } from '@/lib/format';
-import { SITE_NAME_SHORT } from '@/lib/seo';
+import { SITE_NAME_SHORT, breadcrumbJsonLd, itemListJsonLd, jsonLdString } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,8 +162,22 @@ export default async function ArchivePage({
       .map((f) => ({ key: f.name, label: `${f.label}: ${f.value}` })),
   ].filter(Boolean) as { key: string; label: string }[];
 
+  // Structured data: a breadcrumb + the visible results as an ItemList.
+  const archiveLd = [
+    breadcrumbJsonLd(
+      activeCat
+        ? [{ name: 'الرئيسية', url: '/' }, { name: 'الأرشيف', url: '/archive' }, { name: activeCat.name, url: `/archive?category=${activeCat.slug}` }]
+        : [{ name: 'الرئيسية', url: '/' }, { name: 'الأرشيف', url: '/archive' }],
+    ),
+    itemListJsonLd(
+      title,
+      result.items.map((m) => ({ name: m.title, url: `/material/${m.id}` })),
+    ),
+  ];
+
   return (
     <div className="container-page py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(archiveLd) }} />
       {/* Compact header: breadcrumb + title + count */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">

@@ -16,6 +16,7 @@ import {
   getMostPlayed,
 } from '@/lib/queries';
 import { formatCount } from '@/lib/format';
+import { itemListJsonLd, jsonLdString } from '@/lib/seo';
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -47,8 +48,14 @@ export default async function HomePage() {
     { label: 'مرات التحميل', value: stats.downloads },
   ];
 
+  const categoriesLd = itemListJsonLd(
+    'أقسام الأرشيف',
+    categories.map((c) => ({ name: c.name, url: `/archive?category=${c.slug}` })),
+  );
+
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdString(categoriesLd) }} />
       {/* ---------------- Hero ---------------- */}
       <section className="relative overflow-hidden bg-brand-900 text-ivory-50">
         {/* Cover banner artwork (emblem + name + tagline are part of the image)
