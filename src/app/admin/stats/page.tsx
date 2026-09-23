@@ -31,7 +31,7 @@ function RankTable({
   const shown = rows.slice(0, initial);
   const rest = rows.slice(initial);
   return (
-    <div className="card p-5">
+    <div className="card min-w-0 overflow-hidden p-5">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <div>
           <h2 className="text-lg font-bold text-brand-800">{title}</h2>
@@ -50,7 +50,7 @@ function RankTable({
                 style={{ width: `${Math.max(6, (r.count / max) * 100)}%` }}
                 aria-hidden
               />
-              <div className="relative flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <div className="relative flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="w-5 shrink-0 text-left text-xs font-bold text-muted">{i + 1}</span>
                   <span className="truncate font-medium text-brand-800">{r.name}</span>
@@ -74,7 +74,7 @@ function RankTable({
                   style={{ width: `${Math.max(6, (r.count / max) * 100)}%` }}
                   aria-hidden
                 />
-                <div className="relative flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                <div className="relative flex min-w-0 items-center justify-between gap-3 px-3 py-2 text-sm">
                   <span className="flex min-w-0 items-center gap-2">
                     <span className="w-5 shrink-0 text-left text-xs font-bold text-muted">{initial + i + 1}</span>
                     <span className="truncate font-medium text-brand-800">{r.name}</span>

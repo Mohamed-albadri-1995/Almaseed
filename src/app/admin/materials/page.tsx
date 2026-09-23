@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Pagination } from '@/components/Pagination';
 import { Icon } from '@/components/icons';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
@@ -47,19 +48,22 @@ export default async function MaterialsPage({
     delcancelled?: string;
     delexists?: string;
     delneedjust?: string;
+    page?: string;
   };
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
   const role = user.role as Role;
   const q = (searchParams.q ?? '').trim();
+  const page = Math.max(1, Number(searchParams.page) || 1);
+  const perPage = 50;
 
   const where: Prisma.MaterialWhereInput = {
     status: { in: [MATERIAL_STATUS.PUBLISHED, MATERIAL_STATUS.HIDDEN] },
     ...(q ? { title: { contains: q } } : {}),
   };
 
-  const [items, staff, openRequests] = await Promise.all([
+  const [items, total, staff, openRequests] = await Promise.all([
     prisma.material.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
@@ -67,8 +71,10 @@ export default async function MaterialsPage({
         category: { select: { name: true, slug: true } },
         deletionRequest: { include: { votes: true } },
       },
-      take: 100,
+      skip: (page - 1) * perPage,
+      take: perPage,
     }),
+    prisma.material.count({ where }),
     prisma.user.findMany({
       where: { active: true, role: { in: STAFF_ROLES } },
       select: { id: true, name: true, role: true, assignedCategories: true },
@@ -87,6 +93,14 @@ export default async function MaterialsPage({
   const nameOf = (id: string) => staff.find((s) => s.id === id)?.name ?? '—';
   const canManage = can.manageContent(role); // hide / merge
   const isAdmin = role === ROLES.ADMIN;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  const makeHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q) sp.set('q', q);
+    if (p > 1) sp.set('page', String(p));
+    const s = sp.toString();
+    return `/admin/materials${s ? `?${s}` : ''}`;
+  };
 
   const activeKey = Object.keys(BANNERS).find((k) => (searchParams as Record<string, string>)[k]);
   const banner = activeKey ? BANNERS[activeKey] : null;
@@ -120,6 +134,7 @@ export default async function MaterialsPage({
               ? 'عدّل البيانات أو أخفِ مادة مؤقتاً عن العرض العام أو اطلب حذفها بتصويت مراجعي القسم.'
               : 'راجع المواد المنشورة، ويمكنك طلب حذف مادة يُقرَّر بأغلبية مراجعي القسم.'}
           </p>
+          <p className="mt-1 text-xs text-muted">الإجمالي: {formatCount(total)} مادة{pages > 1 ? ` · صفحة ${formatCount(page)} من ${formatCount(pages)}` : ''}</p>
         </div>
         <form method="get" className="flex gap-2">
           <input name="q" defaultValue={q} placeholder="بحث بالعنوان…" className="input w-56" />
@@ -372,6 +387,8 @@ export default async function MaterialsPage({
           </table>
         </div>
       </div>
+
+      {pages > 1 && <Pagination page={page} pages={pages} makeHref={makeHref} />}
     </div>
   );
 }
