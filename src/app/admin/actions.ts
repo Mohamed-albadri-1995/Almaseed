@@ -8,7 +8,7 @@ import { can, canAccessCategory } from '@/lib/rbac';
 import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
-import { deleteUpload } from '@/lib/storage';
+import { deleteUpload, isOwnUploadUrl } from '@/lib/storage';
 import { hashPassword } from '@/lib/auth';
 import { decodeEntities } from '@/lib/format';
 import {
@@ -127,8 +127,8 @@ export async function reviewDecisionAction(formData: FormData) {
   // Only a finalized rejection frees storage — a hold keeps the files.
   const clearFiles = newStatus === MATERIAL_STATUS.REJECTED;
   if (clearFiles) {
-    await deleteUpload(material.fileUrl);
-    await deleteUpload(material.coverImage);
+    await deleteUpload(material.fileUrl, material.id);
+    await deleteUpload(material.coverImage, material.id);
   }
 
   await prisma.material.update({
@@ -284,7 +284,9 @@ export async function editMaterialAction(formData: FormData) {
 
   // Cover image: hidden field is always present; empty string clears it.
   const coverRaw = formData.get('coverImage');
-  const coverImage = coverRaw == null ? undefined : String(coverRaw) || null;
+  let coverImage = coverRaw == null ? undefined : String(coverRaw) || null;
+  // Only accept a cover from our own storage; anything else keeps the current one.
+  if (coverImage && !isOwnUploadUrl(coverImage)) coverImage = undefined;
 
   // Record date (optional): parse safely; invalid/empty clears it.
   const dateRaw = get('recordDate');
@@ -532,10 +534,10 @@ async function performMaterialDeletion(
   },
   actorId: string,
 ) {
-  await deleteUpload(material.fileUrl);
-  await deleteUpload(material.coverImage);
-  await deleteUpload(material.originalFileUrl ?? null);
-  await deleteUpload(material.originalCoverImage ?? null);
+  await deleteUpload(material.fileUrl, material.id);
+  await deleteUpload(material.coverImage, material.id);
+  await deleteUpload(material.originalFileUrl ?? null, material.id);
+  await deleteUpload(material.originalCoverImage ?? null, material.id);
   // Deleting the material cascades its children — including any DeletionRequest.
   // Idempotent: if a concurrent vote/rejection already removed it, don't error.
   try {

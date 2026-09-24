@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_STATUS } from '@/lib/constants';
+import { rateLimit, ipFromHeaders, MIN } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,9 +10,14 @@ export const dynamic = 'force-dynamic';
 // locally so replays, pauses, and seeks don't inflate the number. Kept public
 // (no auth) like the download route, and best-effort so it never blocks playback.
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } },
 ) {
+  // Clients already dedupe per session; this also stops a script from inflating
+  // «مرات الاستماع»: at most one count per IP per material every 30 minutes.
+  if (!rateLimit(`play:${ipFromHeaders(req.headers)}:${params.id}`, 1, 30 * MIN)) {
+    return NextResponse.json({ ok: true, counted: false });
+  }
   try {
     const material = await prisma.material.findUnique({
       where: { id: params.id },

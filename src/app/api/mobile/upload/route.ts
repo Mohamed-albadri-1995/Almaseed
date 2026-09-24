@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto';
 import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
 import { FILE_KINDS } from '@/lib/constants';
 import { saveUpload } from '@/lib/storage';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,12 @@ const EXT_KIND: Record<string, string> = {
 export async function POST(req: Request) {
   const auth = await verifyMobileToken(bearer(req));
   if (!auth) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
+  // The token lives 30 days — re-check the account still exists and is active
+  // before accepting a (large) file, like the submit route does.
+  const account = await prisma.user.findUnique({ where: { id: auth.uid }, select: { active: true } });
+  if (!account || !account.active) {
+    return NextResponse.json({ error: 'الحساب غير متاح' }, { status: 403 });
+  }
 
   const form = await req.formData();
   const file = form.get('file');

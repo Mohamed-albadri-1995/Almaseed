@@ -10,7 +10,7 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { isFileKindAllowed } from '@/lib/fields';
 import { notifyReviewersNewSubmission } from '@/lib/push';
-import { createSubmission, cleanFields, parseDate, validateCategoryFields } from '@/lib/submit-core';
+import { createSubmission, cleanFields, parseDate, validateCategoryFields, uploadUrlError } from '@/lib/submit-core';
 
 export interface SubmitState { error?: string; }
 
@@ -37,6 +37,8 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
   const parsed = submissionSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات' };
   const d = parsed.data;
+  const urlError = uploadUrlError(d);
+  if (urlError) return { error: urlError };
   const f = cleanFields(d);
   const fieldError = validateCategoryFields(d.categorySlug, f);
   if (fieldError) return { error: fieldError };

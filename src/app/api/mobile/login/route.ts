@@ -4,6 +4,7 @@ import { verifyPassword } from '@/lib/auth';
 import { signMobileToken } from '@/lib/mobile-auth';
 import { loginSchema } from '@/lib/validation';
 import { ROLE_LABELS, type Role } from '@/lib/constants';
+import { rateLimit, ipFromHeaders, MIN } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +14,13 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'بيانات غير صحيحة' }, { status: 400 });
   }
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
-  });
+  // Brute-force guard (same limits as the website login).
+  const email = parsed.data.email.toLowerCase();
+  const ip = ipFromHeaders(req.headers);
+  if (!rateLimit(`login:ip:${ip}`, 20, 15 * MIN) || !rateLimit(`login:email:${email}`, 8, 15 * MIN)) {
+    return NextResponse.json({ error: 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.' }, { status: 429 });
+  }
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     return NextResponse.json({ error: 'البريد أو كلمة المرور غير صحيحة' }, { status: 401 });
   }

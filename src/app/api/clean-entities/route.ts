@@ -25,8 +25,10 @@ const FIELDS = [
 const ENTITY = /&(?:nbsp|amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);/;
 
 export async function GET(req: Request) {
+  // Admin only: this rewrites text across the whole table, and as a GET it can
+  // be triggered by just opening a link — keep it off for other staff.
   const user = await getCurrentUser();
-  if (!user || user.role === 'CONTRIBUTOR') {
+  if (!user || user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'غير مصرّح' }, { status: 403 });
   }
 

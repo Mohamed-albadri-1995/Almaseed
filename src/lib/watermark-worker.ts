@@ -127,10 +127,10 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
     // now orphaned — delete it so requeues don't pile up dead files. Never touch
     // the original, and never the freshly written copy.
     if (m.originalFileUrl && m.fileUrl && updates.fileUrl && m.fileUrl !== m.originalFileUrl) {
-      await deleteUpload(m.fileUrl).catch(() => {});
+      await deleteUpload(m.fileUrl, m.id).catch(() => {});
     }
     if (m.originalCoverImage && m.coverImage && updates.coverImage && m.coverImage !== m.originalCoverImage) {
-      await deleteUpload(m.coverImage).catch(() => {});
+      await deleteUpload(m.coverImage, m.id).catch(() => {});
     }
   }
   return done;

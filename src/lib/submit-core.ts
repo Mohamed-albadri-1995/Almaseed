@@ -7,6 +7,16 @@ import { buildSearchText } from './search';
 import { getCategoryForm, isFileKindAllowed } from './fields';
 import { notifyReviewersNewSubmission } from './push';
 import { decodeEntities } from './format';
+import { isOwnUploadUrl } from './storage';
+
+// File/cover URLs are hidden form fields the browser fills after uploading. Accept
+// only URLs from our own storage — never an external or internal address the
+// server would later fetch (download proxy / watermark worker).
+export function uploadUrlError(d: { fileUrl?: string | null; coverImage?: string | null }): string | null {
+  if (d.fileUrl && !isOwnUploadUrl(d.fileUrl)) return 'رابط الملف غير صالح — ارفع الملف من جديد.';
+  if (d.coverImage && !isOwnUploadUrl(d.coverImage)) return 'رابط صورة الغلاف غير صالح — ارفعها من جديد.';
+  return null;
+}
 
 // Shared submission core used by BOTH the website form (submitMaterialAction)
 // and the mobile share-to-app endpoint (/api/mobile/submit), so a material
@@ -77,6 +87,8 @@ export async function createSubmission(
     return { error: parsed.error.issues[0]?.message ?? 'يرجى استكمال البيانات قبل الإرسال' };
   }
   const d = parsed.data;
+  const urlError = uploadUrlError(d);
+  if (urlError) return { error: urlError };
   const category = await prisma.category.findUnique({ where: { slug: d.categorySlug } });
   if (!category) return { error: 'التصنيف غير موجود' };
 

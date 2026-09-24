@@ -19,6 +19,20 @@ export function storageConfigured(): boolean {
   );
 }
 
+// True only for URLs that point at OUR upload storage (the R2 public base, or a
+// local /uploads/ path). File/cover URLs arrive from the browser as plain form
+// fields, so anything else — an external site, an internal address — must be
+// rejected: the server fetches these URLs (download proxy, watermark worker).
+export function isOwnUploadUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  if (/^\/uploads\/[^/\\]+$/.test(url)) return true;
+  if (S3.publicUrl) {
+    const base = S3.publicUrl.replace(/\/$/, '') + '/';
+    if (url.startsWith(base) && !url.slice(base.length).includes('..')) return true;
+  }
+  return false;
+}
+
 // Saves a file and returns the public URL to reference it by.
 export async function saveUpload(
   name: string,
@@ -157,8 +171,26 @@ export async function saveUploadFromFile(
 }
 
 // Deletes a previously stored file by its public URL. Best-effort: never throws.
-export async function deleteUpload(url?: string | null): Promise<void> {
+export async function deleteUpload(url?: string | null, exceptMaterialId?: string): Promise<void> {
   if (!url) return;
+  // Never delete a blob another material still points at (a shared or reused
+  // URL) — that would silently destroy someone else's media.
+  try {
+    const { prisma } = await import('./prisma');
+    const others = await prisma.material.count({
+      where: {
+        ...(exceptMaterialId ? { id: { not: exceptMaterialId } } : {}),
+        OR: [
+          { fileUrl: url }, { coverImage: url },
+          { originalFileUrl: url }, { originalCoverImage: url },
+        ],
+      },
+    });
+    if (others > 0) return;
+  } catch (e) {
+    console.error('deleteUpload reference check failed; keeping file', url, e);
+    return;
+  }
   try {
     if (storageConfigured() && S3.publicUrl && url.startsWith(S3.publicUrl)) {
       const key = url.slice(S3.publicUrl.replace(/\/$/, '').length + 1);

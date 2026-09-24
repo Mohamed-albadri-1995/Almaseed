@@ -8,6 +8,18 @@ import { createSession, destroySession } from '@/lib/session';
 import { loginSchema, registerSchema } from '@/lib/validation';
 import { sendEmail, appUrl } from '@/lib/email';
 import { ROLES, type Role } from '@/lib/constants';
+import { rateLimit, clientIp, MIN, HOUR } from '@/lib/rate-limit';
+
+const TOO_MANY = 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.';
+
+// Only allow same-site relative paths after login. An absolute URL or a
+// protocol-relative «//host» would turn the login page into an open redirect
+// usable for phishing.
+function safeRedirect(target: unknown): string {
+  const t = typeof target === 'string' ? target.trim() : '';
+  if (!t.startsWith('/') || t.startsWith('//') || t.startsWith('/\\')) return '/account';
+  return t;
+}
 
 export interface AuthState {
   error?: string;
@@ -32,9 +44,13 @@ export async function loginAction(
     return { error: parsed.error.issues[0]?.message ?? 'بيانات غير صحيحة' };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: parsed.data.email.toLowerCase() },
-  });
+  // Brute-force guard: per IP and per targeted account.
+  const email = parsed.data.email.toLowerCase();
+  if (!rateLimit(`login:ip:${clientIp()}`, 20, 15 * MIN) || !rateLimit(`login:email:${email}`, 8, 15 * MIN)) {
+    return { error: TOO_MANY };
+  }
+
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active) {
     return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
   }
@@ -45,8 +61,7 @@ export async function loginAction(
 
   await createSession({ uid: user.id, role: user.role as Role, name: user.name });
 
-  const redirectTo = (formData.get('redirect') as string) || '/account';
-  redirect(redirectTo);
+  redirect(safeRedirect(formData.get('redirect')));
 }
 
 export async function registerAction(
@@ -61,6 +76,10 @@ export async function registerAction(
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? 'بيانات غير صحيحة' };
+  }
+
+  if (!rateLimit(`register:ip:${clientIp()}`, 6, HOUR)) {
+    return { error: TOO_MANY };
   }
 
   const email = parsed.data.email.toLowerCase();
@@ -98,6 +117,12 @@ export async function requestPasswordResetAction(
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
     return { error: 'أدخل بريدًا إلكترونيًا صحيحًا' };
+  }
+
+  // Stop reset-email flooding (of a victim's inbox, and of our email quota).
+  // Over the limit we still answer «sent» so nothing about accounts leaks.
+  if (!rateLimit(`reset:ip:${clientIp()}`, 8, HOUR) || !rateLimit(`reset:email:${email}`, 3, HOUR)) {
+    return { sent: true };
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
