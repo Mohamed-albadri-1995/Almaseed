@@ -9,6 +9,7 @@ import { FirstUseCue } from './FirstUseCue';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
 import { uploadFile } from '@/lib/upload-client';
+import { NameInput } from './NameInput';
 
 interface CategoryOption {
   slug: string;
@@ -51,7 +52,6 @@ function Field({ field, suggestions }: { field: FieldDef; suggestions?: string[]
   // a new one" control — so contributors reuse the same names already in the
   // archive instead of coining slight variants (a big source of duplicates).
   const hasList = !!suggestions && suggestions.length > 0 && field.type !== 'textarea' && field.type !== 'select' && field.type !== 'date';
-  const listId = `${field.name}-options`;
   return (
     <div className={field.type === 'textarea' ? 'sm:col-span-2' : ''}>
       <label className="mb-1.5 block text-sm font-medium text-brand-800" htmlFor={field.name}>
@@ -71,11 +71,10 @@ function Field({ field, suggestions }: { field: FieldDef; suggestions?: string[]
         </select>
       ) : (
         <>
-          <input {...common} type={field.type === 'date' ? 'date' : 'text'} list={hasList ? listId : undefined} autoComplete="off" />
-          {hasList && (
-            <datalist id={listId}>
-              {suggestions!.map((s) => <option key={s} value={s} />)}
-            </datalist>
+          {field.type === 'date' ? (
+            <input {...common} type="date" />
+          ) : (
+            <NameInput id={field.name} name={field.name} required={!!field.required} suggestions={hasList ? suggestions : undefined} />
           )}
         </>
       )}

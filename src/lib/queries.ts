@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { groupNames, nameKey } from './names';
 import { MATERIAL_STATUS } from './constants';
 import { normalizeArabic, expandSynonyms } from './search';
 import type { Prisma } from '@prisma/client';
@@ -205,10 +206,20 @@ export async function searchMaterials(filters: ArchiveFilters) {
   // Category-specific facets: an exact match on the field itself (the value
   // came from that category's distinct-value list), so مديح filters by المادح,
   // محاضرات by المحاضر/الموضوع, and so on.
+  // Spelling variants of the chosen name («شيخ إبراهيم دنقول» / «الشيخ ابراهيم
+  // دنقول») are included too, so one person's materials show together.
   if (facets) {
     for (const key of ['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author'] as const) {
       const v = facets[key];
-      if (v) (where as Record<string, unknown>)[key] = v;
+      if (!v) continue;
+      const k = nameKey(v);
+      const used = await prisma.material.findMany({
+        where: { ...PUBLIC_WHERE, [key]: { not: null } },
+        select: { [key]: true },
+        distinct: [key],
+      }) as unknown as Record<string, string | null>[];
+      const variants = Array.from(new Set([v, ...used.map((r) => r[key] || '').filter((x) => x && nameKey(x) === k)]));
+      (where as Record<string, unknown>)[key] = { in: variants };
     }
   }
   // «مقال» = a written material with NO file — the same definition used for the
@@ -330,6 +341,9 @@ export async function getFilterFacets(categorySlug?: string) {
   });
   const distinct = (vals: (string | null)[]) =>
     Array.from(new Set(vals.filter((v): v is string => !!v && v.trim().length > 0).map((v) => v.trim()))).sort((a, b) => a.localeCompare(b, 'ar'));
+  // Name fields: one entry per person (variants collapse to the most-used spelling).
+  const people = (vals: (string | null)[]) =>
+    groupNames(vals).map((g) => g.names[0].name).sort((a, b) => a.localeCompare(b, 'ar'));
   const cities = distinct(rows.map((r) => r.city));
   const languages = distinct(rows.map((r) => r.language));
   const years = Array.from(
@@ -342,14 +356,14 @@ export async function getFilterFacets(categorySlug?: string) {
   // Per-field distinct values, keyed by field name so the page can render a
   // dropdown for whichever facet fields the selected category defines.
   const fields: Record<string, string[]> = {
-    performer: distinct(rows.map((r) => r.performer)),
-    narrator: distinct(rows.map((r) => r.narrator)),
-    speaker: distinct(rows.map((r) => r.speaker)),
-    topic: distinct(rows.map((r) => r.topic)),
-    host: distinct(rows.map((r) => r.host)),
-    organizer: distinct(rows.map((r) => r.organizer)),
-    author: distinct(rows.map((r) => r.author)),
-    occasion: distinct(rows.map((r) => r.occasion)),
+    performer: people(rows.map((r) => r.performer)),
+    narrator: people(rows.map((r) => r.narrator)),
+    speaker: people(rows.map((r) => r.speaker)),
+    topic: people(rows.map((r) => r.topic)),
+    host: people(rows.map((r) => r.host)),
+    organizer: people(rows.map((r) => r.organizer)),
+    author: people(rows.map((r) => r.author)),
+    occasion: people(rows.map((r) => r.occasion)),
   };
   return { cities, languages, years, fields };
 }
@@ -363,9 +377,9 @@ export async function getOccasions(): Promise<string[]> {
     select: { occasion: true },
     distinct: ['occasion'],
   });
-  return Array.from(
-    new Set(rows.map((r) => (r.occasion || '').trim()).filter((v) => v.length > 0)),
-  ).sort((a, b) => a.localeCompare(b, 'ar'));
+  return groupNames(rows.map((r) => r.occasion))
+    .map((g) => g.names[0].name)
+    .sort((a, b) => a.localeCompare(b, 'ar'));
 }
 
 // Distinct values already used for each name/text field, so EVERY form field can
@@ -383,12 +397,10 @@ export async function getFieldSuggestions(): Promise<SuggestMap> {
   });
   const out: SuggestMap = {};
   for (const f of SUGGEST_FIELDS) {
-    const set = new Set<string>();
-    for (const r of rows) {
-      const v = ((r as Record<string, string | null>)[f] || '').trim();
-      if (v) set.add(v);
-    }
-    if (set.size) out[f] = Array.from(set).sort((a, b) => a.localeCompare(b, 'ar'));
+    // One suggestion per person: variants collapse to their most-used spelling,
+    // so the list itself stops offering duplicates to copy.
+    const groups = groupNames(rows.map((r) => (r as Record<string, string | null>)[f]));
+    if (groups.length) out[f] = groups.map((g) => g.names[0].name).sort((a, b) => a.localeCompare(b, 'ar'));
   }
   return out;
 }
@@ -452,17 +464,12 @@ export async function getReviewStats() {
   }
 
   // Ranked tallies. A small helper counts non-empty values into a sorted list.
-  const rank = (vals: (string | null)[]): RankedCount[] => {
-    const m = new Map<string, number>();
-    for (const v of vals) {
-      const name = (v || '').trim();
-      if (!name) continue;
-      m.set(name, (m.get(name) ?? 0) + 1);
-    }
-    return Array.from(m.entries())
-      .map(([name, count]) => ({ name, count }))
+  // Spelling variants of one name («شيخ إبراهيم دنقول» / «الشيخ ابراهيم دنقول»)
+  // are counted together under their most-used spelling.
+  const rank = (vals: (string | null)[]): RankedCount[] =>
+    groupNames(vals)
+      .map((g) => ({ name: g.names[0].name, count: g.total }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
-  };
 
   const madeehRows = rows.filter((r) => r.category?.slug === 'madeeh');
   const lectureRows = rows.filter((r) => r.category?.slug === 'lectures');

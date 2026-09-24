@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
@@ -64,7 +65,7 @@ function RankTable({
       {rest.length > 0 && (
         <details className="group mt-2">
           <summary className="cursor-pointer list-none px-1 py-1 text-sm font-semibold text-brand-700 hover:underline">
-            عرض الباقي (<span>{formatCount(rest.length)}</span>) ▾
+            عرض الباقي <span className="mr-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs">{formatCount(rest.length)}</span>
           </summary>
           <ol className="mt-1.5 space-y-1.5" start={initial + 1}>
             {rest.map((r, i) => (
@@ -111,6 +112,10 @@ export default async function StatsPage() {
       <div className="mb-6">
         <h1 className="section-title">الإحصائيات</h1>
         <p className="text-muted">أرقام الأرشيف المنشور: المواد والمساهمون وأنواع الملفات، وتوزيعها حسب الأقسام والأشخاص والمناسبات.</p>
+        <p className="mt-1 text-xs text-muted">
+          الصيغ الإملائية للاسم الواحد تُحسب معًا تلقائيًا.
+          {can.manageContent(user.role as Role) && <> لتوحيد الأسماء المتقاربة نهائيًا: <Link href="/admin/names" className="font-semibold text-brand-700 underline">توحيد الأسماء</Link>.</>}
+        </p>
       </div>
 
       {/* KPI tiles */}

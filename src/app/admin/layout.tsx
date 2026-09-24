@@ -20,6 +20,7 @@ export default async function AdminLayout({
     { href: '/admin/stats', label: 'الإحصائيات', icon: 'chart', show: can.reviewContent(role) },
     { href: '/admin/submissions', label: 'المراجعة', icon: 'file', show: can.reviewContent(role) },
     { href: '/admin/materials', label: 'إدارة المواد', icon: 'archive', show: can.reviewContent(role) },
+    { href: '/admin/names', label: 'توحيد الأسماء', icon: 'users', show: can.manageContent(role) },
     { href: '/admin/categories', label: 'التصنيفات', icon: 'book-open', show: can.editContent(role) },
     { href: '/admin/reports', label: 'البلاغات', icon: 'flag', show: can.manageContent(role) },
     { href: '/admin/users', label: 'المستخدمون', icon: 'users', show: can.manageUsers(role) },

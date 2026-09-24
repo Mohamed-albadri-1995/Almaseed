@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { NameInput } from './NameInput';
 import { useFormStatus } from 'react-dom';
 import { editMaterialAction } from '@/app/admin/actions';
 import { Icon } from './icons';
@@ -84,8 +85,7 @@ export function MaterialEditForm({ material, categories, saved, suggestions = {}
           const val = (material[f.name as keyof MaterialData] as string | null) ?? '';
           const sugg = suggestions[f.name];
           const hasList = !!sugg && sugg.length > 0 && f.type !== 'textarea' && f.type !== 'select' && f.type !== 'date';
-          const listId = `${f.name}-edit-options`;
-          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? <span className="font-bold text-danger"> *</span> : <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : <><input id={f.name} name={f.name} type={f.type === 'date' ? 'date' : 'text'} defaultValue={val} required={!!f.required} className="input" list={hasList ? listId : undefined} autoComplete="off" />{hasList && <datalist id={listId}>{sugg!.map((o) => <option key={o} value={o} />)}</datalist>}</>}{f.hint && <p className="field-hint">{f.hint}</p>}{hasList && <p className="field-hint">اختر من الموجود أو اكتب اسمًا جديدًا (لتفادي التكرار).</p>}</div>;
+          return <div key={f.name} className={f.type === 'textarea' ? 'sm:col-span-2' : ''}><label className="label" htmlFor={f.name}>{f.label}{f.required ? <span className="font-bold text-danger"> *</span> : <span className="mr-1 text-xs font-normal text-muted">(اختياري)</span>}</label>{f.type === 'textarea' ? <textarea id={f.name} name={f.name} rows={3} defaultValue={val} required={!!f.required} className="input" /> : f.type === 'select' ? <select id={f.name} name={f.name} defaultValue={val} required={!!f.required} className="input"><option value="" disabled>اختر…</option>{f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select> : f.type === 'date' ? <input id={f.name} name={f.name} type="date" defaultValue={val} required={!!f.required} className="input" /> : <NameInput id={f.name} name={f.name} defaultValue={val} required={!!f.required} suggestions={hasList ? sugg : undefined} />}{f.hint && <p className="field-hint">{f.hint}</p>}{hasList && <p className="field-hint">اختر من الموجود أو اكتب اسمًا جديدًا (لتفادي التكرار).</p>}</div>;
         })}
 
         {form?.article && <div className="min-w-0 sm:col-span-2"><label className="label">النص المكتوب</label><input ref={bodyTextRef} type="hidden" name="bodyText" defaultValue={material.bodyText ?? ''} /><ArticleEditor value={material.bodyText ?? ''} onChange={(html) => { if (bodyTextRef.current) bodyTextRef.current.value = html; }} /></div>}
