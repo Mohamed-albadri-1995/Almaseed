@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   unhide: 'إظهار مادة',
   change_role: 'تغيير دور',
   unify_names: 'توحيد أسماء',
+  undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 
 export default async function ActivityPage() {

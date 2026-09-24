@@ -5,10 +5,11 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
 import { type Role } from '@/lib/constants';
-import { formatCount } from '@/lib/format';
+import { formatCount, formatDateTime } from '@/lib/format';
 import { groupNames, looksSimilar, type NameGroup } from '@/lib/names';
 import { NAME_FIELDS, type NameField } from './fields';
-import { unifyNamesAction } from './actions';
+import { unifyNamesAction, undoUnifyAction } from './actions';
+import { ConfirmUnify } from './ConfirmUnify';
 
 export const metadata: Metadata = { title: 'توحيد الأسماء' };
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,7 @@ function buildClusters(groups: NameGroup[]): Cluster[] {
   return clusters.sort((a, b) => b.total - a.total);
 }
 
-export default async function NamesPage({ searchParams }: { searchParams: { field?: string; done?: string; err?: string } }) {
+export default async function NamesPage({ searchParams }: { searchParams: { field?: string; done?: string; err?: string; undone?: string } }) {
   const user = await getCurrentUser();
   if (!user || !can.manageContent(user.role as Role)) redirect('/admin');
 
@@ -60,6 +61,23 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
   const groups = groupNames(rows.map((r) => r[field]));
   const clusters = buildClusters(groups);
   const allNames = groups.flatMap((g) => g.names).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  const logs = await prisma.activityLog.findMany({
+    where: { action: 'unify_names' },
+    orderBy: { createdAt: 'desc' },
+    take: 60,
+    include: { user: { select: { name: true } } },
+  });
+  const history = logs
+    .map((l) => {
+      let m: { field?: string; from?: string[]; to?: string; changed?: number; undo?: unknown[]; undone?: boolean } = {};
+      try { m = JSON.parse(l.meta || '{}'); } catch {}
+      return {
+        id: l.id, at: l.createdAt, by: l.user?.name ?? '', field: m.field, from: m.from ?? [], to: m.to ?? '',
+        changed: m.changed ?? 0, undone: !!m.undone, canUndo: Array.isArray(m.undo) && m.undo.length > 0,
+      };
+    })
+    .filter((h) => h.field === field)
+    .slice(0, 15);
 
   return (
     <div className="space-y-6">
@@ -85,6 +103,11 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
           تم التوحيد — عُدّلت {formatCount(Number(searchParams.done) || 0)} مادة.
         </p>
       )}
+      {searchParams.undone && (
+        <p className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
+          تم التراجع — أُعيدت {formatCount(Number(searchParams.undone) || 0)} مادة إلى أسمائها السابقة.
+        </p>
+      )}
       {searchParams.err && (
         <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-danger">اختر صيغة واحدة على الأقل واكتب الاسم الصحيح.</p>
       )}
@@ -95,7 +118,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
         </h2>
         {clusters.length === 0 && <p className="card p-5 text-sm text-muted">لا توجد أسماء متشابهة في هذا الحقل.</p>}
         {clusters.map((c, idx) => (
-          <form key={idx} action={unifyNamesAction} className="card min-w-0 space-y-3 p-4">
+          <form key={`${field}:${c.names.map((n) => n.name).join('|')}`} action={unifyNamesAction} className="card min-w-0 space-y-3 p-4">
             <input type="hidden" name="field" value={field} />
             <ul className="space-y-1.5">
               {c.names.map((n) => (
@@ -113,6 +136,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
                 name="target"
                 defaultValue={c.names[0].name}
                 list={`target-${idx}`}
+                autoComplete="off"
                 required
                 className="input min-w-0 flex-1"
                 aria-label="الاسم الصحيح"
@@ -120,7 +144,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
               <datalist id={`target-${idx}`}>
                 {c.names.map((n) => <option key={n.name} value={n.name} />)}
               </datalist>
-              <button type="submit" className="btn-primary shrink-0">توحيد</button>
+              <ConfirmUnify />
             </div>
             <p className="field-hint">المُعلَّم مسبقًا: صيغ إملائية للاسم نفسه. غير المُعلَّم: أسماء قريبة — علّمها فقط إن كانت للشخص نفسه.</p>
           </form>
@@ -130,15 +154,42 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
       <section className="card min-w-0 space-y-3 p-4">
         <h2 className="text-lg font-bold text-brand-800">توحيد يدوي</h2>
         <p className="text-sm text-muted">لأسماء لم تظهر أعلاه (مثل «قسم ود يوسف» و«قسم يوسف»): اختر الاسم الخطأ واكتب الصحيح.</p>
-        <form action={unifyNamesAction} className="flex flex-col gap-2 sm:flex-row">
+        <form key={`manual:${field}:${searchParams.done ?? ''}:${searchParams.undone ?? ''}`} action={unifyNamesAction} className="flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="field" value={field} />
-          <input name="names" list="all-names" required placeholder="الاسم المراد تغييره" className="input min-w-0 flex-1" />
-          <input name="target" list="all-names" required placeholder="الاسم الصحيح" className="input min-w-0 flex-1" />
+          <input name="names" list="all-names" required placeholder="الاسم المراد تغييره" autoComplete="off" className="input min-w-0 flex-1" />
+          <input name="target" list="all-names" required placeholder="الاسم الصحيح" autoComplete="off" className="input min-w-0 flex-1" />
           <datalist id="all-names">
             {allNames.map((n) => <option key={n.name} value={n.name}>{`${n.count} مادة`}</option>)}
           </datalist>
-          <button type="submit" className="btn-primary shrink-0">توحيد</button>
+          <ConfirmUnify />
         </form>
+      </section>
+
+      <section className="card min-w-0 space-y-3 p-4">
+        <h2 className="text-lg font-bold text-brand-800">آخر عمليات التوحيد — {fieldLabel}</h2>
+        {history.length === 0 && <p className="text-sm text-muted">لا توجد عمليات بعد.</p>}
+        <ul className="space-y-2">
+          {history.map((h) => (
+            <li key={h.id} className="flex min-w-0 flex-col gap-2 rounded-lg bg-ivory-50 p-3 text-sm sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-brand-800">
+                  {h.from.join('، ')} ← <b>«{h.to}»</b>
+                </p>
+                <p className="text-xs text-muted">{formatDateTime(h.at)} · {formatCount(h.changed)} مادة{h.by ? ` · ${h.by}` : ''}</p>
+              </div>
+              {h.undone ? (
+                <span className="shrink-0 text-xs font-semibold text-muted">تم التراجع</span>
+              ) : h.canUndo ? (
+                <form action={undoUnifyAction} className="shrink-0">
+                  <input type="hidden" name="logId" value={h.id} />
+                  <button type="submit" className="btn-outline text-sm">تراجع</button>
+                </form>
+              ) : (
+                <span className="shrink-0 text-xs text-muted">لا يمكن التراجع تلقائيًا — استخدم التوحيد اليدوي</span>
+              )}
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );
