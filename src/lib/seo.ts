@@ -97,6 +97,20 @@ export function itemListJsonLd(name: string, items: { name: string; url: string 
   };
 }
 
+// Image rights metadata (Google «Image metadata» / IPTC fields). Every
+// ImageObject we emit carries who to credit, the copyright notice, the terms
+// page (license) and where to ask for permission (acquireLicensePage).
+export function imageRights(credit?: string | null): Json {
+  const who = (credit && credit.trim()) || SITE_NAME;
+  return {
+    creditText: who === SITE_NAME ? SITE_NAME : `${who} — ${SITE_NAME}`,
+    copyrightNotice: `© ${SITE_NAME}`,
+    license: `${SITE_URL}/policy`,
+    acquireLicensePage: `${SITE_URL}/contact`,
+    creator: { '@type': who === SITE_NAME ? 'Organization' : 'Person', name: who },
+  };
+}
+
 // The main entity for a single material, typed by its media kind so search
 // engines index it as audio / video / image / article correctly.
 export function materialJsonLd(m: {
@@ -141,11 +155,13 @@ export function materialJsonLd(m: {
     publisher: {
       '@type': 'Organization',
       name: SITE_NAME,
-      logo: { '@type': 'ImageObject', url: absUrl('/logo.png') },
+      logo: { '@type': 'ImageObject', url: absUrl('/logo.png'), contentUrl: absUrl('/logo.png'), ...imageRights() },
     },
   };
+  const credit = m.author || m.contributor || null;
   if (m.coverImage || type === 'ImageObject') {
-    node.image = absUrl(m.coverImage) || absUrl(m.fileUrl) || absUrl(OG_IMAGE);
+    const imgUrl = absUrl(m.coverImage) || absUrl(m.fileUrl) || absUrl(OG_IMAGE);
+    node.image = { '@type': 'ImageObject', url: imgUrl, contentUrl: imgUrl, ...imageRights(credit) };
   }
   if (type === 'AudioObject' || type === 'VideoObject') {
     if (m.fileUrl) node.contentUrl = absUrl(m.fileUrl);
@@ -153,7 +169,10 @@ export function materialJsonLd(m: {
     if (type === 'VideoObject') node.thumbnailUrl = absUrl(m.coverImage) || absUrl(OG_IMAGE);
     node.uploadDate = iso(m.publishedAt);
   }
-  if (type === 'ImageObject' && m.fileUrl) node.contentUrl = absUrl(m.fileUrl);
+  if (type === 'ImageObject') {
+    if (m.fileUrl) node.contentUrl = absUrl(m.fileUrl);
+    Object.assign(node, imageRights(credit));
+  }
   if (type === 'Article') {
     node.author = { '@type': m.author ? 'Person' : 'Organization', name: m.author || SITE_NAME };
   }
