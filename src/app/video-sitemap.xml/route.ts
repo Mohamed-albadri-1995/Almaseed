@@ -41,7 +41,6 @@ export async function GET() {
       <video:title>${esc(m.title)}</video:title>
       <video:description>${esc(desc)}</video:description>
       <video:content_loc>${esc(m.fileUrl as string)}</video:content_loc>
-      <video:player_loc>${page}</video:player_loc>
 ${dur}${pub}    </video:video>
   </url>`;
     })
