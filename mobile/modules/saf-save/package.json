@@ -1,0 +1,7 @@
+{
+  "name": "saf-save",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stream a local file into a Storage Access Framework (content://) target — any size, low memory.",
+  "main": "index.js"
+}
