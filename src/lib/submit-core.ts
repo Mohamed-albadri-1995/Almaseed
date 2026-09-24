@@ -6,7 +6,7 @@ import { logActivity } from './activity';
 import { buildSearchText } from './search';
 import { getCategoryForm, isFileKindAllowed } from './fields';
 import { notifyReviewersNewSubmission } from './push';
-import { decodeEntities } from './format';
+import { decodeEntities, normalizeLine } from './format';
 import { isOwnUploadUrl } from './storage';
 
 // File/cover URLs are hidden form fields the browser fills after uploading. Accept
@@ -32,8 +32,11 @@ export function clean(value?: string | null): string | null {
 // Plain-text fields: also strip HTML entities (e.g. «&nbsp;») that the rich
 // editor can leak in, so they are never stored raw. bodyText stays HTML.
 export function cleanText(value?: string | null): string | null {
-  const c = clean(value);
-  return c == null ? null : decodeEntities(c);
+  // Decode FIRST, then trim — decoding «&nbsp;» after trimming used to leave a
+  // trailing non-breaking space in the stored value.
+  if (!value) return null;
+  const t = decodeEntities(value).trim();
+  return t === '' ? null : t;
 }
 
 export function parseDate(value?: string | null): Date | null {
@@ -45,16 +48,19 @@ export function parseDate(value?: string | null): Date | null {
 
 export function cleanFields(d: Record<string, unknown>) {
   const s = (k: string) => cleanText(d[k] as string | null | undefined);
+  // Single-line names/labels are fully normalized so identical names always
+  // match (filters, stats, duplicate detection); multi-line text keeps its lines.
+  const n = (k: string) => normalizeLine(cleanText(d[k] as string | null | undefined));
   return {
-    title: decodeEntities(String(d.title ?? '').trim()),
-    subtitle: s('subtitle'),
+    title: normalizeLine(decodeEntities(String(d.title ?? ''))) ?? '',
+    subtitle: n('subtitle'),
     bodyText: clean(d.bodyText as string | null | undefined),
     description: s('description'), lyrics: s('lyrics'), summary: s('summary'),
-    performer: s('performer'), narrator: s('narrator'), speaker: s('speaker'),
-    host: s('host'), participants: s('participants'), occasion: s('occasion'),
-    topic: s('topic'), place: s('place'), city: s('city'), organizer: s('organizer'),
-    source: s('source'), author: s('author'), keywords: s('keywords'),
-    docType: s('docType'),
+    performer: n('performer'), narrator: n('narrator'), speaker: n('speaker'),
+    host: n('host'), participants: n('participants'), occasion: n('occasion'),
+    topic: n('topic'), place: n('place'), city: n('city'), organizer: n('organizer'),
+    source: n('source'), author: n('author'), keywords: n('keywords'),
+    docType: n('docType'),
   };
 }
 

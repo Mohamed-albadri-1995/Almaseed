@@ -23,7 +23,13 @@ if (process.env.WATERMARK_WORKER === 'off') {
 // A second, off-site copy of the archive's metadata in case the DB is lost. This
 // timer also keeps the process alive.
 import('../src/lib/backup')
-  .then(({ runScheduledBackupToStorage }) => {
+  .then(({ runScheduledBackupToStorage, cleanupLegacyBackups }) => {
+    // Remove backups written by the first version at a guessable public path.
+    if (process.env.STORAGE_PUBLIC_URL) {
+      cleanupLegacyBackups(process.env.STORAGE_PUBLIC_URL)
+        .then(() => console.log('[backup] legacy public backups removed'))
+        .catch((e) => console.error('[backup] legacy cleanup failed', e));
+    }
     const tick = async () => {
       try {
         const url = await runScheduledBackupToStorage();

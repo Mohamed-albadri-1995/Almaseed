@@ -50,7 +50,11 @@ export async function generateMetadata({
   params: { id: string };
 }): Promise<Metadata> {
   const m = await getMaterial(params.id);
-  if (!m) return { title: 'مادة غير موجودة' };
+  // Unpublished (pending/rejected/draft) materials must not expose their title
+  // or description in the page head, nor be indexed.
+  if (!m || m.status !== MATERIAL_STATUS.PUBLISHED) {
+    return { title: 'مادة غير موجودة', robots: { index: false, follow: false } };
+  }
   const rec = m as unknown as Record<string, unknown>;
   const description = metaDescription(m as never);
   const cover = absUrl((m.coverImage as string) || (m.fileKind === 'IMAGE' ? (m.fileUrl as string) : null)) || OG_IMAGE;

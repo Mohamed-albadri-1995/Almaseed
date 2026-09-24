@@ -112,3 +112,19 @@ export function splitKeywords(value?: string | null): string[] {
     .map((k) => k.trim())
     .filter(Boolean);
 }
+
+// Normalize a single-line name/label (المادح، الراوي، المناسبة، …) so the same
+// value is always stored identically: decoded non-breaking spaces and other
+// space-like characters become a plain space, invisible marks (zero-width, bidi
+// LRM/RLM) are removed, inner runs collapse to one space, and the ends are
+// trimmed. Without this «أحمد » and «أحمد» were stored as different values, so a
+// facet filter picking «أحمد» silently missed some of his materials.
+export function normalizeLine(value?: string | null): string | null {
+  if (value == null) return null;
+  const t = String(value)
+    .replace(/[   -   　]/g, ' ')
+    .replace(/[​-‏‪-‮⁦-⁩﻿]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return t === '' ? null : t;
+}

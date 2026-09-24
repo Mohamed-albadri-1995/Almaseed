@@ -10,7 +10,7 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { deleteUpload, isOwnUploadUrl } from '@/lib/storage';
 import { hashPassword } from '@/lib/auth';
-import { decodeEntities } from '@/lib/format';
+import { decodeEntities, normalizeLine } from '@/lib/format';
 import {
   MATERIAL_STATUS,
   REVIEW_ACTIONS,
@@ -238,8 +238,12 @@ export async function editMaterialAction(formData: FormData) {
   // «&nbsp;»), so edits never re-introduce them. bodyText keeps get() (HTML).
   const getText = (k: string) => {
     const v = get(k);
-    return v == null ? null : decodeEntities(v);
+    if (v == null) return null;
+    const t = decodeEntities(v).trim();
+    return t === '' ? null : t;
   };
+  // Single-line names/labels: fully normalized so the same name always matches.
+  const getLine = (k: string) => normalizeLine(getText(k));
 
   const categorySlug = get('categorySlug');
   const category = categorySlug
@@ -260,26 +264,26 @@ export async function editMaterialAction(formData: FormData) {
   await snapshotMaterial(id, user.id, user.name, 'edit');
 
   const fields = {
-    title: getText('title') ?? undefined,
-    subtitle: getText('subtitle'),
+    title: getLine('title') ?? undefined,
+    subtitle: getLine('subtitle'),
     bodyText: get('bodyText'),
-    performer: getText('performer'),
-    narrator: getText('narrator'),
-    speaker: getText('speaker'),
-    host: getText('host'),
-    participants: getText('participants'),
-    occasion: getText('occasion'),
-    topic: getText('topic'),
-    place: getText('place'),
-    city: getText('city'),
-    organizer: getText('organizer'),
+    performer: getLine('performer'),
+    narrator: getLine('narrator'),
+    speaker: getLine('speaker'),
+    host: getLine('host'),
+    participants: getLine('participants'),
+    occasion: getLine('occasion'),
+    topic: getLine('topic'),
+    place: getLine('place'),
+    city: getLine('city'),
+    organizer: getLine('organizer'),
     description: getText('description'),
     summary: getText('summary'),
     lyrics: getText('lyrics'),
-    keywords: getText('keywords'),
-    author: getText('author'),
-    source: getText('source'),
-    docType: getText('docType'),
+    keywords: getLine('keywords'),
+    author: getLine('author'),
+    source: getLine('source'),
+    docType: getLine('docType'),
   };
 
   // Cover image: hidden field is always present; empty string clears it.
