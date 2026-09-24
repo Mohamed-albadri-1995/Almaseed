@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_STATUS, STAFF_ROLES, type Role } from '@/lib/constants';
-import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
+import { getMobileUser, bearer } from '@/lib/mobile-auth';
 import { assignedCategoriesOf } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
@@ -41,13 +41,9 @@ export async function GET(req: Request) {
   }));
 
   // Staff review queue — scoped to the reviewer's assigned sections.
-  const auth = await verifyMobileToken(bearer(req));
-  if (auth) {
-    const user = await prisma.user.findUnique({
-      where: { id: auth.uid },
-      select: { role: true, active: true, assignedCategories: true },
-    });
-    if (user?.active && (STAFF_ROLES as Role[]).includes(user.role as Role)) {
+  const user = await getMobileUser(bearer(req));
+  if (user) {
+    if ((STAFF_ROLES as Role[]).includes(user.role as Role)) {
       const slugs = assignedCategoriesOf(user);
       const pending = await prisma.material.findMany({
         where: {

@@ -55,6 +55,7 @@ export async function GET(req: Request) {
     uid: user.id,
     role: user.role as Role,
     name: user.name,
+    sv: user.sessionVersion,
   });
   return done({ token });
 }

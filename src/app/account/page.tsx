@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialCard } from '@/components/MaterialCard';
 import { Tip } from '@/components/Tip';
 import { getCurrentUser } from '@/lib/session';
-import { logoutAction } from '@/app/auth-actions';
+import { logoutAction, logoutEverywhereAction } from '@/app/auth-actions';
 import { prisma } from '@/lib/prisma';
 import { isStaff } from '@/lib/rbac';
 import { ROLE_LABELS, MATERIAL_STATUS, type Role } from '@/lib/constants';
@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: 'حسابي' };
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: { submitted?: string; resubmitted?: string };
+  searchParams: { submitted?: string; resubmitted?: string; signedout?: string };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?redirect=/account');
@@ -88,8 +88,18 @@ export default async function AccountPage({
           <form action={logoutAction}>
             <button className="btn-ghost text-danger">تسجيل الخروج</button>
           </form>
+          <form action={logoutEverywhereAction}>
+            <button className="btn-ghost text-xs text-muted hover:text-danger" title="يخرج حسابك من كل الأجهزة والتطبيق الأخرى ويبقيك مسجّلًا هنا">الخروج من الأجهزة الأخرى</button>
+          </form>
         </div>
       </div>
+
+      {searchParams.signedout && (
+        <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          <Icon.check width={18} height={18} />
+          تم تسجيل الخروج من كل الأجهزة الأخرى والتطبيق. ما زلت مسجّلًا على هذا الجهاز.
+        </div>
+      )}
 
       {(searchParams.submitted || searchParams.resubmitted) && (
         <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">

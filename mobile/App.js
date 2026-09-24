@@ -191,6 +191,16 @@ function AppInner() {
   // already saved «داخل التطبيق», and taps open them from local storage.
   const [offline, setOffline] = useState(false);
   useEffect(() => { getFlag('offline-mode').then((v) => setOffline(!!v)); }, []);
+  // On launch, confirm the saved login is still valid. A 401 means it was
+  // revoked (password reset / «الخروج من الأجهزة الأخرى» / account disabled) →
+  // sign out locally. Network errors (offline) keep the login untouched.
+  useEffect(() => { (async () => {
+    const a = await getAuth().catch(() => null);
+    if (!a || !a.token) return;
+    try { await api.me(a.token); } catch (e) {
+      if (e && e.status === 401) { await clearAuth().catch(() => {}); reregisterPush(); }
+    }
+  })(); }, []);
   const toggleOffline = useCallback((v) => {
     const nv = typeof v === 'boolean' ? v : !offline;
     setOffline(nv);

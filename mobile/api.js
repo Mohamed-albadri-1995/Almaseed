@@ -86,17 +86,20 @@ async function j(path, opts, attempt = 0) {
     }
 
     if (!res.ok) {
-      if (res.status === 429) {
-        throw new Error('الخادم مشغول حالياً، حاول مرة أخرى بعد قليل');
-      }
-      throw new Error(data.error || `خطأ ${res.status}`);
+      const err = new Error(res.status === 429
+        ? 'الخادم مشغول حالياً، حاول مرة أخرى بعد قليل'
+        : (data.error || `خطأ ${res.status}`));
+      err.status = res.status; // lets callers tell «revoked login» (401) from a network issue
+      throw err;
     }
     return data;
   } catch (error) {
     if (error.name === 'AbortError') {
       throw new Error('انتهت مهلة الاتصال — تحقق من الاتصال بالإنترنت');
     }
-    throw new Error(error.message || 'فشل الاتصال بالخادم');
+    const e2 = new Error(error.message || 'فشل الاتصال بالخادم');
+    if (error.status) e2.status = error.status;
+    throw e2;
   } finally {
     clearTimeout(timeoutId);
   }

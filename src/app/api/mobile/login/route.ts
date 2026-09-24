@@ -18,7 +18,9 @@ export async function POST(req: Request) {
   const email = parsed.data.email.toLowerCase();
   const ip = ipFromHeaders(req.headers);
   if (!rateLimit(`login:ip:${ip}`, 20, 15 * MIN) || !rateLimit(`login:email:${email}`, 8, 15 * MIN)) {
-    return NextResponse.json({ error: 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.' }, { status: 429 });
+    // 403 (not 429): the app auto-retries 429s as transient server load, which
+    // would keep hammering and show «الخادم مشغول» instead of this message.
+    return NextResponse.json({ error: 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.' }, { status: 403 });
   }
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
@@ -29,6 +31,7 @@ export async function POST(req: Request) {
     uid: user.id,
     role: user.role as Role,
     name: user.name,
+    sv: user.sessionVersion,
   });
   return NextResponse.json({
     token,

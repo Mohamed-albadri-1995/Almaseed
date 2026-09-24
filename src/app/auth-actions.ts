@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { randomBytes, createHash } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, verifyPassword } from '@/lib/auth';
-import { createSession, destroySession } from '@/lib/session';
+import { createSession, destroySession, getCurrentUser } from '@/lib/session';
 import { loginSchema, registerSchema } from '@/lib/validation';
 import { sendEmail, appUrl } from '@/lib/email';
 import { ROLES, type Role } from '@/lib/constants';
@@ -59,7 +59,7 @@ export async function loginAction(
     return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
   }
 
-  await createSession({ uid: user.id, role: user.role as Role, name: user.name });
+  await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
 
   redirect(safeRedirect(formData.get('redirect')));
 }
@@ -98,13 +98,27 @@ export async function registerAction(
     },
   });
 
-  await createSession({ uid: user.id, role: user.role as Role, name: user.name });
+  await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
   redirect('/account');
 }
 
 export async function logoutAction() {
   destroySession();
   redirect('/');
+}
+
+// Sign out on every OTHER device and app (e.g. after a lost phone or a shared
+// computer): bump sessionVersion so all existing cookies/app tokens are refused,
+// then re-issue this browser's session so the user stays signed in here.
+export async function logoutEverywhereAction() {
+  const current = await getCurrentUser();
+  if (!current) redirect('/login');
+  const user = await prisma.user.update({
+    where: { id: current.id },
+    data: { sessionVersion: { increment: 1 } },
+  });
+  await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
+  redirect('/account?signedout=1');
 }
 
 // Step 1 — the user asks for a reset link by email. We always report success
@@ -179,6 +193,8 @@ export async function resetPasswordAction(
     where: { id: user.id },
     data: {
       passwordHash: await hashPassword(password),
+      // Sign out every other device/app that used the old password.
+      sessionVersion: { increment: 1 },
       resetTokenHash: null,
       resetTokenExpiresAt: null,
     },

@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
+import { getMobileUser, bearer } from '@/lib/mobile-auth';
 import { FILE_KINDS } from '@/lib/constants';
 import { saveUpload } from '@/lib/storage';
-import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,14 +23,9 @@ const EXT_KIND: Record<string, string> = {
 // Bearer-authenticated upload for the app (shared-file submit). Mirrors the
 // website upload route but authenticates by mobile token instead of a cookie.
 export async function POST(req: Request) {
-  const auth = await verifyMobileToken(bearer(req));
-  if (!auth) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
-  // The token lives 30 days — re-check the account still exists and is active
-  // before accepting a (large) file, like the submit route does.
-  const account = await prisma.user.findUnique({ where: { id: auth.uid }, select: { active: true } });
-  if (!account || !account.active) {
-    return NextResponse.json({ error: 'الحساب غير متاح' }, { status: 403 });
-  }
+  // Live account check (active + not revoked) before accepting a large file.
+  const user = await getMobileUser(bearer(req));
+  if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
 
   const form = await req.formData();
   const file = form.get('file');

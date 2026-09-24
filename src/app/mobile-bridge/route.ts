@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { verifyMobileToken } from '@/lib/mobile-auth';
+import { getMobileUser } from '@/lib/mobile-auth';
 import { createSession } from '@/lib/session';
 import { appUrl } from '@/lib/email';
+import type { Role } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +26,10 @@ export async function GET(req: Request) {
   const token = url.searchParams.get('token');
   const to = safeTo(url.searchParams.get('to') || '/account');
 
-  const auth = await verifyMobileToken(token);
-  if (!auth) {
+  const user = await getMobileUser(token);
+  if (!user) {
     return NextResponse.redirect(`${appUrl()}/login`);
   }
-  await createSession({ uid: auth.uid, role: auth.role, name: auth.name });
+  await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
   return NextResponse.redirect(`${appUrl()}${to}`);
 }

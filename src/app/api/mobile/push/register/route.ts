@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
+import { getMobileUser, bearer } from '@/lib/mobile-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'رمز غير صالح' }, { status: 400 });
   }
 
-  const auth = await verifyMobileToken(bearer(req));
+  // Link the device to the account only for a live, non-revoked login.
+  const user = await getMobileUser(bearer(req));
   const platform = body.platform === 'ios' || body.platform === 'android' ? body.platform : null;
 
   try {
@@ -28,13 +29,13 @@ export async function POST(req: Request) {
       create: {
         token,
         platform,
-        userId: auth?.uid ?? null,
-        role: auth?.role ?? null,
+        userId: user?.id ?? null,
+        role: user?.role ?? null,
       },
       update: {
         platform,
-        userId: auth?.uid ?? null,
-        role: auth?.role ?? null,
+        userId: user?.id ?? null,
+        role: user?.role ?? null,
       },
     });
   } catch (e) {

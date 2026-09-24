@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { verifyMobileToken, bearer } from '@/lib/mobile-auth';
+import { getMobileUser, bearer } from '@/lib/mobile-auth';
 import { createSubmission } from '@/lib/submit-core';
 
 export const dynamic = 'force-dynamic';
@@ -9,11 +8,8 @@ export const dynamic = 'force-dynamic';
 // (as JSON) and runs the SAME validation + creation (lib/submit-core), so a
 // material submitted from the app is identical to one from the site.
 export async function POST(req: Request) {
-  const auth = await verifyMobileToken(bearer(req));
-  if (!auth) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
-
-  const user = await prisma.user.findUnique({ where: { id: auth.uid } });
-  if (!user || !user.active) return NextResponse.json({ error: 'الحساب غير متاح' }, { status: 403 });
+  const user = await getMobileUser(bearer(req));
+  if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
 
   let body: Record<string, unknown>;
   try {

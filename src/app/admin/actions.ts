@@ -770,7 +770,7 @@ export async function resetUserPasswordAction(formData: FormData) {
   const temp = Math.random().toString(36).slice(-8);
   await prisma.user.update({
     where: { id },
-    data: { passwordHash: await hashPassword(temp), active: true },
+    data: { passwordHash: await hashPassword(temp), active: true, sessionVersion: { increment: 1 } },
   });
   await logActivity({ userId: user.id, action: 'reset_password', entity: 'user', entityId: id });
   revalidatePath('/admin/users');

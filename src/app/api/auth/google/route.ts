@@ -105,6 +105,7 @@ export async function POST(req: Request) {
       uid: user.id,
       role: user.role as 'ADMIN' | 'CONTRIBUTOR',
       name: user.name,
+      sv: user.sessionVersion,
     });
 
     return NextResponse.redirect(
