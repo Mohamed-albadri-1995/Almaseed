@@ -23,6 +23,7 @@ export async function presignResponse(userId: string, req: Request) {
   });
   if (!signed) return NextResponse.json({ fallback: true }, { status: 409 });
 
+  console.log(`[upload] direct-to-storage presign user=${userId} size=${plan.size} key=${plan.key}`);
   return NextResponse.json({
     uploadUrl: signed.uploadUrl,
     contentType: plan.contentType,
@@ -51,6 +52,7 @@ export async function multipartResponse(userId: string, req: Request) {
   try {
     const bytes = Buffer.from(await file.arrayBuffer());
     const url = await saveUpload(plan.key, bytes, plan.contentType);
+    console.log(`[upload] via-server (fallback) user=${userId} size=${bytes.length} key=${plan.key}`);
     return NextResponse.json({ url, fileKind: plan.kind, fileType: plan.ext.toUpperCase(), fileSize: bytes.length });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
