@@ -32,6 +32,18 @@ async function requireReviewer() {
 }
 
 // ---- Review decision -------------------------------------------------------
+// Pull a material id out of «…#<id>», a /material/<id> or /admin/review/<id>
+// link, or a bare id.
+function parseMaterialRef(raw: FormDataEntryValue | null): string {
+  const v = typeof raw === 'string' ? raw.trim() : '';
+  if (!v) return '';
+  const m =
+    v.match(/#([a-z0-9]{20,40})\s*$/i) ||
+    v.match(/\/(?:material|admin\/review)\/([a-z0-9]{20,40})/i) ||
+    v.match(/^([a-z0-9]{20,40})$/i);
+  return m ? m[1] : '';
+}
+
 export async function reviewDecisionAction(formData: FormData) {
   const user = await requireReviewer();
   const materialId = formData.get('materialId') as string;
@@ -334,16 +346,23 @@ export async function mergeMaterialsAction(formData: FormData) {
   if (!user || !can.manageContent(user.role as Role)) throw new Error('غير مصرّح');
 
   const sourceId = formData.get('sourceId') as string;
-  const targetId = formData.get('targetId') as string;
+  // The target comes from a searchable list («العنوان · القسم #id»), or a pasted
+  // material/review link, or a bare id — so any material can be chosen, not
+  // only those on the current page.
+  const targetId = (formData.get('targetId') as string) || parseMaterialRef(formData.get('targetRef'));
   if (!sourceId || !targetId || sourceId === targetId) {
     redirect('/admin/materials?merge=invalid');
   }
 
   const [source, target] = await Promise.all([
-    prisma.material.findUnique({ where: { id: sourceId } }),
-    prisma.material.findUnique({ where: { id: targetId } }),
+    prisma.material.findUnique({ where: { id: sourceId }, include: { category: { select: { slug: true } } } }),
+    prisma.material.findUnique({ where: { id: targetId }, include: { category: { select: { slug: true } } } }),
   ]);
   if (!source || !target) redirect('/admin/materials?merge=notfound');
+  // A section-scoped manager may only merge within their sections.
+  if (!canAccessCategory(user, source.category?.slug) || !canAccessCategory(user, target.category?.slug)) {
+    throw new Error('غير مصرّح لهذا القسم');
+  }
 
   await snapshotMaterial(targetId, user.id, user.name, 'merge');
 

@@ -63,7 +63,7 @@ export default async function MaterialsPage({
     ...(q ? { title: { contains: q } } : {}),
   };
 
-  const [items, total, staff, openRequests] = await Promise.all([
+  const [items, total, mergeCandidates, staff, openRequests] = await Promise.all([
     prisma.material.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
@@ -75,6 +75,14 @@ export default async function MaterialsPage({
       take: perPage,
     }),
     prisma.material.count({ where }),
+    // Merge candidates across ALL pages (managers only): id + title + section.
+    can.manageContent(role)
+      ? prisma.material.findMany({
+          where: { status: { in: [MATERIAL_STATUS.PUBLISHED, MATERIAL_STATUS.HIDDEN] } },
+          orderBy: { title: 'asc' },
+          select: { id: true, title: true, category: { select: { name: true } } },
+        })
+      : Promise.resolve([] as { id: string; title: string; category: { name: string } | null }[]),
     prisma.user.findMany({
       where: { active: true, role: { in: STAFF_ROLES } },
       select: { id: true, name: true, role: true, assignedCategories: true },
@@ -205,6 +213,14 @@ export default async function MaterialsPage({
         </div>
       )}
 
+      {canManage && (
+        <datalist id="merge-targets">
+          {mergeCandidates.map((o) => (
+            <option key={o.id} value={`${o.title} · ${o.category?.name ?? ''} #${o.id}`} />
+          ))}
+        </datalist>
+      )}
+
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
@@ -272,19 +288,21 @@ export default async function MaterialsPage({
                           )}
                         </div>
 
-                        {canManage && items.length > 1 && (
+                        {canManage && total > 1 && (
                           <details className="text-xs">
                             <summary className="cursor-pointer text-muted hover:text-brand-700">دمج مع مادة أخرى</summary>
                             <form action={mergeMaterialsAction} className="mt-2 flex items-center gap-1">
                               <input type="hidden" name="sourceId" value={m.id} />
-                              <select name="targetId" required className="input py-1 text-xs" defaultValue="">
-                                <option value="" disabled>ادمج في…</option>
-                                {items
-                                  .filter((o) => o.id !== m.id)
-                                  .map((o) => (
-                                    <option key={o.id} value={o.id}>{o.title}</option>
-                                  ))}
-                              </select>
+                              {/* Searchable across ALL materials (not just this page): type part
+                                  of the title and pick, or paste the material's link. */}
+                              <input
+                                name="targetRef"
+                                list="merge-targets"
+                                required
+                                autoComplete="off"
+                                placeholder="اكتب عنوان المادة الهدف أو الصق رابطها…"
+                                className="input w-64 py-1 text-xs"
+                              />
                               <button className="btn-outline px-2 py-1 text-xs">دمج</button>
                             </form>
                           </details>
