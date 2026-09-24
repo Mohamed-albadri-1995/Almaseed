@@ -8,6 +8,7 @@ import { Tip } from './Tip';
 import { FirstUseCue } from './FirstUseCue';
 import { submitMaterialAction, type SubmitState } from '@/app/submit/actions';
 import { CATEGORY_FORMS, type FieldDef } from '@/lib/fields';
+import { uploadFile } from '@/lib/upload-client';
 
 interface CategoryOption {
   slug: string;
@@ -111,20 +112,15 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
   const [state, setState] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState(0);
 
   const upload = async (file: File) => {
     setState('uploading'); setName(file.name); setError('');
-    const fd = new FormData(); fd.append('file', file);
+    setProgress(0);
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const text = await res.text();
-      let data: Partial<Uploaded> & { error?: string } = {};
-      try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) || `خطأ ${res.status}` }; }
-      if (!res.ok || !data.url) {
-        setState('error'); setError(data.error || `فشل الرفع (${res.status})`); onUploaded(null); return;
-      }
+      const data = await uploadFile(file, (f) => setProgress(Math.round(f * 100)));
       const durationSec = await readMediaDuration(file);
-      setState('done'); onUploaded({ ...(data as Uploaded), durationSec });
+      setState('done'); onUploaded({ ...data, durationSec });
     } catch (err) {
       setState('error'); setError(err instanceof Error ? err.message : 'تعذّر رفع الملف'); onUploaded(null);
     }
@@ -143,7 +139,7 @@ function FileUpload({ onUploaded, accept, label, idle = 'اضغط لاختيار
       <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-brand-50/40 p-8 text-center hover:bg-brand-50">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600"><Icon.download width={24} height={24} className="rotate-180" /></span>
         {state === 'idle' && <span className="text-sm text-muted">{capture ? 'اختر من مدير الملفات (صوت أو فيديو فقط)' : idle}</span>}
-        {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
+        {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»… {progress > 0 && <b dir="ltr">{progress}%</b>}</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
         {/* Media categories: no `accept` so Android opens the file manager (not just

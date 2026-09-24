@@ -966,10 +966,44 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
     return { uri: dest, size: info.size, mimeType: f.mimeType };
   };
 
-  // Stream the file to the server with real progress. expo-file-system uploads
-  // straight from disk (no huge in-memory copy → no OOM on large video) and is
-  // far more reliable than RN's fetch(FormData) for shared files.
-  const uploadShared = async (localUri, mimeType) => {
+  // Stream the file with real progress. expo-file-system uploads straight from
+  // disk (no huge in-memory copy → no OOM on large video) and is far more
+  // reliable than RN's fetch(FormData) for shared files.
+  // Preferred: PUT directly to storage with a presigned URL (the server never
+  // holds the file). If that isn't available, fall back to the multipart route.
+  const onProgress = (p) => { if (p.totalBytesExpectedToSend > 0) setPct(Math.min(100, Math.round((p.totalBytesSent / p.totalBytesExpectedToSend) * 100))); };
+  const uploadDirect = async (localUri, name, size, mimeType) => {
+    let pre;
+    try {
+      const r = await fetch(`${API_HOST}/api/mobile/upload/presign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${auth.token}`, 'X-Almaseed-App': 'android' },
+        body: JSON.stringify({ name, size, type: mimeType || '' }),
+      });
+      pre = { status: r.status, data: await r.json().catch(() => ({})) };
+    } catch { return null; }
+    if (pre.status === 400 || pre.status === 401 || pre.status === 403) throw new Error(pre.data.error || `خطأ ${pre.status}`);
+    if (pre.status !== 200 || !pre.data.uploadUrl) return null;
+    try {
+      const task = FileSystem.createUploadTask(pre.data.uploadUrl, localUri, {
+        httpMethod: 'PUT',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: { 'Content-Type': pre.data.contentType },
+      }, onProgress);
+      const res = await task.uploadAsync();
+      if (!res || res.status < 200 || res.status >= 300) return null;
+    } catch { return null; }
+    const { url, fileKind, fileType, fileSize } = pre.data;
+    return { url, fileKind, fileType, fileSize };
+  };
+  const uploadShared = async (localUri, mimeType, size) => {
+    const base = localUri.split('/').pop() || 'upload';
+    const name = localUri.startsWith('file://') ? base : (file?.name || base);
+    if (size) {
+      const direct = await uploadDirect(localUri, name, size, mimeType);
+      if (direct) return direct;
+      setPct(0);
+    }
     const task = FileSystem.createUploadTask(
       `${API_HOST}/api/mobile/upload`,
       localUri,
@@ -980,7 +1014,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
         mimeType: mimeType || 'application/octet-stream',
         headers: { Authorization: `Bearer ${auth.token}`, 'X-Almaseed-App': 'android', Accept: 'application/json' },
       },
-      (p) => { if (p.totalBytesExpectedToSend > 0) setPct(Math.min(100, Math.round((p.totalBytesSent / p.totalBytesExpectedToSend) * 100))); },
+      onProgress,
     );
     const res = await task.uploadAsync();
     if (!res || res.status < 200 || res.status >= 300) {
@@ -1016,7 +1050,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
       setBusy('upload');
       setPct(0);
       const prepared = await toUploadable(file);
-      const up = await uploadShared(prepared.uri, file?.mimeType);
+      const up = await uploadShared(prepared.uri, file?.mimeType, prepared.size);
       setBusy('submit');
       const clean = Object.fromEntries(Object.entries(vals).map(([k, v]) => [k, (v || '').trim()]));
       await api.submit(auth.token, {

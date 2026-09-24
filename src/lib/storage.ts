@@ -213,3 +213,66 @@ export async function deleteUpload(url?: string | null, exceptMaterialId?: strin
     console.error('deleteUpload failed for', url, e);
   }
 }
+
+// ---- Direct-to-storage uploads --------------------------------------------
+// The browser/app PUTs the file straight to R2 with a short-lived presigned URL,
+// so the server never holds a 200MB upload in memory (the old multipart route
+// buffered the whole file — an OOM risk on the small container).
+
+function s3Client() {
+  return import('@aws-sdk/client-s3').then(({ S3Client }) => new S3Client({
+    region: S3.region,
+    endpoint: S3.endpoint,
+    credentials: { accessKeyId: S3.accessKeyId!, secretAccessKey: S3.secretAccessKey! },
+    // Otherwise the SDK bakes a CRC32 of the (empty) presign body into the URL
+    // and storage rejects the real upload as a checksum mismatch.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+  }));
+}
+
+// Presign a PUT for `key`. Content-Type and Content-Length are part of the
+// signature, so the upload must be exactly the validated size and type.
+// Returns null when object storage isn't configured (caller falls back).
+export async function presignUpload(
+  key: string,
+  contentType: string,
+  size: number,
+): Promise<{ uploadUrl: string; publicUrl: string } | null> {
+  if (!storageConfigured()) return null;
+  const [{ PutObjectCommand }, { getSignedUrl }, client] = await Promise.all([
+    import('@aws-sdk/client-s3'),
+    import('@aws-sdk/s3-request-presigner'),
+    s3Client(),
+  ]);
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({ Bucket: S3.bucket!, Key: key, ContentType: contentType, ContentLength: size }),
+    { expiresIn: 15 * 60, signableHeaders: new Set(['content-type', 'content-length']) },
+  );
+  return { uploadUrl, publicUrl: `${S3.publicUrl!.replace(/\/$/, '')}/${key}` };
+}
+
+// Size/type of an uploaded object in our storage, or null if it doesn't exist
+// (or isn't ours). Local /uploads files are read from disk.
+export async function statUpload(url?: string | null): Promise<{ size: number; contentType: string | null } | null> {
+  if (!url || !isOwnUploadUrl(url)) return null;
+  try {
+    const isRemote = storageConfigured() && !!S3.publicUrl && url.startsWith(S3.publicUrl.replace(/\/$/, '') + '/');
+    const key = isRemote ? keyForUrl(url) : null;
+    if (key) {
+      const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
+      const client = await s3Client();
+      const head = await client.send(new HeadObjectCommand({ Bucket: S3.bucket!, Key: key }));
+      return { size: Number(head.ContentLength ?? 0), contentType: head.ContentType ?? null };
+    }
+    if (url.startsWith('/uploads/')) {
+      const { stat } = await import('fs/promises');
+      const { basename } = await import('path');
+      const st = await stat(join(uploadsDir(), basename(url)));
+      return { size: st.size, contentType: null };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}

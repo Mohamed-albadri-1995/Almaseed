@@ -7,7 +7,8 @@ import { buildSearchText } from './search';
 import { getCategoryForm, isFileKindAllowed } from './fields';
 import { notifyReviewersNewSubmission } from './push';
 import { decodeEntities, normalizeLine } from './format';
-import { isOwnUploadUrl } from './storage';
+import { isOwnUploadUrl, statUpload, deleteUpload } from './storage';
+import { MAX_UPLOAD_SIZE } from './upload-rules';
 
 // File/cover URLs are hidden form fields the browser fills after uploading. Accept
 // only URLs from our own storage — never an external or internal address the
@@ -16,6 +17,19 @@ export function uploadUrlError(d: { fileUrl?: string | null; coverImage?: string
   if (d.fileUrl && !isOwnUploadUrl(d.fileUrl)) return 'رابط الملف غير صالح — ارفع الملف من جديد.';
   if (d.coverImage && !isOwnUploadUrl(d.coverImage)) return 'رابط صورة الغلاف غير صالح — ارفعها من جديد.';
   return null;
+}
+
+// Files can now be PUT straight to storage (presigned URL), so the server never
+// saw the bytes: confirm the object really exists (the upload finished) and take
+// its size from storage rather than trusting the form. Returns the real size.
+export async function verifyUploadedFile(url: string): Promise<{ size: number } | { error: string }> {
+  const st = await statUpload(url);
+  if (!st || st.size <= 0) return { error: 'لم يكتمل رفع الملف — ارفعه من جديد.' };
+  if (st.size > MAX_UPLOAD_SIZE) {
+    await deleteUpload(url);
+    return { error: 'حجم الملف يتجاوز الحد المسموح (200 ميجابايت)' };
+  }
+  return { size: st.size };
 }
 
 // Shared submission core used by BOTH the website form (submitMaterialAction)
@@ -113,6 +127,12 @@ export async function createSubmission(
   if (hasFile && !isFileKindAllowed(d.categorySlug, d.fileKind)) {
     return { error: 'نوع الملف غير مسموح لهذا القسم — يُقبل الصوت والفيديو فقط.' };
   }
+  let fileSize = d.fileSize || null;
+  if (d.fileUrl) {
+    const v = await verifyUploadedFile(d.fileUrl);
+    if ('error' in v) return { error: v.error };
+    fileSize = v.size;
+  }
 
   const material = await prisma.material.create({
     data: {
@@ -124,7 +144,7 @@ export async function createSubmission(
       fileUrl: d.fileUrl || null,
       fileKind: d.fileUrl ? d.fileKind || 'AUDIO' : null,
       fileType: d.fileType || null,
-      fileSize: d.fileSize || null,
+      fileSize,
       durationSec: d.durationSec || null,
       coverImage: d.coverImage || null,
       source: f.source || user.name,

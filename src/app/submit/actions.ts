@@ -10,7 +10,7 @@ import { buildSearchText } from '@/lib/search';
 import { snapshotMaterial } from '@/lib/history';
 import { isFileKindAllowed } from '@/lib/fields';
 import { notifyReviewersNewSubmission } from '@/lib/push';
-import { createSubmission, cleanFields, parseDate, validateCategoryFields, uploadUrlError } from '@/lib/submit-core';
+import { createSubmission, cleanFields, parseDate, validateCategoryFields, uploadUrlError, verifyUploadedFile } from '@/lib/submit-core';
 
 export interface SubmitState { error?: string; }
 
@@ -45,6 +45,12 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
   if (d.fileUrl && !isFileKindAllowed(d.categorySlug, d.fileKind)) {
     return { error: 'نوع الملف غير مسموح لهذا القسم — يُقبل الصوت والفيديو فقط.' };
   }
+  let fileSize = d.fileSize || null;
+  if (d.fileUrl && d.fileUrl !== material.fileUrl) {
+    const v = await verifyUploadedFile(d.fileUrl);
+    if ('error' in v) return { error: v.error };
+    fileSize = v.size;
+  }
 
   await snapshotMaterial(id, user.id, user.name, 'resubmit');
   await prisma.material.update({
@@ -52,7 +58,7 @@ export async function resubmitMaterialAction(_prev: SubmitState, formData: FormD
     data: {
       ...f, status: MATERIAL_STATUS.PENDING,
       recordDate: parseDate(d.recordDate), searchText: buildSearchText(f),
-      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize: d.fileSize || null, durationSec: d.durationSec || null, watermarkedAt: null } : {}),
+      ...(d.fileUrl ? { fileUrl: d.fileUrl, fileKind: d.fileKind || 'AUDIO', fileType: d.fileType || null, fileSize, durationSec: d.durationSec || null, watermarkedAt: null } : {}),
     },
   });
   await prisma.reviewNote.create({ data: { materialId: id, reviewerId: user.id, action: 'RESUBMIT', note: 'أعاد المساهم إرسال المادة بعد التعديل.' } });

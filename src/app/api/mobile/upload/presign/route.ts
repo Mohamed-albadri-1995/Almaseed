@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getMobileUser, bearer } from '@/lib/mobile-auth';
-import { multipartResponse } from '@/lib/upload-server';
+import { presignResponse } from '@/lib/upload-server';
 
 export const dynamic = 'force-dynamic';
 
-// Bearer-authenticated multipart upload for the app (fallback when the direct
-// presigned upload isn't available).
+// App (bearer) twin of /api/upload/presign.
 export async function POST(req: Request) {
-  // Live account check (active + not revoked) before accepting a large file.
   const user = await getMobileUser(bearer(req));
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
-  return multipartResponse(user.id, req);
+  return presignResponse(user.id, req);
 }

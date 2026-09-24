@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Icon } from './icons';
+import { uploadFile } from '@/lib/upload-client';
 
 export type Uploaded = {
   url: string;
@@ -50,6 +51,7 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
   const [state, setState] = useState<'idle' | 'preview' | 'uploading' | 'done' | 'error'>('idle');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState(0);
   // Local preview so the contributor can play the clip (hear the مادح / judge
   // quality) BEFORE uploading — pick → listen → confirm, no unwanted uploads.
   const [preview, setPreview] = useState<{ url: string; kind: 'audio' | 'video' } | null>(null);
@@ -57,17 +59,11 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
 
   const upload = async (file: File) => {
     setState('uploading'); setName(file.name); setError('');
-    const fd = new FormData(); fd.append('file', file);
+    setProgress(0);
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: fd });
-      const text = await res.text();
-      let data: Partial<Uploaded> & { error?: string } = {};
-      try { data = JSON.parse(text); } catch { data = { error: text.slice(0, 200) || `خطأ ${res.status}` }; }
-      if (!res.ok || !data.url) {
-        setState('error'); setError(data.error || `فشل الرفع (${res.status})`); onUploaded(null); return;
-      }
+      const data = await uploadFile(file, (f) => setProgress(Math.round(f * 100)));
       const durationSec = await readMediaDuration(file);
-      setState('done'); onUploaded({ ...(data as Uploaded), durationSec });
+      setState('done'); onUploaded({ ...data, durationSec });
     } catch (err) {
       setState('error'); setError(err instanceof Error ? err.message : 'تعذّر رفع الملف'); onUploaded(null);
     }
@@ -94,7 +90,7 @@ export function MediaUpload({ onUploaded, accept, label, idle = 'اضغط لاخ
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-600"><Icon.download width={24} height={24} className="rotate-180" /></span>
         {state === 'idle' && <span className="text-sm text-muted">{capture ? 'اختر من مدير الملفات (صوت أو فيديو فقط)' : idle}</span>}
         {state === 'preview' && <span className="text-sm text-brand-700">تم اختيار «{name}» — استمع ثم اضغط «رفع هذا الملف»</span>}
-        {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»…</span>}
+        {state === 'uploading' && <span className="text-sm text-brand-700">جارٍ رفع «{name}»… {progress > 0 && <b dir="ltr">{progress}%</b>}</span>}
         {state === 'done' && <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"><Icon.check width={16} height={16} /> تم رفع «{name}»</span>}
         {state === 'error' && <span className="text-sm text-danger">{error}</span>}
         <input type="file" className="hidden" accept={capture ? undefined : accept} onChange={pick} />

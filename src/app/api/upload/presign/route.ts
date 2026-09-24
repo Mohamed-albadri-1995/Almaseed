@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import { multipartResponse } from '@/lib/upload-server';
+import { presignResponse } from '@/lib/upload-server';
 
 export const dynamic = 'force-dynamic';
 
-// Multipart upload through the server. Large files normally go direct to
-// storage (/api/upload/presign); this remains for small images and as fallback.
+// Step 1 of a direct-to-storage upload from the website: the browser then PUTs
+// the file straight to storage, so it never passes through this server.
 export async function POST(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'يجب تسجيل الدخول' }, { status: 401 });
-  return multipartResponse(user.id, req);
+  return presignResponse(user.id, req);
 }
