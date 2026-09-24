@@ -645,19 +645,25 @@ const onb = StyleSheet.create({
 // only starts (and downloads) the video when tapped — data-friendly. The videos
 // are hosted on the website (/guide/*.mp4) so they can be updated without an app
 // build. Which clip shows is chosen by the caller based on sign-in state.
+// The player lives in its own component, mounted only once «تشغيل» is tapped:
+// creating it with the card made the guide video start downloading in the
+// background every time the home opened, spending the user's mobile data.
+function GuideVideoPlayer({ url }) {
+  const player = useVideoPlayer(url, (p) => { p.loop = false; try { p.play(); } catch {} });
+  return (
+    <View style={styles.guidePlayer}>
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls allowsFullscreen />
+    </View>
+  );
+}
 function GuideVideoCard({ url, poster, title, subtitle, onGuide }) {
-  const ref = useRef(null);
   const [play, setPlay] = useState(false);
-  const player = useVideoPlayer(url, (p) => { p.loop = false; });
-  useEffect(() => { if (play) { try { player.play(); } catch {} } }, [play]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <View style={styles.guideCard}>
       {play ? (
         // Compact, screen-fitting player (tap ⛶ for fullscreen). Not the full
         // phone-height video, so the home stays usable.
-        <View style={styles.guidePlayer}>
-          <VideoView ref={ref} player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls allowsFullscreen />
-        </View>
+        <GuideVideoPlayer url={url} />
       ) : (
         // Collapsed by default: a small preview + title, opened only on demand.
         <TouchableOpacity style={styles.guideCompact} activeOpacity={0.9} onPress={() => setPlay(true)}>
@@ -1354,7 +1360,7 @@ function Downloads({ material }) { const [busy, setBusy] = useState(''); const [
   const urlExt = cleanExt((material.fileUrl || '').split('?')[0].split('.').pop());
   const typeExt = cleanExt(material.fileType);
   const ext = (urlExt && urlExt.length <= 4 ? urlExt : (typeExt && typeExt.length <= 4 ? typeExt : (KIND_DEFAULT_EXT[material.fileKind] || (material.bodyText ? 'txt' : 'dat'))));
-  const safe = material.title.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 40) || 'material'; const displayBase = `${safe} - أرشيف المسيد`; const filename = `${material.id}.${ext}`; const MIME = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', '3gp': 'video/3gpp', '3gpp': 'video/3gpp', avi: 'video/x-msvideo', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', amr: 'audio/amr', weba: 'audio/webm' }; async function ensureLocal(onProgress) { const dest = FileSystem.documentDirectory + filename; const info = await FileSystem.getInfoAsync(dest); if (info.exists) return dest; if (material.fileUrl) { const task = FileSystem.createDownloadResumable(material.fileUrl, dest, {}, (p) => { if (onProgress && p.totalBytesExpectedToWrite > 0) onProgress(Math.min(100, Math.round((p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100))); }); const dl = await task.downloadAsync(); return dl.uri; } await FileSystem.writeAsStringAsync(dest, material.bodyText || material.description || ''); return dest; } const saveInApp = async () => { try { setBusy('app'); setPct(0); const localPath = await ensureLocal(setPct); await addDownload({ id: material.id, title: material.title, subtitle: material.subtitle || null, person: material.category?.slug === 'readings' ? material.author || null : (material.performer || material.speaker || material.host || null), fileKind: material.fileKind || (material.bodyText ? 'ARTICLE' : 'AUDIO'), localPath, bodyText: material.bodyText || null }); Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق، وتظهر في «التنزيلات المحفوظة».'); } catch (e) { Alert.alert('تعذّر الحفظ', String(e.message || e)); } finally { setBusy(''); } }; /* Save a media file (audio/video/image) into the visible «أرشيف المسيد» album by
+  const safe = material.title.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 40) || 'material'; const displayBase = `${safe} - أرشيف المسيد`; const filename = `${material.id}.${ext}`; const MIME = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', '3gp': 'video/3gpp', '3gpp': 'video/3gpp', avi: 'video/x-msvideo', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', amr: 'audio/amr', weba: 'audio/webm' }; async function ensureLocal(onProgress) { const dest = FileSystem.documentDirectory + filename; const info = await FileSystem.getInfoAsync(dest, { size: true }); if (info.exists && info.size > 0) return dest; if (material.fileUrl) { /* Download to a .part file and only move it into place once complete and HTTP-OK — an interrupted download (app closed, network drop) used to leave a truncated file that was then treated as complete forever, and an error page could be saved as the media. */ const part = dest + '.part'; await FileSystem.deleteAsync(part, { idempotent: true }); const task = FileSystem.createDownloadResumable(material.fileUrl, part, {}, (p) => { if (onProgress && p.totalBytesExpectedToWrite > 0) onProgress(Math.min(100, Math.round((p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100))); }); let dl; try { dl = await task.downloadAsync(); } catch (e) { await FileSystem.deleteAsync(part, { idempotent: true }); throw e; } if (!dl || (dl.status && dl.status !== 200 && dl.status !== 206)) { await FileSystem.deleteAsync(part, { idempotent: true }); throw new Error('تعذّر تنزيل الملف من الخادم (' + (dl && dl.status) + ')'); } await FileSystem.deleteAsync(dest, { idempotent: true }); await FileSystem.moveAsync({ from: part, to: dest }); return dest; } await FileSystem.writeAsStringAsync(dest, material.bodyText || material.description || ''); return dest; } const saveInApp = async () => { try { setBusy('app'); setPct(0); const localPath = await ensureLocal(setPct); await addDownload({ id: material.id, title: material.title, subtitle: material.subtitle || null, person: material.category?.slug === 'readings' ? material.author || null : (material.performer || material.speaker || material.host || null), fileKind: material.fileKind || (material.bodyText ? 'ARTICLE' : 'AUDIO'), localPath, bodyText: material.bodyText || null }); Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق، وتظهر في «التنزيلات المحفوظة».'); } catch (e) { Alert.alert('تعذّر الحفظ', String(e.message || e)); } finally { setBusy(''); } }; /* Save a media file (audio/video/image) into the visible «أرشيف المسيد» album by
    STREAMING it natively — never read the whole file into a base64 string, which
    OOMs on large videos. The album shows up in the gallery and the file manager. */
 const saveMediaToAlbum = async (uri) => { const asset = await MediaLibrary.createAssetAsync(uri); try { const existing = await MediaLibrary.getAlbumAsync(DL_ALBUM); if (existing) await MediaLibrary.addAssetsToAlbumAsync([asset], existing, false); else await MediaLibrary.createAlbumAsync(DL_ALBUM, asset, false); } catch {} return asset; }; /* Save a document (pdf/doc/txt) to a user-chosen folder via SAF. Prefer a NATIVE
