@@ -17,6 +17,25 @@ if (process.env.WATERMARK_WORKER === 'off') {
 } else {
   console.log('[watermark] background worker starting');
   startWorkerLoop();
-  // Keep the process alive (the loop schedules itself with timers).
-  setInterval(() => {}, 2147483647);
 }
+
+// Automatic daily database backup to durable storage (R2), off the request path.
+// A second, off-site copy of the archive's metadata in case the DB is lost. This
+// timer also keeps the process alive.
+import('../src/lib/backup')
+  .then(({ runScheduledBackupToStorage }) => {
+    const tick = async () => {
+      try {
+        const url = await runScheduledBackupToStorage();
+        console.log(url ? `[backup] wrote ${url}` : '[backup] skipped (storage not configured)');
+      } catch (e) {
+        console.error('[backup] failed', e);
+      }
+    };
+    setTimeout(tick, 90_000); // once shortly after boot
+    setInterval(tick, 24 * 60 * 60 * 1000); // then daily
+  })
+  .catch((e) => {
+    console.error('[backup] init failed', e);
+    setInterval(() => {}, 2147483647); // keep the process alive regardless
+  });
