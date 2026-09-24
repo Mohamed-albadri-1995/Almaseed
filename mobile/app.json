@@ -28,6 +28,7 @@
       "./plugins/with-pdf-downloader",
       "./plugins/with-force-rtl",
       "./plugins/with-release-signing",
+      "./plugins/with-android-fixes",
       ["expo-share-intent", {
         "androidIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"],
         "androidMultiIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"]
@@ -49,7 +50,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 151,
+      "versionCode": 152,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"

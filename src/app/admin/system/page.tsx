@@ -33,6 +33,15 @@ export default async function SystemPage() {
         <p className="text-muted">نظرة على الزيارات واستهلاك المساحة والذاكرة.</p>
       </div>
 
+      {/* Data backup: download a full JSON snapshot of the archive's data. */}
+      <div className="mb-6 card flex flex-wrap items-center justify-between gap-3 p-5">
+        <div>
+          <h2 className="text-lg font-bold text-brand-800">النسخ الاحتياطي</h2>
+          <p className="mt-1 text-sm text-muted">نزّل نسخة كاملة من بيانات الأرشيف (المواد والتصنيفات والمساهمين والمراجعات…) كملف JSON. احفظها في مكان آمن دوريًا.</p>
+        </div>
+        <a href="/api/admin/backup" download className="btn-primary shrink-0">تنزيل نسخة احتياطية</a>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {cards.map((c) => {
           const IconCmp = Icon[c.icon];
