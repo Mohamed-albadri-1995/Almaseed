@@ -27,6 +27,10 @@ const ACTION_LABELS: Record<string, string> = {
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 
+const ENTITY_LABELS: Record<string, string> = {
+  material: 'مادة', user: 'مستخدم', category: 'تصنيف', system: '', comment: 'تعليق', report: 'بلاغ',
+};
+
 export default async function ActivityPage() {
   const user = await getCurrentUser();
   if (!user || !can.viewReports(user.role as Role)) redirect('/admin');
@@ -50,12 +54,13 @@ export default async function ActivityPage() {
         ) : (
           <ul className="divide-y divide-ivory-200">
             {logs.map((l) => (
-              <li key={l.id} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-                <div className="flex min-w-0 items-center gap-3">
+              // Stacked on phones (chip + who/what, then time) so names never squeeze into single letters.
+              <li key={l.id} className="flex flex-col gap-1.5 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="chip shrink-0">{ACTION_LABELS[l.action] ?? l.action}</span>
-                  <span className="min-w-0 text-brand-800">
-                    <span className="font-semibold">{l.user?.name ?? 'نظام'}</span>
-                    <span className="text-muted"> — {l.entity}</span>
+                  <span className="min-w-0 break-words text-brand-800">
+                    <span className="font-semibold">{l.user?.name ?? 'النظام'}</span>
+                    {ENTITY_LABELS[l.entity] && <span className="text-muted"> — {ENTITY_LABELS[l.entity]}</span>}
                     {l.action === 'login_code_sent' && l.meta && (() => {
                       // Where the sign-in attempt came from (device · country · IP).
                       try {
@@ -65,7 +70,7 @@ export default async function ActivityPage() {
                     })()}
                   </span>
                 </div>
-                <span className="text-xs text-muted">{formatDateTime(l.createdAt)}</span>
+                <span className="shrink-0 text-xs text-muted">{formatDateTime(l.createdAt)}</span>
               </li>
             ))}
           </ul>

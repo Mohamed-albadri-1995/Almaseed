@@ -66,6 +66,12 @@ export function formatFileSize(bytes?: number | null): string {
   return `${new Intl.NumberFormat(AR, { maximumFractionDigits: 1 }).format(mb)} ميجابايت`;
 }
 
+// Dates are formatted on the server, whose clock is UTC — so without a zone the
+// admin pages showed times 3 hours behind (e.g. an email received 4:06 PM listed
+// at 1:06 PM). Show them in the archive's local time instead; override with
+// NEXT_PUBLIC_TIME_ZONE (e.g. Africa/Khartoum) if needed.
+const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE || 'Asia/Riyadh';
+
 export function formatDate(date?: Date | string | null): string {
   if (!date) return '—';
   const d = typeof date === 'string' ? new Date(date) : date;
@@ -73,6 +79,7 @@ export function formatDate(date?: Date | string | null): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: TIME_ZONE,
   }).format(d);
 }
 
@@ -85,6 +92,7 @@ export function formatDateTime(date?: Date | string | null): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: TIME_ZONE,
   }).format(d);
 }
 
