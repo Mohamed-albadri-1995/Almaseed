@@ -45,7 +45,39 @@ async function fetchToFile(url: string, dest: string) {
   }
 }
 
-class RateLimited extends Error {}
+class RateLimited extends Error {
+  constructor(public waitMs: number) { super('rate limited'); }
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// How long the API asks us to wait (Retry-After seconds, or Groq's
+// x-ratelimit-reset-* like "7m12.5s"), clamped to 1 min … 1 hour.
+function waitFrom(res: Response): number {
+  const ra = Number(res.headers.get('retry-after'));
+  let ms = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 0;
+  const reset = res.headers.get('x-ratelimit-reset-audio-seconds') || res.headers.get('x-ratelimit-reset-requests') || '';
+  const m = reset.match(/(?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
+  if (!ms && m && (m[1] || m[2] || m[3])) ms = ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000;
+  return Math.min(Math.max(ms || 10 * 60_000, 60_000), 60 * 60_000);
+}
+
+// Work WITH the free tier's limits: when the quota runs out mid-recording, wait
+// (as long as the API says) and continue with the SAME piece — pieces already
+// transcribed are kept, so no quota is spent twice. Gives up after ~1 day.
+async function transcribeChunkPatiently(path: string): Promise<string> {
+  let waited = 0;
+  for (;;) {
+    try {
+      return await transcribeChunk(path);
+    } catch (e) {
+      if (!(e instanceof RateLimited) || waited > 24 * 3600_000) throw e;
+      console.log(`[transcribe] rate limit — waiting ${Math.round(e.waitMs / 60000)} min`);
+      await sleep(e.waitMs);
+      waited += e.waitMs;
+    }
+  }
+}
 
 async function transcribeChunk(path: string): Promise<string> {
   const base = (process.env.TRANSCRIBE_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/$/, '');
@@ -60,7 +92,7 @@ async function transcribeChunk(path: string): Promise<string> {
     headers: { Authorization: `Bearer ${process.env.TRANSCRIBE_API_KEY}` },
     body: form,
   });
-  if (res.status === 429) throw new RateLimited('rate limited');
+  if (res.status === 429) throw new RateLimited(waitFrom(res));
   const text = await res.text();
   if (!res.ok) throw new Error(`transcription API ${res.status}: ${text.slice(0, 200)}`);
   return text.trim();
@@ -91,7 +123,7 @@ export async function transcribeFile(url: string): Promise<string> {
     ]);
     const parts = (await readdir(dir)).filter((f) => f.startsWith('part')).sort();
     const texts: string[] = [];
-    for (const p of parts) texts.push(await transcribeChunk(join(dir, p)));
+    for (const p of parts) texts.push(await transcribeChunkPatiently(join(dir, p)));
     return paragraphs(texts.filter(Boolean).join(' '));
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
@@ -138,9 +170,15 @@ let started = false;
 export function startTranscribeLoop(): void {
   if (started || !transcriptionConfigured()) return;
   started = true;
-  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   (async () => {
     await sleep(60_000);
+    // A deploy restart while a recording was in progress (or waiting on the
+    // limit) leaves it claimed but unfinished — put those back in the queue.
+    const released = await prisma.material.updateMany({
+      where: { transcribedAt: { not: null }, transcriptSearch: null, transcriptError: null },
+      data: { transcribedAt: null },
+    }).catch(() => ({ count: 0 }));
+    if (released.count) console.log(`[transcribe] resumed ${released.count} unfinished recording(s)`);
     for (;;) {
       let r: 'done' | 'idle' | 'rate-limited' = 'idle';
       try { r = await transcribeOne(); } catch (e) { console.error('[transcribe] loop error', e); }
