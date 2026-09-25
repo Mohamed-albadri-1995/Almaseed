@@ -16,6 +16,7 @@ import { logActivity } from './activity';
 const STRONG_ROLES: string[] = [ROLES.EDITOR, ROLES.CONTENT_MANAGER, ROLES.ADMIN];
 const CODE_TTL_MIN = 10;
 const MAX_ATTEMPTS = 5;
+const RESEND_GAP_MS = 60_000;
 const TRUST_DAYS = 30;
 const PENDING_COOKIE = 'almaseed_2fa';
 const TRUST_COOKIE = 'almaseed_trust';
@@ -58,12 +59,23 @@ function deviceLabel(o: LoginOrigin): string {
   return [where, os].filter(Boolean).join(' · ');
 }
 
-export async function startChallenge(user: { id: string; email: string; name: string }, origin?: LoginOrigin): Promise<{ id: string } | { error: string }> {
-  if (!rateLimit(`2fa:send:${user.id}`, 5, HOUR)) {
+export async function startChallenge(user: { id: string; email: string; name: string }, origin?: LoginOrigin): Promise<{ id: string; reused?: boolean } | { error: string }> {
+  const now = Date.now();
+  // Housekeeping: drop long-dead challenges (kept ~1h so the hourly cap can count them).
+  await prisma.loginChallenge.deleteMany({ where: { userId: user.id, createdAt: { lt: new Date(now - 2 * HOUR) } } }).catch(() => {});
+  // Email can take a minute to arrive. If a code was sent moments ago, don't
+  // send another (that used to snowball: each new code cancelled the previous
+  // one, so the code that finally arrived was already dead) — reuse it.
+  const recent = await prisma.loginChallenge.findFirst({
+    where: { userId: user.id, createdAt: { gt: new Date(now - RESEND_GAP_MS) }, expiresAt: { gt: new Date(now) }, attempts: { lt: MAX_ATTEMPTS } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (recent) return { id: recent.id, reused: true };
+  // At most 5 codes per hour per account (stored in the DB, so it survives restarts).
+  const lastHour = await prisma.loginChallenge.count({ where: { userId: user.id, createdAt: { gt: new Date(now - HOUR) } } });
+  if (lastHour >= 5 || !rateLimit(`2fa:send:${user.id}`, 5, HOUR)) {
     return { error: 'طلبت رموزًا كثيرة — انتظر قليلًا ثم حاول مجددًا.' };
   }
-  // One live challenge per user: older codes stop working.
-  await prisma.loginChallenge.deleteMany({ where: { userId: user.id } });
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
   const ch = await prisma.loginChallenge.create({
     data: { userId: user.id, codeHash: 'pending', expiresAt: new Date(Date.now() + CODE_TTL_MIN * 60_000) },
@@ -92,21 +104,31 @@ export async function startChallenge(user: { id: string; email: string; name: st
   return { id: ch.id };
 }
 
-// Check a code. On success the challenge is consumed and the user returned.
+// Check a code. Any code emailed to this account in the last 10 minutes is
+// accepted (a late-arriving earlier email still works); attempts are counted on
+// the sign-in's own challenge. On success every pending code is consumed.
 export async function verifyChallenge(id: string, code: string): Promise<
   { user: { id: string; name: string; role: string; email: string; sessionVersion: number; active: boolean } } | { error: string }
 > {
   const clean = String(code || '').replace(/\D/g, '');
   const ch = await prisma.loginChallenge.findUnique({ where: { id } });
-  if (!ch || ch.expiresAt.getTime() < Date.now()) return { error: 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا.' };
+  if (!ch) return { error: 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا.' };
   if (ch.attempts >= MAX_ATTEMPTS) return { error: 'محاولات كثيرة — اطلب رمزًا جديدًا.' };
   await prisma.loginChallenge.update({ where: { id }, data: { attempts: { increment: 1 } } });
-  const a = Buffer.from(hashCode(id, clean));
-  const b = Buffer.from(ch.codeHash);
-  if (clean.length !== 6 || a.length !== b.length || !timingSafeEqual(a, b)) {
-    return { error: 'الرمز غير صحيح.' };
+  const live = await prisma.loginChallenge.findMany({
+    where: { userId: ch.userId, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+  const ok = clean.length === 6 && live.some((c) => {
+    const a = Buffer.from(hashCode(c.id, clean));
+    const b = Buffer.from(c.codeHash);
+    return a.length === b.length && timingSafeEqual(a, b);
+  });
+  if (!ok) {
+    return { error: live.length ? 'الرمز غير صحيح.' : 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا.' };
   }
-  await prisma.loginChallenge.delete({ where: { id } }).catch(() => {});
+  await prisma.loginChallenge.deleteMany({ where: { userId: ch.userId } }).catch(() => {});
   const user = await prisma.user.findUnique({ where: { id: ch.userId } });
   if (!user || !user.active) return { error: 'الحساب غير متاح.' };
   return { user };

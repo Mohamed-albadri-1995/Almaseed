@@ -104,6 +104,7 @@ export async function resendLoginCodeAction(): Promise<AuthState> {
   const next = await startChallenge(user, originFromHeaders(headers(), 'web'));
   if ('error' in next) return { error: next.error };
   await setPendingChallenge(next.id, pending.r);
+  if (next.reused) return { error: 'أُرسل رمز قبل أقل من دقيقة — تحقق من بريدك (قد يتأخر وصوله قليلًا، وتفقّد مجلد الرسائل غير المرغوبة).' };
   return {};
 }
 
