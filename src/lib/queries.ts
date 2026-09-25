@@ -410,6 +410,9 @@ export async function getFieldSuggestions(): Promise<SuggestMap> {
 // person/occasion tallies requested (المادح/الراوي/المحاضر, والمناسبات). Counts
 // reflect the PUBLISHED archive — what's actually live on the site.
 export interface RankedCount { name: string; count: number }
+export interface ContributorStat {
+  id: string; name: string; total: number; published: number; pending: number; returned: number; topCategory: string | null;
+}
 export async function getReviewStats() {
   const [categories, rows] = await Promise.all([
     prisma.category.findMany({ orderBy: { order: 'asc' }, select: { id: true, slug: true, name: true } }),
@@ -471,6 +474,46 @@ export async function getReviewStats() {
       .map((g) => ({ name: g.names[0].name, count: g.total }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
 
+  // Per contributor, across ALL statuses (what they sent and what became of it),
+  // so reviewers see who contributes most and how much of it gets published.
+  const [contribRows, contribUsers] = await Promise.all([
+    prisma.material.groupBy({
+      by: ['submittedById', 'status'],
+      where: { submittedById: { not: null } },
+      _count: { _all: true },
+    }),
+    prisma.user.findMany({ select: { id: true, name: true } }),
+  ]);
+  const catBySubmitter = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    if (!r.submittedById) continue;
+    let m = catBySubmitter.get(r.submittedById);
+    if (!m) { m = new Map(); catBySubmitter.set(r.submittedById, m); }
+    m.set(r.categoryId, (m.get(r.categoryId) ?? 0) + 1);
+  }
+  const userName = new Map(contribUsers.map((u) => [u.id, u.name]));
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const contribMap = new Map<string, ContributorStat>();
+  for (const g of contribRows) {
+    const id = g.submittedById!;
+    let c = contribMap.get(id);
+    if (!c) { c = { id, name: userName.get(id) ?? 'مستخدم محذوف', total: 0, published: 0, pending: 0, returned: 0, topCategory: null }; contribMap.set(id, c); }
+    const n = g._count._all;
+    c.total += n;
+    if (g.status === MATERIAL_STATUS.PUBLISHED) c.published += n;
+    else if (g.status === MATERIAL_STATUS.PENDING || g.status === MATERIAL_STATUS.HELD) c.pending += n;
+    else if (g.status === MATERIAL_STATUS.NEEDS_EDIT || g.status === MATERIAL_STATUS.REJECTED) c.returned += n;
+  }
+  for (const c of Array.from(contribMap.values())) {
+    const cats = catBySubmitter.get(c.id);
+    if (cats) {
+      const top = Array.from(cats.entries()).sort((a, b) => b[1] - a[1])[0];
+      c.topCategory = top ? catName.get(top[0]) ?? null : null;
+    }
+  }
+  const byContributor = Array.from(contribMap.values())
+    .sort((a, b) => b.published - a.published || b.total - a.total || a.name.localeCompare(b.name, 'ar'));
+
   const madeehRows = rows.filter((r) => r.category?.slug === 'madeeh');
   const lectureRows = rows.filter((r) => r.category?.slug === 'lectures');
 
@@ -483,6 +526,7 @@ export async function getReviewStats() {
     madeehByNarrator: rank(madeehRows.map((r) => r.narrator)),
     lecturesBySpeaker: rank(lectureRows.map((r) => r.speaker)),
     byOccasion: rank(rows.map((r) => r.occasion)),
+    byContributor,
   };
 }
 

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Icon } from '@/components/icons';
-import { getReviewStats, type RankedCount } from '@/lib/queries';
+import { getReviewStats, type RankedCount, type ContributorStat } from '@/lib/queries';
 import { getCurrentUser } from '@/lib/session';
 import { can } from '@/lib/rbac';
 import { type Role } from '@/lib/constants';
@@ -91,6 +91,70 @@ function RankTable({
   );
 }
 
+// «حسب المساهمين»: who sends the most, and what became of it. Top rows shown,
+// the rest collapsible; scrolls sideways on narrow phones instead of overflowing.
+function ContributorTable({ rows, initial = 15 }: { rows: ContributorStat[]; initial?: number }) {
+  const head = (
+    <thead className="bg-ivory-50 text-xs text-muted">
+      <tr>
+        <th className="px-3 py-3 font-medium">#</th>
+        <th className="px-3 py-3 font-medium">المساهم</th>
+        <th className="px-3 py-3 font-medium">منشورة</th>
+        <th className="px-3 py-3 font-medium">قيد المراجعة</th>
+        <th className="px-3 py-3 font-medium">أُعيدت / رُفضت</th>
+        <th className="px-3 py-3 font-medium">الإجمالي</th>
+        <th className="px-3 py-3 font-medium">أكثر قسم</th>
+      </tr>
+    </thead>
+  );
+  const body = (list: ContributorStat[], offset: number) => (
+    <tbody className="divide-y divide-ivory-200">
+      {list.map((c, i) => (
+        <tr key={c.id} className="hover:bg-ivory-50/60">
+          <td className="px-3 py-2.5 text-xs font-bold text-muted">{formatCount(offset + i + 1)}</td>
+          <td className="max-w-[12rem] truncate px-3 py-2.5 font-medium text-brand-800">{c.name}</td>
+          <td className="px-3 py-2.5 font-bold text-emerald-700">{formatCount(c.published)}</td>
+          <td className="px-3 py-2.5 text-amber-700">{formatCount(c.pending)}</td>
+          <td className="px-3 py-2.5 text-muted">{formatCount(c.returned)}</td>
+          <td className="px-3 py-2.5 font-semibold text-brand-700">{formatCount(c.total)}</td>
+          <td className="whitespace-nowrap px-3 py-2.5 text-xs text-muted">{c.topCategory ?? '—'}</td>
+        </tr>
+      ))}
+    </tbody>
+  );
+  const shown = rows.slice(0, initial);
+  const rest = rows.slice(initial);
+  return (
+    <div className="mt-8 card min-w-0 overflow-hidden">
+      <div className="flex items-baseline justify-between gap-2 border-b border-ivory-200 px-5 py-4">
+        <div>
+          <h2 className="text-lg font-bold text-brand-800">حسب المساهمين</h2>
+          <p className="text-xs text-muted">كل ما أرسله كل مساهم وحالته، مرتّبًا حسب المواد المنشورة.</p>
+        </div>
+        <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700">{formatCount(rows.length)}</span>
+      </div>
+      {rows.length === 0 ? (
+        <p className="p-5 text-sm text-muted">لا توجد بيانات بعد.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[36rem] text-right text-sm">
+            {head}
+            {body(shown, 0)}
+          </table>
+          {rest.length > 0 && (
+            <details className="border-t border-ivory-200">
+              <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold text-brand-700 hover:underline">
+                عرض الباقي <span className="mr-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs">{formatCount(rest.length)}</span>
+              </summary>
+              <table className="w-full min-w-[36rem] text-right text-sm">{body(rest, initial)}</table>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default async function StatsPage() {
   const user = await getCurrentUser();
   if (!user || !can.reviewContent(user.role as Role)) redirect('/admin');
@@ -166,6 +230,9 @@ export default async function StatsPage() {
           </table>
         </div>
       </div>
+
+      {/* Per contributor: everything they sent, across statuses. */}
+      <ContributorTable rows={stats.byContributor} />
 
       {/* Ranked person/occasion tallies — HTML bars (Arabic shapes correctly),
           compact: top 8 with the rest collapsible. */}
