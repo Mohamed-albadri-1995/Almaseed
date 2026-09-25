@@ -31,8 +31,9 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: [{ url: '/logo.png', type: 'image/png' }],
-    apple: [{ url: '/logo.png' }],
+    // Small dedicated icons — the 512px /logo.png (≈450KB) was being fetched as the favicon.
+    icon: [{ url: '/favicon-48.png', type: 'image/png', sizes: '48x48' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
   },
   openGraph: {
     type: 'website',

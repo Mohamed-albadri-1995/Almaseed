@@ -10,7 +10,7 @@ const nextConfig = {
       },
       // Site images (logo, hero, guide posters): a week, then revalidate in the background.
       {
-        source: '/:file(logo-96.webp|logo-256.webp|hero-banner-800.webp|hero-banner-1600.webp|logo.png)',
+        source: '/:file(logo-96.webp|logo-256.webp|hero-banner-800.webp|hero-banner-1600.webp|logo.png|favicon-48.png|apple-touch-icon.png|icon-192.png|icon-512.png)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=2592000' }],
       },
       {
