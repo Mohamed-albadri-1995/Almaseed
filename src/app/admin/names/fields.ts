@@ -2,7 +2,7 @@
 export const NAME_FIELDS = [
   { key: 'performer', label: 'المادح' },
   { key: 'narrator', label: 'الراوي' },
-  { key: 'speaker', label: 'المحاضر' },
+  { key: 'speaker', label: 'المحاضر / المتحدث' },
   { key: 'host', label: 'مدير الندوة' },
   { key: 'author', label: 'المؤلف' },
   { key: 'occasion', label: 'المناسبة' },

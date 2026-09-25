@@ -18,13 +18,10 @@ async function main() {
   for (const c of CATEGORIES_SEED) {
     await prisma.category.upsert({
       where: { slug: c.slug },
-      update: {
-        name: c.name,
-        description: c.description,
-        icon: c.icon,
-        color: c.color,
-        order: c.order,
-      },
+      // Existing sections belong to the admin «التصنيفات» page: only create
+      // missing ones, never overwrite a name/description/order set there.
+      // (Code-driven renames go through prisma/backfill.ts CATEGORY_RENAMES.)
+      update: {},
       create: { ...c },
     });
   }

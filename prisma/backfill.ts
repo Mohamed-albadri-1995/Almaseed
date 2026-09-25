@@ -31,8 +31,24 @@ async function renameCategories() {
   }
 }
 
+// «أرشيف النوادر» now records one «المتحدث» (speaker) instead of the old
+// ندوة fields. Carry the old values over once so nothing disappears from the
+// forms: speakers list first, else the moderator. Old columns are kept as-is.
+async function migrateSeminarSpeaker() {
+  const rows = await prisma.material.findMany({
+    where: { category: { slug: 'seminars' }, speaker: null, OR: [{ participants: { not: null } }, { host: { not: null } }] },
+    select: { id: true, participants: true, host: true },
+  });
+  for (const r of rows) {
+    const speaker = normalizeLine(r.participants) || normalizeLine(r.host);
+    if (speaker) await prisma.material.update({ where: { id: r.id }, data: { speaker } });
+  }
+  if (rows.length) console.log(`🎙️  Filled «المتحدث» on ${rows.length} rare-archive materials.`);
+}
+
 async function main() {
   await renameCategories();
+  await migrateSeminarSpeaker();
   const materials = await prisma.material.findMany();
   let normalized = 0;
   let reindexed = 0;

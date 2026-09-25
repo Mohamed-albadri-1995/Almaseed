@@ -75,12 +75,12 @@ export const CATEGORY_FORMS: Record<string, CategoryForm> = {
       { name: 'keywords', label: 'الكلمات المفتاحية', hint: 'افصل بينها بفاصلة' },
     ],
   },
+  // «أرشيف النوادر» (slug kept as `seminars` so links stay stable).
   seminars: {
-    titleLabel: 'عنوان الندوة', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
+    titleLabel: 'العنوان', subtitleLabel: 'عنوان فرعي (اختياري)', file: 'required', accept: MEDIA_ONLY, article: false, capture: true, kinds: ['AUDIO', 'VIDEO'],
     fields: [
-      { name: 'topic', label: 'موضوع الندوة', required: true },
-      { name: 'participants', label: 'أسماء المتحدثين', hint: 'افصل بين الأسماء بفاصلة' },
-      { name: 'host', label: 'مدير الندوة' },
+      { name: 'topic', label: 'الموضوع', required: true },
+      { name: 'speaker', label: 'المتحدث' },
       { name: 'occasion', label: 'المناسبة المرتبطة', hint: 'اختياري' },
       ...COMMON_OPTIONAL,
     ],
@@ -146,7 +146,7 @@ const PRIMARY_PERSON: Record<string, { field: string; label: string }> = {
   madeeh: { field: 'performer', label: 'المادح' },
   lectures: { field: 'speaker', label: 'المحاضر' },
   sermons: { field: 'speaker', label: 'الواعظ' },
-  seminars: { field: 'host', label: 'مدير الندوة' },
+  seminars: { field: 'speaker', label: 'المتحدث' },
   occasions: { field: 'organizer', label: 'الجهة المنظمة' },
   readings: { field: 'author', label: 'الكاتب' },
 };
