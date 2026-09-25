@@ -8,9 +8,9 @@ const COLS = [
     links: [
       { href: '/archive?category=madeeh', label: 'المدائح' },
       { href: '/archive?category=lectures', label: 'المحاضرات' },
-      { href: '/archive?category=seminars', label: 'الندوات' },
+      { href: '/archive?category=seminars', label: 'أرشيف النوادر' },
       { href: '/archive?category=sermons', label: 'المواعظ' },
-      { href: '/archive?category=occasions', label: 'المناسبات' },
+      { href: '/archive?category=occasions', label: 'المناسبات والاحتفالات' },
       { href: '/archive?category=images', label: 'الصور' },
       { href: '/archive?category=readings', label: 'مكتبة المسيد' },
     ],
@@ -46,8 +46,8 @@ export function Footer() {
           <div>
             <LogoLockup size={44} tone="dark" />
             <p className="mt-4 max-w-xs text-sm leading-7 text-ivory-100/80">
-              صوتٌ يُحفظ، وأثرٌ لا يغيب. نجمع المدائح والمحاضرات والندوات والمواعظ
-              والمناسبات الخاصة بالطريقة السمّانية السجادة السليمانية في مكان واحد
+              صوتٌ يُحفظ، وأثرٌ لا يغيب. نجمع المدائح والمحاضرات والنوادر والمواعظ
+              والمناسبات والاحتفالات الخاصة بالطريقة السمّانية السجادة السليمانية في مكان واحد
               قريب من القلب.
             </p>
           </div>

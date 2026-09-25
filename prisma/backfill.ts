@@ -14,7 +14,25 @@ const LINE_FIELDS = [
   'occasion', 'topic', 'place', 'city', 'organizer', 'source', 'author', 'keywords', 'docType',
 ] as const;
 
+// Section renames. Only rewrite a category still carrying its OLD name, so a
+// name set later from the admin «التصنيفات» page is never overwritten.
+const CATEGORY_RENAMES: { slug: string; from: string; to: string; description?: string }[] = [
+  { slug: 'seminars', from: 'الندوات', to: 'أرشيف النوادر', description: 'تسجيلات ولقاءات نادرة من ذاكرة المسيد' },
+  { slug: 'occasions', from: 'المناسبات', to: 'المناسبات والاحتفالات' },
+];
+
+async function renameCategories() {
+  for (const r of CATEGORY_RENAMES) {
+    const res = await prisma.category.updateMany({
+      where: { slug: r.slug, name: r.from },
+      data: { name: r.to, ...(r.description ? { description: r.description } : {}) },
+    });
+    if (res.count) console.log(`🏷️  Renamed section ${r.slug}: ${r.from} → ${r.to}`);
+  }
+}
+
 async function main() {
+  await renameCategories();
   const materials = await prisma.material.findMany();
   let normalized = 0;
   let reindexed = 0;

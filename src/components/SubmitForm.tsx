@@ -191,7 +191,7 @@ export function SubmitForm({ categories, suggestions = {} }: { categories: Categ
           <h2 className="mb-1 text-xl font-bold text-brand-800">اختر نوع المادة</h2>
           <p className="mb-4 text-sm text-muted">حدد التصنيف المناسب للمادة التي تريد مشاركتها.</p>
           <FirstUseCue id="submit-type-tip" label="ابدأ من هنا" align="center">
-            <Tip>اختر القسم الأنسب ليسهل العثور على مادتك لاحقًا. أقسام المدائح والمحاضرات والندوات والمناسبات تقبل <span className="font-semibold">الصوت والفيديو فقط</span>.</Tip>
+            <Tip>اختر القسم الأنسب ليسهل العثور على مادتك لاحقًا. أقسام المدائح والمحاضرات وأرشيف النوادر والمناسبات والاحتفالات تقبل <span className="font-semibold">الصوت والفيديو فقط</span>.</Tip>
           </FirstUseCue>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {categories.filter((c) => CATEGORY_FORMS[c.slug]).map((c) => (

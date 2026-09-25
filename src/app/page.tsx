@@ -74,7 +74,7 @@ export default async function HomePage() {
               صوتٌ يُحفظ، وأثرٌ لا يغيب.
             </p>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-8 text-ivory-100/85 sm:text-lg">
-              أرشيف مفتوح للمدائح والمحاضرات والندوات والمواعظ والمناسبات، نجمع فيه
+              أرشيف مفتوح للمدائح والمحاضرات والنوادر والمواعظ والمناسبات والاحتفالات، نجمع فيه
               ما يستحق أن يبقى قريباً من القلب.
             </p>
             <div className="mx-auto mt-7 max-w-xl">

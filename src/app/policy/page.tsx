@@ -112,7 +112,7 @@ export default function PolicyPage() {
           </p>
           <ul className="list-disc space-y-2 pr-6 text-muted">
             <li>
-              <span className="font-bold text-brand-800">المدائح والمحاضرات والمواعظ والندوات والمناسبات:</span>{' '}
+              <span className="font-bold text-brand-800">المدائح والمحاضرات والمواعظ والنوادر والمناسبات والاحتفالات:</span>{' '}
               ملفات <span className="font-bold text-brand-800">صوت أو فيديو فقط</span> (مع إمكانية
               التسجيل المباشر من الكاميرا أو الميكروفون داخل التطبيق).
             </li>

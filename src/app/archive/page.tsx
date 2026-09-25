@@ -33,7 +33,7 @@ export async function generateMetadata({ searchParams }: { searchParams: { categ
   }
   return {
     title: 'الأرشيف',
-    description: `تصفّح كامل أرشيف ${SITE_NAME_SHORT}: المدائح والمحاضرات والندوات والمواعظ والمناسبات والصور والمكتبة.`,
+    description: `تصفّح كامل أرشيف ${SITE_NAME_SHORT}: المدائح والمحاضرات والنوادر والمواعظ والمناسبات والاحتفالات والصور والمكتبة.`,
     alternates: { canonical: '/archive' },
   };
 }

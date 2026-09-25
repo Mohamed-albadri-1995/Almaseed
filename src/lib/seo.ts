@@ -7,7 +7,7 @@ export const SITE_URL = (process.env.APP_URL || 'https://almaseeed.com').replace
 export const SITE_NAME = 'الطريقة السمّانية — السجادة السليمانية';
 export const SITE_NAME_SHORT = 'أرشيف المسيد';
 export const SITE_DESCRIPTION =
-  'أرشيف الطريقة السمّانية السجادة السليمانية للمدائح والمحاضرات والندوات والمواعظ والمناسبات — نجمع ونحفظ وننظّم ما يستحق أن يبقى قريباً من القلب.';
+  'أرشيف الطريقة السمّانية السجادة السليمانية للمدائح والمحاضرات والنوادر والمواعظ والمناسبات والاحتفالات — نجمع ونحفظ وننظّم ما يستحق أن يبقى قريباً من القلب.';
 
 // The default social-share image (1200×630 recommended). hero-banner.jpg ships
 // in /public and reads well as a branded card.

@@ -186,15 +186,15 @@ export const CATEGORIES_SEED = [
   },
   {
     slug: CATEGORY_SLUGS.SEMINARS,
-    name: 'الندوات',
-    description: 'حوارات ولقاءات فكرية',
+    name: 'أرشيف النوادر',
+    description: 'تسجيلات ولقاءات نادرة من ذاكرة المسيد',
     icon: 'users',
     color: 'sky',
     order: 4,
   },
   {
     slug: CATEGORY_SLUGS.OCCASIONS,
-    name: 'المناسبات',
+    name: 'المناسبات والاحتفالات',
     description: 'احتفالات وذكريات المسيد',
     icon: 'calendar',
     color: 'violet',
