@@ -40,6 +40,9 @@ function metaDescription(m: {
   const person = m.category?.slug ? (m[getPrimaryPerson(m.category.slug)?.field ?? ''] as string | undefined) : undefined;
   // No written description: the opening words of the recording itself (from the
   // automatic transcript) make a far more relevant search snippet than a template.
+  // Written lyrics (المديح) beat a machine transcript of singing.
+  const lyrics = clampDescription(typeof m.lyrics === 'string' ? m.lyrics : '');
+  if (lyrics) return clampDescription(`${person ? `${person}: ` : ''}${lyrics}`)!;
   const transcript = typeof m.transcript === 'string' ? m.transcript : '';
   if (transcript) return clampDescription(`${person ? `${person}: ` : ''}${transcript}`)!;
   const cat = m.category?.name || 'مادة';
@@ -323,8 +326,8 @@ export default async function MaterialPage({
             </section>
           )}
 
-          {/* Automatic transcript of the recording (lectures, sermons, rare archive).
-              Collapsed by default; clearly labelled as machine-made. */}
+          {/* Automatic transcript of the recording (every section). Clearly and
+              prominently labelled as machine-made — never presented as a text of record. */}
           {material.transcript && (() => {
             // The opening paragraphs are shown as normal page text (read by
             // visitors and search engines alike); the rest folds away.
@@ -333,16 +336,25 @@ export default async function MaterialPage({
             while (cut < paras.length && len < 700) { len += paras[cut].length; cut++; }
             const lead = paras.slice(0, cut).join('\n\n');
             const rest = paras.slice(cut).join('\n\n');
+            const sung = material.category?.slug === 'madeeh';
             return (
               <section className="mt-10 overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
-                <div className="flex items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
+                <div className="flex flex-wrap items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
                   <Icon.file width={18} height={18} className="text-gold-300" />
                   <h2 className="font-display text-lg font-bold">النص المفرّغ: {material.title}</h2>
+                  <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold text-brand-900">تفريغ آلي — غير مُراجَع</span>
                 </div>
                 <div className="px-6 py-6 sm:px-10">
-                  <p className="mb-4 rounded-xl bg-gold-50 px-4 py-2 text-xs leading-6 text-brand-800 ring-1 ring-gold-200">
-                    تفريغ آلي للتسجيل الصوتي، قد يحتوي على أخطاء في بعض الكلمات والأسماء — المرجع هو التسجيل نفسه.
-                  </p>
+                  <div role="note" className="mb-5 flex gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
+                    <span aria-hidden className="text-xl leading-none">⚠️</span>
+                    <p>
+                      <b>تنبيه: هذا النص كتبه برنامج آلي من الصوت، ولم يراجعه أحد.</b>{' '}
+                      {sung
+                        ? 'في المديح والإنشاد تكثر الأخطاء لأن الكلام مُلحَّن، فقد تأتي أبيات ناقصة أو كلمات خاطئة.'
+                        : 'قد يحتوي على أخطاء في الكلمات والأسماء والآيات والأحاديث.'}{' '}
+                      لا يُنقل عنه ولا يُستشهد به — المرجع هو التسجيل نفسه.
+                    </p>
+                  </div>
                   <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{lead}</div>
                   {rest && (
                     <details className="group mt-2">

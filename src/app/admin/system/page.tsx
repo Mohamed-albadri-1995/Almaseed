@@ -19,7 +19,7 @@ export default async function SystemPage() {
 
   const s = await getSystemStats();
   // Automatic transcription progress (published spoken recordings).
-  const spoken = { status: 'PUBLISHED', fileUrl: { not: null }, fileKind: { in: ['AUDIO', 'VIDEO'] }, category: { slug: { in: ['lectures', 'sermons', 'seminars'] } } };
+  const spoken = { status: 'PUBLISHED', fileUrl: { not: null }, fileKind: { in: ['AUDIO', 'VIDEO'] } };
   const [trTotal, trDone, trFailed] = await Promise.all([
     prisma.material.count({ where: spoken }),
     prisma.material.count({ where: { ...spoken, transcriptSearch: { not: null } } }),
@@ -56,8 +56,8 @@ export default async function SystemPage() {
         <h2 className="text-lg font-bold text-brand-800">التفريغ النصي الآلي</h2>
         {transcriptionConfigured() ? (
           <p className="mt-1 text-sm text-muted">
-            فُرّغ <b className="text-brand-800">{formatCount(trDone)}</b> من أصل <b className="text-brand-800">{formatCount(trTotal)}</b> تسجيلًا منشورًا (المحاضرات والمواعظ وأرشيف النوادر)
-            {trFailed > 0 && <> · <span className="text-danger">تعذّر {formatCount(trFailed)}</span></>}. يعمل في الخلفية تسجيلًا تلو الآخر، الأحدث أولًا.
+            فُرّغ <b className="text-brand-800">{formatCount(trDone)}</b> من أصل <b className="text-brand-800">{formatCount(trTotal)}</b> تسجيلًا صوتيًا ومرئيًا منشورًا في كل الأقسام
+            {trFailed > 0 && <> · <span className="text-danger">تعذّر {formatCount(trFailed)}</span></>}. يعمل في الخلفية تسجيلًا تلو الآخر: المحاضرات والمواعظ والنوادر أولًا، ثم المناسبات، ثم المديح وبقية الأقسام — الأحدث أولًا في كل مرحلة.
           </p>
         ) : (
           <p className="mt-1 text-sm text-muted">غير مفعّل — أضف المتغير <code dir="ltr">TRANSCRIBE_API_KEY</code> في Railway لبدء تفريغ {formatCount(trTotal)} تسجيلًا منشورًا.</p>

@@ -18,7 +18,14 @@ import { pingIndexNow } from './indexnow';
 // Audio is downmixed to 16kHz mono 32kbps MP3 and cut into 20-minute pieces
 // (~5MB each, well under the 25MB upload limit), transcribed in order, joined.
 
-const SECTIONS = ['lectures', 'sermons', 'seminars']; // محاضرات، مواعظ، أرشيف النوادر
+// Every section's audio/video is transcribed, in this order of priority: speech
+// first (most accurate and most useful for search), then occasions, then the
+// rest (المديح last: sung/chanted text is transcribed far less accurately).
+export const TRANSCRIBE_TIERS: (string[] | null)[] = [
+  ['lectures', 'sermons', 'seminars'], // محاضرات، مواعظ، أرشيف النوادر
+  ['occasions'],                       // المناسبات والاحتفالات
+  null,                                // كل ما تبقّى (ومنه المديح)
+];
 const CHUNK_SEC = 20 * 60;
 
 export function transcriptionConfigured(): boolean {
@@ -99,6 +106,21 @@ async function transcribeChunk(path: string): Promise<string> {
   return text.trim();
 }
 
+// Whisper is known to "hear" these stock phrases in music or silence (it learned
+// them from subtitled videos). With المديح and videos of events in the queue
+// they'd otherwise appear as fake speech — drop them.
+const HALLUCINATIONS = [
+  /ترجم[ةه] نانسي قنقر/g, /اشتركوا في القنا[ةه]/g, /لا تنسوا الاشتراك[^.؟!]*/g,
+  /شكرا(?:ً)? (?:لكم )?(?:على|ل)(?:ال)?مشاهد[ةه]/g, /تفريغ(?: وترجم[ةه])? [^.؟!]{0,30}مسجد/g,
+];
+export function cleanTranscript(text: string): string {
+  let t = text;
+  for (const re of HALLUCINATIONS) t = t.replace(re, ' ');
+  // Collapse a phrase repeated back-to-back many times (a typical loop on music).
+  t = t.replace(/(\S.{3,80}?)(?:\s*\1){3,}/g, '$1');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
 // Split long runs of text into readable paragraphs (Whisper returns one block).
 function paragraphs(text: string): string {
   const sentences = text.replace(/\s+/g, ' ').split(/(?<=[.!؟?۔])\s+/);
@@ -125,7 +147,9 @@ export async function transcribeFile(url: string): Promise<string> {
     const parts = (await readdir(dir)).filter((f) => f.startsWith('part')).sort();
     const texts: string[] = [];
     for (const p of parts) texts.push(await transcribeChunkPatiently(join(dir, p)));
-    return paragraphs(texts.filter(Boolean).join(' '));
+    const joined = cleanTranscript(texts.filter(Boolean).join(' '));
+    // Under a sentence of real words = music/silence only: nothing to show.
+    return joined.replace(/[^\p{L}]/gu, '').length < 25 ? '' : paragraphs(joined);
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
@@ -135,14 +159,18 @@ export async function transcribeFile(url: string): Promise<string> {
 // Returns 'done' | 'idle' | 'rate-limited'.
 export async function transcribeOne(): Promise<'done' | 'idle' | 'rate-limited'> {
   if (!transcriptionConfigured()) return 'idle';
-  const m = await prisma.material.findFirst({
-    where: {
-      status: 'PUBLISHED', transcribedAt: null, fileUrl: { not: null },
-      fileKind: { in: ['AUDIO', 'VIDEO'] }, category: { slug: { in: SECTIONS } },
-    },
-    orderBy: { publishedAt: 'desc' }, // newest first: what visitors see now
-    select: { id: true, title: true, fileUrl: true },
-  });
+  let m: { id: string; title: string; fileUrl: string | null } | null = null;
+  for (const tier of TRANSCRIBE_TIERS) {
+    m = await prisma.material.findFirst({
+      where: {
+        status: 'PUBLISHED', transcribedAt: null, fileUrl: { not: null },
+        fileKind: { in: ['AUDIO', 'VIDEO'] }, ...(tier ? { category: { slug: { in: tier } } } : {}),
+      },
+      orderBy: { publishedAt: 'desc' }, // newest first: what visitors see now
+      select: { id: true, title: true, fileUrl: true },
+    });
+    if (m) break;
+  }
   if (!m?.fileUrl) return 'idle';
   const claim = await prisma.material.updateMany({ where: { id: m.id, transcribedAt: null }, data: { transcribedAt: new Date() } });
   if (claim.count !== 1) return 'done';
@@ -150,7 +178,8 @@ export async function transcribeOne(): Promise<'done' | 'idle' | 'rate-limited'>
     const transcript = await transcribeFile(m.fileUrl);
     await prisma.material.update({
       where: { id: m.id },
-      data: { transcript: transcript || null, transcriptSearch: transcript ? normalizeArabic(transcript) : null, transcriptError: null, transcribedAt: new Date() },
+      // transcriptSearch '' (not null) marks «done, no speech» so it isn't re-queued.
+      data: { transcript: transcript || null, transcriptSearch: transcript ? normalizeArabic(transcript) : '', transcriptError: null, transcribedAt: new Date() },
     });
     console.log(`[transcribe] ${m.id} ${m.title} — ${transcript.length} chars`);
     // The page just gained real, searchable text — ask search engines to re-read it.
