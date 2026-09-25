@@ -96,6 +96,12 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
 // Overlay a small, faint emblem in the bottom corner of a video, then write the
 // result back to `url` via the provided saver (kept out of this module so it has
 // no storage dependency). ffmpeg streams frame-by-frame → low, flat memory.
+//
+// The same single encode also makes the copy viewers stream lighter: longest
+// side capped at 1280px (never upscaled), H.264 CRF 26, AAC 128k, and
+// +faststart so playback starts before the whole file downloads. Output is
+// always MP4 (plays everywhere). The untouched original stays in
+// originalFileUrl, so no quality is lost from the archive itself.
 export async function watermarkVideoInPlace(
   url: string,
   ext: string,
@@ -104,7 +110,7 @@ export async function watermarkVideoInPlace(
 ): Promise<string> {
   return withTempDir(async (dir) => {
     const inPath = join(dir, `in.${ext || 'mp4'}`);
-    const outPath = join(dir, `out.${ext || 'mp4'}`);
+    const outPath = join(dir, 'out.mp4');
     const labelPath = join(dir, 'label.png');
     await localCopy(url, inPath);
     // The brand label (emblem + المساهم name + site) already carries its own
@@ -119,16 +125,19 @@ export async function watermarkVideoInPlace(
       '-i', inPath,
       '-i', labelPath,
       '-filter_complex',
-      '[1:v]format=rgba,scale=200:-1[lg];[0:v][lg]overlay=W-w-20:H-h-20[v]',
+      // Downscale first (long side ≤ 1280, even dims), then overlay the label.
+      "[0:v]scale=w='if(gte(iw,ih),min(1280,iw),-2)':h='if(gte(iw,ih),-2,min(1280,ih))'[base];"
+        + '[1:v]format=rgba,scale=200:-1[lg];[base][lg]overlay=W-w-20:H-h-20,format=yuv420p[v]',
       '-map', '[v]',
       '-map', '0:a?',
       '-threads', '1',
       '-max_muxing_queue_size', '1024',
-      '-c:a', 'copy',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+      '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+      '-movflags', '+faststart',
       outPath,
     ]);
-    const ct = ext === 'webm' ? 'video/webm' : ext === 'mkv' ? 'video/x-matroska' : 'video/mp4';
-    return save(outPath, ct);
+    return save(outPath, 'video/mp4');
   });
 }
 

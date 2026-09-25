@@ -38,6 +38,13 @@ import('../src/lib/backup')
         console.error('[backup] failed', e);
       }
       try {
+        const { cleanupOrphanUploads } = await import('../src/lib/orphans');
+        const res = await cleanupOrphanUploads();
+        if (res) console.log(`[orphans] ${res}`);
+      } catch (e) {
+        console.error('[orphans] cleanup failed', e);
+      }
+      try {
         const sent = await emailWeeklyBackup();
         if (sent) console.log(`[backup] weekly off-site copy ${sent}`);
       } catch (e) {

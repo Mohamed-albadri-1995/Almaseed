@@ -276,3 +276,31 @@ export async function statUpload(url?: string | null): Promise<{ size: number; c
   }
   return null;
 }
+
+// Every object in the bucket (paged). R2 only; yields nothing on local storage.
+export async function* listStoredObjects(): AsyncGenerator<{ key: string; size: number; lastModified: Date | null }> {
+  if (!storageConfigured()) return;
+  const { ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+  const client = await s3Client();
+  let token: string | undefined;
+  do {
+    const page = await client.send(new ListObjectsV2Command({ Bucket: S3.bucket!, ContinuationToken: token, MaxKeys: 1000 }));
+    for (const o of page.Contents ?? []) {
+      if (o.Key) yield { key: o.Key, size: Number(o.Size ?? 0), lastModified: o.LastModified ?? null };
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+}
+
+// Delete an object by key without the material-reference check (the caller has
+// already established it is unreferenced). R2 only.
+export async function deleteStoredKey(key: string): Promise<void> {
+  if (!storageConfigured()) return;
+  const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+  const client = await s3Client();
+  await client.send(new DeleteObjectCommand({ Bucket: S3.bucket!, Key: key }));
+}
+
+export function storagePublicBase(): string | null {
+  return S3.publicUrl ? S3.publicUrl.replace(/\/$/, '') : null;
+}

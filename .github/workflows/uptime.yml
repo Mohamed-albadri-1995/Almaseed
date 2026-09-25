@@ -1,0 +1,68 @@
+name: Uptime
+
+# Checks almaseeed.com every 10 minutes (home page + /api/health, which also
+# checks the database). If it is down on 3 tries in a row, opens an issue
+# «⚠️ الموقع متوقف» assigned to the owner — GitHub emails the assignment. When
+# the site is back, the issue is closed automatically with a comment.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe site
+        id: probe
+        run: |
+          ok=0
+          for i in 1 2 3; do
+            home=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://almaseeed.com/ || echo 000)
+            health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://almaseeed.com/api/health || echo 000)
+            echo "try $i: home=$home health=$health"
+            if [ "$home" = "200" ] && [ "$health" = "200" ]; then ok=1; break; fi
+            sleep 30
+          done
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "detail=home=$home health=$health" >> "$GITHUB_OUTPUT"
+
+      - name: Open or close the outage issue
+        uses: actions/github-script@v7
+        env:
+          OK: ${{ steps.probe.outputs.ok }}
+          DETAIL: ${{ steps.probe.outputs.detail }}
+        with:
+          script: |
+            const title = '⚠️ الموقع متوقف — almaseeed.com';
+            const { owner, repo } = context.repo;
+            const open = (await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: 'outage', per_page: 5 })).data
+              .find((i) => i.title === title);
+            const now = new Date().toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+            if (process.env.OK === '1') {
+              if (open) {
+                await github.rest.issues.createComment({ owner, repo, issue_number: open.number, body: `✅ عاد الموقع للعمل (${now}).` });
+                await github.rest.issues.update({ owner, repo, issue_number: open.number, state: 'closed' });
+              }
+              return;
+            }
+            if (open) {
+              core.info('Outage already reported: #' + open.number);
+            } else {
+              await github.rest.issues.create({
+                owner, repo, title, labels: ['outage'], assignees: [owner],
+                body: `الموقع لا يستجيب منذ ${now}.\n\nنتيجة الفحص: \`${process.env.DETAIL}\`\n\n- \`home\` صفحة الموقع، \`health\` الخادم وقاعدة البيانات (000 = لا استجابة، 503 = قاعدة البيانات لا تستجيب).\n- راجع Railway ← Deployments و Deploy Logs.\n\nسيُغلق هذا البلاغ تلقائيًا عند عودة الموقع.`,
+              });
+            }
+            // Deliberately NOT failing the run: Railway «Wait for CI» looks at
+            // every Actions run on the latest commit, and a red uptime run would
+            // block the very deploy that fixes the outage. The issue is the alert.
+            core.warning(`almaseeed.com is down (${process.env.DETAIL})`);

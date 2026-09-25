@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   change_role: 'تغيير دور',
   unify_names: 'توحيد أسماء',
   backup_email: 'نسخة احتياطية بالبريد',
+  orphan_cleanup: 'تنظيف ملفات غير مستخدمة',
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 

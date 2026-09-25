@@ -97,7 +97,9 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
       updates.fileUrl = await saveUpload(newName('pdf'), w, 'application/pdf');
       done.push('pdf');
     } else if (m.fileKind === 'VIDEO' && ff) {
-      updates.fileUrl = await watermarkVideoInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName(ext || 'mp4'), p, ct), contributor);
+      // Always re-encoded to a lighter, stream-ready MP4 (see watermarkVideoInPlace).
+      updates.fileUrl = await watermarkVideoInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName('mp4'), p, ct), contributor);
+      updates.fileType = 'mp4';
       done.push('video');
     } else if (m.fileKind === 'AUDIO' && ff) {
       // Any audio → mp3 with the embedded branded cover (+ title/artist tags), so
