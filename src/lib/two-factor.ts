@@ -52,7 +52,7 @@ export function originFromHeaders(h: Headers, via: 'web' | 'app'): LoginOrigin {
   };
 }
 
-function deviceLabel(o: LoginOrigin): string {
+export function deviceLabel(o: LoginOrigin): string {
   const ua = o.ua || '';
   const os = /android/i.test(ua) ? 'أندرويد' : /iphone|ipad|ios/i.test(ua) ? 'آيفون' : /windows/i.test(ua) ? 'ويندوز' : /mac os/i.test(ua) ? 'ماك' : /linux/i.test(ua) ? 'لينكس' : '';
   const where = o.via === 'app' ? 'تطبيق أرشيف المسيد' : 'متصفح الموقع';
@@ -178,4 +178,14 @@ export async function pendingUserEmail(challengeId: string): Promise<string | nu
   if (!ch) return null;
   const u = await prisma.user.findUnique({ where: { id: ch.userId }, select: { email: true } });
   return u ? maskEmail(u.email) : null;
+}
+
+// A correct password was used on a «Google only» account: refuse it, send no
+// code, but record where it came from so the owner can see it in the log.
+export const GOOGLE_ONLY_MESSAGE = 'هذا الحساب يدخل عبر Google فقط — استخدم زر «الدخول عبر Google».';
+export async function logBlockedPasswordLogin(user: { id: string }, origin: LoginOrigin) {
+  await logActivity({
+    userId: user.id, action: 'password_login_blocked', entity: 'user', entityId: user.id,
+    meta: { via: origin.via, ip: origin.ip, country: origin.country ?? null, device: deviceLabel(origin) },
+  }).catch(() => {});
 }

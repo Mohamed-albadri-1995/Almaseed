@@ -24,6 +24,7 @@ const ACTION_LABELS: Record<string, string> = {
   orphan_cleanup: 'تنظيف ملفات غير مستخدمة',
   video_recompress_v1: 'إعادة ضغط الفيديوهات القديمة',
   login_code_sent: 'طلب رمز دخول',
+  password_login_blocked: 'مُنع دخول بكلمة المرور (Google فقط)',
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 
@@ -61,7 +62,7 @@ export default async function ActivityPage() {
                   <span className="min-w-0 break-words text-brand-800">
                     <span className="font-semibold">{l.user?.name ?? 'النظام'}</span>
                     {ENTITY_LABELS[l.entity] && <span className="text-muted"> — {ENTITY_LABELS[l.entity]}</span>}
-                    {l.action === 'login_code_sent' && l.meta && (() => {
+                    {(l.action === 'login_code_sent' || l.action === 'password_login_blocked') && l.meta && (() => {
                       // Where the sign-in attempt came from (device · country · IP).
                       try {
                         const m = JSON.parse(l.meta) as { device?: string; country?: string | null; ip?: string };

@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { MaterialCard } from '@/components/MaterialCard';
 import { Tip } from '@/components/Tip';
 import { getCurrentUser } from '@/lib/session';
-import { logoutAction, logoutEverywhereAction } from '@/app/auth-actions';
+import { logoutAction, logoutEverywhereAction, setGoogleOnlyAction } from '@/app/auth-actions';
 import { prisma } from '@/lib/prisma';
 import { isStaff } from '@/lib/rbac';
 import { ROLE_LABELS, MATERIAL_STATUS, type Role } from '@/lib/constants';
@@ -17,12 +17,12 @@ export const metadata: Metadata = { title: 'حسابي' };
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: { submitted?: string; resubmitted?: string; signedout?: string };
+  searchParams: { submitted?: string; resubmitted?: string; signedout?: string; googleonly?: string };
 }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login?redirect=/account');
 
-  const [submissions, favorites, notifications] = await Promise.all([
+  const [submissions, favorites, notifications, security] = await Promise.all([
     prisma.material.findMany({
       where: { submittedById: user.id },
       orderBy: { createdAt: 'desc' },
@@ -56,7 +56,9 @@ export default async function AccountPage({
       orderBy: { createdAt: 'desc' },
       take: 10,
     }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { googleOnly: true } }),
   ]);
+  const googleOnly = !!security?.googleOnly;
 
   const counts = {
     pending: submissions.filter((s) => s.status === MATERIAL_STATUS.PENDING).length,
@@ -100,6 +102,29 @@ export default async function AccountPage({
           تم تسجيل الخروج من كل الأجهزة الأخرى والتطبيق. ما زلت مسجّلًا على هذا الجهاز.
         </div>
       )}
+
+      {/* Sign-in security: turn password sign-in off for people who only use Google. */}
+      <section className="card mb-6 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 text-sm">
+          <p className="font-bold text-brand-800">
+            الدخول عبر Google فقط: {googleOnly ? <span className="text-emerald-700">مفعّل</span> : <span className="text-muted">غير مفعّل</span>}
+          </p>
+          <p className="mt-1 leading-7 text-muted">
+            {googleOnly
+              ? 'الدخول بكلمة المرور مغلق لحسابك، ولن تصلك رموز دخول. أي محاولة بكلمة المرور تُسجَّل وتُرفض.'
+              : 'إن كنت تدخل دائمًا عبر Google ففعّل هذا الخيار: تُغلق كلمة المرور نهائيًا فلا يستطيع أحد استخدامها، وتتوقف رسائل رموز الدخول.'}
+          </p>
+          {searchParams.googleonly && (
+            <p className="mt-1 font-semibold text-emerald-700">{searchParams.googleonly === '1' ? 'تم التفعيل.' : 'تم الإيقاف — الدخول بكلمة المرور متاح.'}</p>
+          )}
+        </div>
+        <form action={setGoogleOnlyAction} className="shrink-0">
+          <input type="hidden" name="on" value={googleOnly ? '0' : '1'} />
+          <button className={googleOnly ? 'btn-outline text-sm' : 'btn-primary text-sm'}>
+            {googleOnly ? 'إيقاف' : 'تفعيل الدخول عبر Google فقط'}
+          </button>
+        </form>
+      </section>
 
       {(searchParams.submitted || searchParams.resubmitted) && (
         <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">

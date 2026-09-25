@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { loginSchema } from '@/lib/validation';
 import { rateLimit, ipFromHeaders, MIN } from '@/lib/rate-limit';
-import { needsTwoFactor, startChallenge, maskEmail, originFromHeaders } from '@/lib/two-factor';
+import { needsTwoFactor, startChallenge, maskEmail, originFromHeaders, GOOGLE_ONLY_MESSAGE, logBlockedPasswordLogin } from '@/lib/two-factor';
 import { mobileLoginResponse } from '@/lib/mobile-login-response';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +25,11 @@ export async function POST(req: Request) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user || !user.active || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
     return NextResponse.json({ error: 'البريد أو كلمة المرور غير صحيحة' }, { status: 401 });
+  }
+
+  if (user.googleOnly) {
+    await logBlockedPasswordLogin(user, originFromHeaders(req.headers, 'app'));
+    return NextResponse.json({ error: GOOGLE_ONLY_MESSAGE }, { status: 403 });
   }
 
   // Accounts above reviewer: second step by emailed code. Older app builds

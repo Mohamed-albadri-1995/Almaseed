@@ -12,7 +12,9 @@ import { rateLimit, clientIp, MIN, HOUR } from '@/lib/rate-limit';
 import {
   needsTwoFactor, startChallenge, verifyChallenge, setPendingChallenge, readPendingChallenge,
   clearPendingChallenge, setTrustedDevice, isTrustedDevice, originFromHeaders,
+  GOOGLE_ONLY_MESSAGE, logBlockedPasswordLogin,
 } from '@/lib/two-factor';
+import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 
 const TOO_MANY = 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.';
@@ -62,6 +64,11 @@ export async function loginAction(
   const ok = await verifyPassword(parsed.data.password, user.passwordHash);
   if (!ok) {
     return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
+  }
+
+  if (user.googleOnly) {
+    await logBlockedPasswordLogin(user, originFromHeaders(headers(), 'web'));
+    return { error: GOOGLE_ONLY_MESSAGE };
   }
 
   const next = safeRedirect(formData.get('redirect'));
@@ -241,8 +248,20 @@ export async function resetPasswordAction(
       sessionVersion: { increment: 1 },
       resetTokenHash: null,
       resetTokenExpiresAt: null,
+      // Setting a password by email link means the owner wants to use it.
+      googleOnly: false,
     },
   });
 
   redirect('/login?reset=1');
+}
+
+// «الدخول عبر Google فقط» on/off from the account page.
+export async function setGoogleOnlyAction(formData: FormData) {
+  const current = await getCurrentUser();
+  if (!current) redirect('/login?redirect=/account');
+  const on = formData.get('on') === '1';
+  await prisma.user.update({ where: { id: current.id }, data: { googleOnly: on } });
+  revalidatePath('/account');
+  redirect(`/account?googleonly=${on ? 1 : 0}`);
 }
