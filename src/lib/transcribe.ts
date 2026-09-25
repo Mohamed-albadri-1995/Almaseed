@@ -8,6 +8,7 @@ import { Readable } from 'stream';
 import { prisma } from './prisma';
 import { normalizeArabic } from './search';
 import { uploadsDir } from './uploads';
+import { pingIndexNow } from './indexnow';
 
 // Automatic speech-to-text for spoken recordings, so what was SAID in a lecture
 // becomes searchable and readable. Uses any OpenAI-compatible Whisper endpoint:
@@ -152,6 +153,8 @@ export async function transcribeOne(): Promise<'done' | 'idle' | 'rate-limited'>
       data: { transcript: transcript || null, transcriptSearch: transcript ? normalizeArabic(transcript) : null, transcriptError: null, transcribedAt: new Date() },
     });
     console.log(`[transcribe] ${m.id} ${m.title} — ${transcript.length} chars`);
+    // The page just gained real, searchable text — ask search engines to re-read it.
+    if (transcript) void pingIndexNow([`/material/${m.id}`]);
     return 'done';
   } catch (e) {
     if (e instanceof RateLimited) {

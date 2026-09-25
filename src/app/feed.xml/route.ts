@@ -16,7 +16,7 @@ export async function GET() {
     orderBy: { publishedAt: 'desc' },
     take: 50,
     select: {
-      id: true, title: true, description: true, summary: true, publishedAt: true,
+      id: true, title: true, description: true, summary: true, transcript: true, publishedAt: true,
       category: { select: { name: true } },
     },
   });
@@ -25,7 +25,7 @@ export async function GET() {
   const entries = items
     .map((m) => {
       const link = `${SITE_URL}/material/${m.id}`;
-      const desc = clampDescription(m.description || m.summary, 300) || m.title;
+      const desc = clampDescription(m.description || m.summary || m.transcript, 300) || m.title;
       const pub = m.publishedAt ? new Date(m.publishedAt).toUTCString() : now;
       return `    <item>
       <title>${esc(m.title)}</title>

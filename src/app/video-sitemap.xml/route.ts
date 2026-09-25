@@ -22,7 +22,7 @@ export async function GET() {
     orderBy: { publishedAt: 'desc' },
     take: 45000,
     select: {
-      id: true, title: true, description: true, summary: true,
+      id: true, title: true, description: true, summary: true, transcript: true,
       fileUrl: true, coverImage: true, durationSec: true, publishedAt: true,
     },
   });
@@ -31,7 +31,7 @@ export async function GET() {
     .map((m) => {
       const page = `${SITE_URL}/material/${m.id}`;
       const thumb = absUrl(m.coverImage) || absUrl(OG_IMAGE)!;
-      const desc = clampDescription(m.description || m.summary, 500) || m.title;
+      const desc = clampDescription(m.description || m.summary || m.transcript, 500) || m.title;
       const dur = m.durationSec && m.durationSec > 0 ? `      <video:duration>${m.durationSec}</video:duration>\n` : '';
       const pub = m.publishedAt ? `      <video:publication_date>${new Date(m.publishedAt).toISOString()}</video:publication_date>\n` : '';
       return `  <url>

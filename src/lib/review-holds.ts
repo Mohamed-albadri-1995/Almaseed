@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { MATERIAL_STATUS } from './constants';
 import { logActivity } from './activity';
 import { notifyAllNewMaterial, pushToUsers } from './push';
+import { pingIndexNow } from './indexnow';
 
 // Days a rejection-hold waits for a second reviewer before auto-publishing.
 export const HOLD_DAYS = 7;
@@ -50,6 +51,7 @@ export async function releaseExpiredHolds(): Promise<number> {
         title: m.title,
         category: m.category ? { name: m.category.name } : null,
       }).catch(() => {});
+      void pingIndexNow([`/material/${m.id}`]);
     }
   }
   return due.length;

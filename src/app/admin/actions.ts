@@ -22,6 +22,7 @@ import {
 import { notifyAllNewMaterial, pushToUsers } from '@/lib/push';
 import { sectionSupervisors, tallyDeletion, loadReviewStaff } from '@/lib/deletion';
 import { HOLD_DAYS } from '@/lib/review-holds';
+import { pingIndexNow } from '@/lib/indexnow';
 
 async function requireReviewer() {
   const user = await getCurrentUser();
@@ -206,6 +207,7 @@ export async function reviewDecisionAction(formData: FormData) {
       title: material.title,
       category: material.category ? { name: material.category.name } : null,
     }).catch(() => {});
+    void pingIndexNow([`/material/${material.id}`]);
   }
 
   // First rejection put the material on hold → ask the OTHER reviewers of the

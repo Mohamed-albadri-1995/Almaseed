@@ -38,6 +38,10 @@ function metaDescription(m: {
   const own = clampDescription(m.description || m.summary || m.bodyText);
   if (own) return own;
   const person = m.category?.slug ? (m[getPrimaryPerson(m.category.slug)?.field ?? ''] as string | undefined) : undefined;
+  // No written description: the opening words of the recording itself (from the
+  // automatic transcript) make a far more relevant search snippet than a template.
+  const transcript = typeof m.transcript === 'string' ? m.transcript : '';
+  if (transcript) return clampDescription(`${person ? `${person}: ` : ''}${transcript}`)!;
   const cat = m.category?.name || 'مادة';
   const label = m.category?.slug ? getPrimaryPerson(m.category.slug)?.label : null;
   const who = person && label ? ` — ${label}: ${person}` : '';
@@ -175,7 +179,7 @@ export default async function MaterialPage({
     materialJsonLd({
       id: material.id,
       title: material.title,
-      description: material.description || material.summary || material.bodyText,
+      description: material.description || material.summary || material.bodyText || material.transcript,
       fileUrl: material.fileUrl,
       fileKind: material.fileKind,
       coverImage: material.coverImage,
@@ -321,23 +325,37 @@ export default async function MaterialPage({
 
           {/* Automatic transcript of the recording (lectures, sermons, rare archive).
               Collapsed by default; clearly labelled as machine-made. */}
-          {material.transcript && (
-            <section className="mt-10">
-              <details className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
-                <summary className="flex cursor-pointer list-none items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
+          {material.transcript && (() => {
+            // The opening paragraphs are shown as normal page text (read by
+            // visitors and search engines alike); the rest folds away.
+            const paras = material.transcript.split(/\n{2,}/);
+            let len = 0; let cut = 0;
+            while (cut < paras.length && len < 700) { len += paras[cut].length; cut++; }
+            const lead = paras.slice(0, cut).join('\n\n');
+            const rest = paras.slice(cut).join('\n\n');
+            return (
+              <section className="mt-10 overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
+                <div className="flex items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
                   <Icon.file width={18} height={18} className="text-gold-300" />
-                  <span className="font-display text-lg font-bold">النص المفرّغ</span>
-                  <span className="ms-auto text-xs text-ivory-100/80 group-open:hidden">اضغط للعرض ▾</span>
-                </summary>
+                  <h2 className="font-display text-lg font-bold">النص المفرّغ: {material.title}</h2>
+                </div>
                 <div className="px-6 py-6 sm:px-10">
                   <p className="mb-4 rounded-xl bg-gold-50 px-4 py-2 text-xs leading-6 text-brand-800 ring-1 ring-gold-200">
                     تفريغ آلي للتسجيل الصوتي، قد يحتوي على أخطاء في بعض الكلمات والأسماء — المرجع هو التسجيل نفسه.
                   </p>
-                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{material.transcript}</div>
+                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{lead}</div>
+                  {rest && (
+                    <details className="group mt-2">
+                      <summary className="cursor-pointer list-none py-2 text-sm font-semibold text-brand-700 hover:underline group-open:hidden">
+                        عرض النص كاملًا ▾
+                      </summary>
+                      <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{rest}</div>
+                    </details>
+                  )}
                 </div>
-              </details>
-            </section>
-          )}
+              </section>
+            );
+          })()}
 
           {/* Description */}
           {material.description && (
