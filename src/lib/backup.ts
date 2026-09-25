@@ -1,6 +1,9 @@
 import { prisma } from './prisma';
 import { createHmac } from 'crypto';
+import { gzipSync } from 'zlib';
 import { saveUpload, storageConfigured, deleteUpload } from './storage';
+import { sendEmail, isEmailConfigured } from './email';
+import { logActivity } from './activity';
 
 // Build a full JSON snapshot of every content table. Secrets (password hashes,
 // reset/push tokens) are deliberately excluded. Shared by the admin download
@@ -99,4 +102,37 @@ export async function runScheduledBackupToStorage(): Promise<string | null> {
   await deleteUpload(base + backupKey(old)).catch(() => {});
 
   return `backups/…/almaseed-backup-${today}.json (${Math.round(json.length / 1024)} KB, keeps ${RETAIN_DAYS} days)`;
+}
+
+// Off-site copy: once a week, email the backup (gzipped) to the owner, so the
+// archive's data survives even if the R2 account itself is lost. Recipient:
+// BACKUP_EMAIL, else the first active admin. At most one per 6 days — tracked in
+// the activity log, so worker restarts on deploy never send duplicates.
+export async function emailWeeklyBackup(): Promise<string | null> {
+  if (!isEmailConfigured()) return null;
+  const since = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+  const recent = await prisma.activityLog.findFirst({ where: { action: 'backup_email', createdAt: { gte: since } } });
+  if (recent) return null;
+
+  const to = process.env.BACKUP_EMAIL
+    || (await prisma.user.findFirst({ where: { role: 'ADMIN', active: true }, orderBy: { createdAt: 'asc' }, select: { email: true } }))?.email;
+  if (!to) return null;
+
+  const json = await buildBackupJson('weekly-email');
+  const gz = gzipSync(Buffer.from(json, 'utf8'));
+  const date = new Date().toISOString().slice(0, 10);
+  const counts = (JSON.parse(json) as { meta: { counts: Record<string, number> } }).meta.counts;
+  const ok = await sendEmail({
+    to,
+    subject: `نسخة احتياطية أسبوعية — أرشيف المسيد ${date}`,
+    html: `<div dir="rtl" style="font-family:sans-serif;line-height:1.8">
+      <p>مرفق نسخة احتياطية كاملة من بيانات أرشيف المسيد بتاريخ ${date}.</p>
+      <p>المواد: ${counts.materials} · المستخدمون: ${counts.users} · الأقسام: ${counts.categories}</p>
+      <p>احتفظ بهذه الرسالة؛ يمكن استرجاع الأرشيف منها عند الحاجة. الملفات نفسها (الصوت والفيديو) محفوظة في التخزين السحابي ولا تحتاج نسخًا.</p>
+    </div>`,
+    attachments: [{ filename: `almaseed-backup-${date}.json.gz`, content: gz.toString('base64') }],
+  });
+  if (!ok) return null;
+  await logActivity({ action: 'backup_email', entity: 'system', meta: { date, bytes: gz.length } });
+  return `emailed ${Math.round(gz.length / 1024)} KB`;
 }

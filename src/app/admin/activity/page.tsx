@@ -20,6 +20,7 @@ const ACTION_LABELS: Record<string, string> = {
   unhide: 'إظهار مادة',
   change_role: 'تغيير دور',
   unify_names: 'توحيد أسماء',
+  backup_email: 'نسخة احتياطية بالبريد',
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 

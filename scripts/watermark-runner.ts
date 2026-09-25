@@ -23,7 +23,7 @@ if (process.env.WATERMARK_WORKER === 'off') {
 // A second, off-site copy of the archive's metadata in case the DB is lost. This
 // timer also keeps the process alive.
 import('../src/lib/backup')
-  .then(({ runScheduledBackupToStorage, cleanupLegacyBackups }) => {
+  .then(({ runScheduledBackupToStorage, cleanupLegacyBackups, emailWeeklyBackup }) => {
     // Remove backups written by the first version at a guessable public path.
     if (process.env.STORAGE_PUBLIC_URL) {
       cleanupLegacyBackups(process.env.STORAGE_PUBLIC_URL)
@@ -36,6 +36,12 @@ import('../src/lib/backup')
         console.log(url ? `[backup] wrote ${url}` : '[backup] skipped (storage not configured)');
       } catch (e) {
         console.error('[backup] failed', e);
+      }
+      try {
+        const sent = await emailWeeklyBackup();
+        if (sent) console.log(`[backup] weekly off-site copy ${sent}`);
+      } catch (e) {
+        console.error('[backup] weekly email failed', e);
       }
     };
     setTimeout(tick, 90_000); // once shortly after boot

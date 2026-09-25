@@ -8,6 +8,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   html: string;
+  // Base64-encoded file contents (Resend attachment format).
+  attachments?: { filename: string; content: string }[];
 }
 
 export function isEmailConfigured(): boolean {
@@ -18,7 +20,7 @@ export function isEmailConfigured(): boolean {
 // verified domain sender is set via EMAIL_FROM.
 const DEFAULT_FROM = 'أرشيف المسيد <onboarding@resend.dev>';
 
-export async function sendEmail({ to, subject, html }: EmailMessage): Promise<boolean> {
+export async function sendEmail({ to, subject, html, attachments }: EmailMessage): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM || DEFAULT_FROM;
   if (!key) {
@@ -29,7 +31,7 @@ export async function sendEmail({ to, subject, html }: EmailMessage): Promise<bo
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from, to, subject, html }),
+      body: JSON.stringify({ from, to, subject, html, ...(attachments?.length ? { attachments } : {}) }),
     });
     if (!res.ok) {
       console.error('[email] send failed:', res.status, await res.text().catch(() => ''));
