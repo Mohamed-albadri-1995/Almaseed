@@ -293,6 +293,7 @@ export default async function ArchivePage({
           </div>
           <select
             name="sort"
+            aria-label="ترتيب النتائج"
             defaultValue={searchParams.sort ?? 'newest'}
             className="rounded-xl border border-ivory-300 bg-white px-3 py-2.5 text-sm text-brand-800 focus:border-brand-400 focus:ring-0"
           >

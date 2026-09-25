@@ -25,8 +25,8 @@ export default async function HomePage() {
   // One elegant branded cover is used as the poster for both states, so the card
   // looks polished before play; the clip itself differs by sign-in state.
   const guide = user
-    ? { src: '/guide/guide_share_web.mp4', poster: '/guide/guide_home_cover.jpg', title: 'كيف تشارك مادة من الموقع', subtitle: 'خطوات الإرسال للمراجعة في أقل من دقيقة' }
-    : { src: '/guide/guide_login.mp4', poster: '/guide/guide_home_cover.jpg', title: 'أنشئ حسابك وسجّل الدخول', subtitle: 'ابدأ المساهمة في حفظ التراث' };
+    ? { src: '/guide/guide_share_web.mp4', poster: '/guide/guide_home_cover-540.webp', title: 'كيف تشارك مادة من الموقع', subtitle: 'خطوات الإرسال للمراجعة في أقل من دقيقة' }
+    : { src: '/guide/guide_login.mp4', poster: '/guide/guide_home_cover-540.webp', title: 'أنشئ حسابك وسجّل الدخول', subtitle: 'ابدأ المساهمة في حفظ التراث' };
   // The three contribution steps shown beneath the clip.
   const guideSteps: { icon: keyof typeof Icon; n: string; label: string }[] = [
     { icon: 'user', n: '١', label: 'أنشئ حسابك' },
@@ -61,8 +61,15 @@ export default async function HomePage() {
         {/* Cover banner artwork (emblem + name + tagline are part of the image)
             shown full-width on every screen, as provided. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* LCP image: responsive WebP, explicit size (no layout shift), fetched first. */}
         <img
-          src="/hero-banner.jpg"
+          src="/hero-banner-1600.webp"
+          srcSet="/hero-banner-800.webp 800w, /hero-banner-1600.webp 1600w"
+          sizes="100vw"
+          width={1600}
+          height={533}
+          fetchPriority="high"
+          decoding="async"
           alt="الطريقة السمّانية — السجادة السليمانية · علم · ذكر · سلوك · نور"
           className="block h-auto w-full"
         />

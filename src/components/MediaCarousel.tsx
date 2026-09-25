@@ -142,14 +142,17 @@ export function MediaCarousel({ items }: { items: ShowcaseItem[] }) {
         </div>
 
         {n > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
+          <div className="mt-6 flex items-center justify-center gap-0.5">
             {shots.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setIndex(i)}
                 aria-label={`الشريحة ${i + 1}`}
-                className={`h-2 rounded-full transition-all ${i === index ? 'w-6 bg-gold-400' : 'w-2 bg-ivory-100/40 hover:bg-ivory-100/70'}`}
-              />
+                // 24px tap target around the small visual dot (touch-friendly).
+                className="flex h-6 min-w-6 items-center justify-center"
+              >
+                <span className={`block h-2 rounded-full transition-all ${i === index ? 'w-6 bg-gold-400' : 'w-2 bg-ivory-100/40 hover:bg-ivory-100/70'}`} />
+              </button>
             ))}
           </div>
         )}

@@ -26,7 +26,7 @@ export function Pagination({
   return (
     <nav className="mt-10 flex items-center justify-center gap-1.5" aria-label="ترقيم الصفحات">
       {page > 1 && (
-        <Link href={makeHref(page - 1)} className="btn-outline px-3 py-2">
+        <Link href={makeHref(page - 1)} className="btn-outline px-3 py-2" aria-label="الصفحة السابقة">
           <Icon.chevronLeft width={16} height={16} className="rotate-180" />
         </Link>
       )}
@@ -50,7 +50,7 @@ export function Pagination({
         ),
       )}
       {page < pages && (
-        <Link href={makeHref(page + 1)} className="btn-outline px-3 py-2">
+        <Link href={makeHref(page + 1)} className="btn-outline px-3 py-2" aria-label="الصفحة التالية">
           <Icon.chevronLeft width={16} height={16} />
         </Link>
       )}

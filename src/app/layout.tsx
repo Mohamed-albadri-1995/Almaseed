@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
+import './fonts.css';
 import './globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
@@ -84,12 +85,9 @@ export default async function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700&family=Aref+Ruqaa:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Self-hosted fonts (src/app/fonts.css): no render-blocking third-party
+            stylesheet. Preload the one face every page paints first. */}
+        <link rel="preload" href="/fonts/cairo-arabic-0d2badd4.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body className="flex min-h-screen flex-col">
         <script

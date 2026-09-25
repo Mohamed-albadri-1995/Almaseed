@@ -33,7 +33,7 @@ export default function AboutPage() {
         <div className="container-page text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.png"
+            src="/logo-256.webp"
             alt="شعار الطريقة السمّانية — السجادة السليمانية"
             width={104}
             height={104}

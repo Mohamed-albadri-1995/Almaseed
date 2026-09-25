@@ -4,8 +4,10 @@ export function LogoMark({ size = 40, className = '' }: { size?: number; classNa
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/logo.png"
+      // Small WebP renditions of /logo.png (309KB PNG) — sized for the slot.
+      src={size <= 48 ? '/logo-96.webp' : '/logo-256.webp'}
       alt="شعار الطريقة السمّانية — السجادة السليمانية"
+      decoding="async"
       width={size}
       height={size}
       className={`shrink-0 select-none ${className}`}
