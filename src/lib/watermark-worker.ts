@@ -143,15 +143,20 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
   const ff = await hasFfmpeg();
   // Pull a few candidates; skip VIDEO when ffmpeg is unavailable so those stay
   // pending until it is (rather than being marked done unstamped).
-  const candidates = await prisma.material.findMany({
-    where: {
-      watermarkedAt: null,
-      OR: [{ fileKind: 'IMAGE' }, { fileKind: 'DOCUMENT' }, { fileKind: 'VIDEO' }, { fileKind: 'AUDIO' }, { coverImage: { not: null } }],
-    },
-    orderBy: { createdAt: 'asc' },
-    take: 8,
-    select: { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true, originalFileUrl: true, originalCoverImage: true, submittedBy: { select: { name: true } } },
+  const pendingWhere = {
+    watermarkedAt: null,
+    OR: [{ fileKind: 'IMAGE' }, { fileKind: 'DOCUMENT' }, { fileKind: 'VIDEO' }, { fileKind: 'AUDIO' }, { coverImage: { not: null } }],
+  };
+  const select = { id: true, title: true, fileUrl: true, fileKind: true, fileType: true, coverImage: true, originalFileUrl: true, originalCoverImage: true, submittedBy: { select: { name: true } } } as const;
+  // New submissions first (never stamped: no original preserved yet), so a
+  // backlog of re-stamps (e.g. recompressing old videos) never delays them.
+  let candidates = await prisma.material.findMany({
+    where: { ...pendingWhere, originalFileUrl: null, originalCoverImage: null },
+    orderBy: { createdAt: 'asc' }, take: 8, select,
   });
+  if (!candidates.length) {
+    candidates = await prisma.material.findMany({ where: pendingWhere, orderBy: { createdAt: 'asc' }, take: 8, select });
+  }
 
   for (const m of candidates) {
     // Video + audio both need ffmpeg (overlay / mp3 cover). Leave them pending

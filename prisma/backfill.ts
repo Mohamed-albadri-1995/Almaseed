@@ -48,9 +48,26 @@ async function migrateSeminarSpeaker() {
   if (rows.length) console.log(`🎙️  Filled «المتحدث» on ${rows.length} rare-archive materials.`);
 }
 
+// One-time: re-encode existing videos with the lighter, stream-ready settings
+// (720p cap, faststart). Only videos whose pristine original is preserved, so
+// they're re-stamped from the original — never a stamp on top of a stamp. The
+// worker handles new submissions first, so this backlog never delays them.
+async function requeueVideosForRecompress() {
+  const MARK = 'video_recompress_v1';
+  const done = await prisma.activityLog.findFirst({ where: { action: MARK } });
+  if (done) return;
+  const res = await prisma.material.updateMany({
+    where: { fileKind: 'VIDEO', originalFileUrl: { not: null }, watermarkedAt: { not: null } },
+    data: { watermarkedAt: null },
+  });
+  await prisma.activityLog.create({ data: { action: MARK, entity: 'system', meta: JSON.stringify({ requeued: res.count }) } });
+  console.log(`🎞️  Queued ${res.count} existing video(s) for recompression.`);
+}
+
 async function main() {
   await renameCategories();
   await migrateSeminarSpeaker();
+  await requeueVideosForRecompress();
   const materials = await prisma.material.findMany();
   let normalized = 0;
   let reindexed = 0;

@@ -22,6 +22,7 @@ const ACTION_LABELS: Record<string, string> = {
   unify_names: 'توحيد أسماء',
   backup_email: 'نسخة احتياطية بالبريد',
   orphan_cleanup: 'تنظيف ملفات غير مستخدمة',
+  video_recompress_v1: 'إعادة ضغط الفيديوهات القديمة',
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 
