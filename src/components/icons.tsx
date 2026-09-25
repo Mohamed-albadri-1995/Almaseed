@@ -32,6 +32,10 @@ export const Icon = {
   users: (p: IconProps) => (
     <svg {...base(p)}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
   ),
+  // Old cinema film strip: frame with sprocket holes down both edges.
+  film: (p: IconProps) => (
+    <svg {...base(p)}><rect x="4" y="2" width="16" height="20" rx="1.5" /><path d="M8 2v20M16 2v20M8 12h8" /><path d="M5.6 5h.8M5.6 8.5h.8M5.6 12h.8M5.6 15.5h.8M5.6 19h.8M17.6 5h.8M17.6 8.5h.8M17.6 12h.8M17.6 15.5h.8M17.6 19h.8" /></svg>
+  ),
   calendar: (p: IconProps) => (
     <svg {...base(p)}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
   ),

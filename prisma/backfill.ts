@@ -29,6 +29,8 @@ async function renameCategories() {
     });
     if (res.count) console.log(`🏷️  Renamed section ${r.slug}: ${r.from} → ${r.to}`);
   }
+  // «أرشيف النوادر» icon: old film strip (only if still the old default icon).
+  await prisma.category.updateMany({ where: { slug: 'seminars', icon: 'users' }, data: { icon: 'film' } });
 }
 
 // «أرشيف النوادر» now records one «المتحدث» (speaker) instead of the old
