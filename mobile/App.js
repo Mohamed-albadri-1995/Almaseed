@@ -22,6 +22,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
 import { matchSuggestions, variantOf } from './names';
+
+// Every website page the app opens goes through the SSO bridge: with a token it
+// signs the web view in as the app's user; without one it signs the web view
+// OUT — so signing out of the app never leaves a web session behind.
+const bridgeUrl = (to, token) => `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue } from './storage';
@@ -96,9 +101,7 @@ async function openContribute(push) {
   const a = await getAuth().catch(() => null);
   const to = '/submit';
   push('web', {
-    url: a?.token
-      ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(a.token)}`
-      : `${API_BASE}${to}`,
+    url: bridgeUrl(to, a?.token),
     title: 'المساهمة في النشر',
   });
 }
@@ -228,9 +231,7 @@ function AppInner() {
       // Open a website page inside the app, signed-in via the SSO bridge when we
       // have a token (needed for non-public pages like review/edit).
       const openWeb = (to, title) => {
-        const url = a?.token
-          ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(a.token)}`
-          : `${API_BASE}${to}`;
+        const url = bridgeUrl(to, a?.token);
         push('web', { url, title });
       };
       if (type === 'review_pending' || type === 'review_resubmitted' || type === 'review_hold') {
@@ -827,7 +828,13 @@ function Account({ push, onBack, onTour, cueGoogle, offline, onToggleOffline }) 
       Alert.alert('تم الدخول', r.user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك.');
     } catch (e) { Alert.alert('تعذّر التحقق', String(e.message || e)); } finally { setBusy(false); }
   };
-  const doLogout = async () => { await clearAuth(); setAuthState(null); reregisterPush(); };
+  const doLogout = async () => {
+    await clearAuth(); setAuthState(null); reregisterPush();
+    // Also end the web session the admin/account pages use (Android's fetch
+    // shares the web view's cookie store). Best-effort: the bridge does it
+    // anyway the next time any page is opened.
+    fetch(bridgeUrl('/account'), { credentials: 'include', redirect: 'manual' }).catch(() => {});
+  };
   // One-tap Google via the system browser (Chrome Custom Tab shares the phone's
   // Google session, so the user just picks an account — no password typing).
   const googleLogin = async () => {
@@ -858,7 +865,7 @@ function Account({ push, onBack, onTour, cueGoogle, offline, onToggleOffline }) 
       } catch {}
     }
     push('web', {
-      url: auth?.token ? `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}&token=${encodeURIComponent(auth.token)}` : `${API_BASE}${to}`,
+      url: bridgeUrl(to, auth?.token),
       title,
     });
   };
