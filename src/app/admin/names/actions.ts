@@ -9,7 +9,8 @@ import { logActivity } from '@/lib/activity';
 import { buildSearchText } from '@/lib/search';
 import { normalizeLine } from '@/lib/format';
 import { type Role, ROLES } from '@/lib/constants';
-import { NAME_FIELDS, type NameField } from './fields';
+import { isNameField, type NameField } from './fields';
+import { CATEGORY_FORMS } from '@/lib/fields';
 
 // Rewrite every material whose `field` is one of `names` to the single chosen
 // spelling. This is how «شيخ إبراهيم دنقول» / «الشيخ ابراهيم دنقول» /
@@ -19,16 +20,20 @@ export async function unifyNamesAction(formData: FormData) {
   if (!user || !can.manageContent(user.role as Role)) throw new Error('غير مصرّح');
 
   const field = String(formData.get('field') || '') as NameField;
-  if (!NAME_FIELDS.some((f) => f.key === field)) throw new Error('حقل غير صالح');
+  if (!isNameField(field)) throw new Error('حقل غير صالح');
+  // Optional: limit the rewrite to one section (e.g. only أرشيف النوادر).
+  const sectionRaw = String(formData.get('section') || '');
+  const section = CATEGORY_FORMS[sectionRaw] ? sectionRaw : '';
   const target = normalizeLine(String(formData.get('target') || ''));
   const names = Array.from(new Set(formData.getAll('names').map((n) => String(n)).filter(Boolean)));
-  const back = `/admin/names?field=${field}`;
+  const back = `/admin/names?field=${field}${section ? `&section=${section}` : ''}`;
   if (!target || names.length === 0) redirect(`${back}&err=1`);
 
   // A section-scoped manager only rewrites materials in their own sections.
   const scope = user.role === ROLES.ADMIN ? [] : assignedCategoriesOf(user);
+  const slugs = section ? (scope.length && !scope.includes(section) ? [] : [section]) : scope;
   const materials = await prisma.material.findMany({
-    where: { [field]: { in: names }, ...(scope.length ? { category: { slug: { in: scope } } } : {}) },
+    where: { [field]: { in: names }, ...(slugs.length || section ? { category: { slug: { in: slugs } } } : {}) },
   });
   // Keep each material's previous value so the operation can be undone.
   const undo: { id: string; old: string }[] = [];
@@ -47,7 +52,7 @@ export async function unifyNamesAction(formData: FormData) {
     userId: user.id,
     action: 'unify_names',
     entity: 'material',
-    meta: { field, from: names, to: target, changed: undo.length, undo },
+    meta: { field, section: section || null, from: names, to: target, changed: undo.length, undo },
   });
   const changed = undo.length;
   revalidatePath('/admin/names');
@@ -56,7 +61,7 @@ export async function unifyNamesAction(formData: FormData) {
   redirect(`${back}&done=${changed}`);
 }
 
-type UnifyMeta = { field: NameField; from: string[]; to: string; changed: number; undo?: { id: string; old: string }[]; undone?: boolean };
+type UnifyMeta = { field: NameField; section?: string | null; from: string[]; to: string; changed: number; undo?: { id: string; old: string }[]; undone?: boolean };
 
 // Undo one «توحيد»: restore each material's previous spelling — but only where
 // the value is still the unified one, so later manual edits are never clobbered.
@@ -67,8 +72,8 @@ export async function undoUnifyAction(formData: FormData) {
   const log = await prisma.activityLog.findUnique({ where: { id: logId } });
   if (!log || log.action !== 'unify_names' || !log.meta) redirect('/admin/names');
   const meta = JSON.parse(log.meta) as UnifyMeta;
-  const back = `/admin/names?field=${meta.field}`;
-  if (meta.undone || !meta.undo?.length || !NAME_FIELDS.some((f) => f.key === meta.field)) redirect(back);
+  const back = `/admin/names?field=${meta.field}${meta.section ? `&section=${meta.section}` : ''}`;
+  if (meta.undone || !meta.undo?.length || !isNameField(meta.field)) redirect(back);
 
   const field = meta.field;
   const scope = user.role === ROLES.ADMIN ? [] : assignedCategoriesOf(user);

@@ -7,7 +7,8 @@ import { can } from '@/lib/rbac';
 import { type Role } from '@/lib/constants';
 import { formatCount, formatDateTime } from '@/lib/format';
 import { groupNames, looksSimilar, type NameGroup } from '@/lib/names';
-import { NAME_FIELDS, type NameField } from './fields';
+import { fieldsFor, type NameField } from './fields';
+import { CATEGORY_FORMS } from '@/lib/fields';
 import { unifyNamesAction, undoUnifyAction } from './actions';
 import { ConfirmUnify } from './ConfirmUnify';
 
@@ -48,14 +49,21 @@ function buildClusters(groups: NameGroup[]): Cluster[] {
   return clusters.sort((a, b) => b.total - a.total);
 }
 
-export default async function NamesPage({ searchParams }: { searchParams: { field?: string; done?: string; err?: string; undone?: string } }) {
+export default async function NamesPage({ searchParams }: { searchParams: { field?: string; section?: string; done?: string; err?: string; undone?: string } }) {
   const user = await getCurrentUser();
   if (!user || !can.manageContent(user.role as Role)) redirect('/admin');
 
-  const field = (NAME_FIELDS.find((f) => f.key === searchParams.field)?.key ?? 'performer') as NameField;
-  const fieldLabel = NAME_FIELDS.find((f) => f.key === field)!.label;
+  // Section first (or all sections), then that section's own name fields.
+  const sections = (await prisma.category.findMany({ orderBy: { order: 'asc' }, select: { slug: true, name: true } }))
+    .filter((c) => CATEGORY_FORMS[c.slug] && fieldsFor(c.slug).length > 0);
+  const section = sections.find((c) => c.slug === searchParams.section)?.slug ?? '';
+  const sectionName = sections.find((c) => c.slug === section)?.name ?? '';
+  const fields = fieldsFor(section || null);
+  const field = (fields.find((f) => f.key === searchParams.field)?.key ?? fields[0].key) as NameField;
+  const fieldLabel = fields.find((f) => f.key === field)!.label;
+  const qs = (f: string, sec: string) => `/admin/names?field=${f}${sec ? `&section=${sec}` : ''}`;
   const rows = (await prisma.material.findMany({
-    where: { [field]: { not: null } },
+    where: { [field]: { not: null }, ...(section ? { category: { slug: section } } : {}) },
     select: { [field]: true },
   })) as unknown as Record<string, string | null>[];
   const groups = groupNames(rows.map((r) => r[field]));
@@ -69,14 +77,14 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
   });
   const history = logs
     .map((l) => {
-      let m: { field?: string; from?: string[]; to?: string; changed?: number; undo?: unknown[]; undone?: boolean } = {};
+      let m: { field?: string; section?: string | null; from?: string[]; to?: string; changed?: number; undo?: unknown[]; undone?: boolean } = {};
       try { m = JSON.parse(l.meta || '{}'); } catch {}
       return {
-        id: l.id, at: l.createdAt, by: l.user?.name ?? '', field: m.field, from: m.from ?? [], to: m.to ?? '',
+        id: l.id, at: l.createdAt, by: l.user?.name ?? '', field: m.field, section: m.section ?? '', from: m.from ?? [], to: m.to ?? '',
         changed: m.changed ?? 0, undone: !!m.undone, canUndo: Array.isArray(m.undo) && m.undo.length > 0,
       };
     })
-    .filter((h) => h.field === field)
+    .filter((h) => h.field === field && h.section === section)
     .slice(0, 15);
 
   return (
@@ -87,16 +95,27 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
           الشخص الواحد قد يُكتب بعدّة صيغ («شيخ إبراهيم دنقول»، «الشيخ ابراهيم دنقول»، «شيخ إبراهيم(دنقول)»).
           اختر الصيغ التي تخص الشخص نفسه، واكتب الاسم الصحيح، ثم اضغط «توحيد» — تُعدَّل كل المواد دفعة واحدة
           فتتوحّد الإحصائيات والفلاتر والبحث.
+          اختر قسمًا لتوحيد الأسماء داخله فقط (مثل المتحدثين في «أرشيف النوادر» دون غيره)، أو «كل الأقسام» للتوحيد في الأرشيف كله.
         </p>
       </div>
 
-      <nav className="flex flex-wrap gap-2">
-        {NAME_FIELDS.map((f) => (
-          <Link key={f.key} href={`/admin/names?field=${f.key}`} className={f.key === field ? 'chip bg-brand-600 text-white' : 'chip'}>
-            {f.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="space-y-3">
+        <nav className="flex flex-wrap gap-2" aria-label="القسم">
+          <Link href={qs(field, '')} className={!section ? 'chip bg-brand-700 text-white' : 'chip'}>كل الأقسام</Link>
+          {sections.map((c) => (
+            <Link key={c.slug} href={qs(fieldsFor(c.slug).some((f) => f.key === field) ? field : fieldsFor(c.slug)[0].key, c.slug)} className={c.slug === section ? 'chip bg-brand-700 text-white' : 'chip'}>
+              {c.name}
+            </Link>
+          ))}
+        </nav>
+        <nav className="flex flex-wrap gap-2 border-t border-ivory-200 pt-3" aria-label="الحقل">
+          {fields.map((f) => (
+            <Link key={f.key} href={qs(f.key, section)} className={f.key === field ? 'chip bg-gold-500 text-white' : 'chip'}>
+              {f.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
 
       {searchParams.done && (
         <p className="rounded-xl bg-emerald-50 p-3 text-sm font-semibold text-emerald-700">
@@ -114,12 +133,13 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
 
       <section className="space-y-3">
         <h2 className="text-lg font-bold text-brand-800">
-          أسماء متشابهة — {fieldLabel} <span className="text-sm font-normal text-muted">({formatCount(clusters.length)} مجموعة)</span>
+          أسماء متشابهة — {fieldLabel}{sectionName ? ` (${sectionName})` : ''} <span className="text-sm font-normal text-muted">({formatCount(clusters.length)} مجموعة)</span>
         </h2>
         {clusters.length === 0 && <p className="card p-5 text-sm text-muted">لا توجد أسماء متشابهة في هذا الحقل.</p>}
         {clusters.map((c, idx) => (
-          <form key={`${field}:${c.names.map((n) => n.name).join('|')}`} action={unifyNamesAction} className="card min-w-0 space-y-3 p-4">
+          <form key={`${section}:${field}:${c.names.map((n) => n.name).join('|')}`} action={unifyNamesAction} className="card min-w-0 space-y-3 p-4">
             <input type="hidden" name="field" value={field} />
+            <input type="hidden" name="section" value={section} />
             <ul className="space-y-1.5">
               {c.names.map((n) => (
                 <li key={n.name}>
@@ -154,8 +174,9 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
       <section className="card min-w-0 space-y-3 p-4">
         <h2 className="text-lg font-bold text-brand-800">توحيد يدوي</h2>
         <p className="text-sm text-muted">لأسماء لم تظهر أعلاه (مثل «قسم ود يوسف» و«قسم يوسف»): اختر الاسم الخطأ واكتب الصحيح.</p>
-        <form key={`manual:${field}:${searchParams.done ?? ''}:${searchParams.undone ?? ''}`} action={unifyNamesAction} className="flex flex-col gap-2 sm:flex-row">
+        <form key={`manual:${section}:${field}:${searchParams.done ?? ''}:${searchParams.undone ?? ''}`} action={unifyNamesAction} className="flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="field" value={field} />
+            <input type="hidden" name="section" value={section} />
           <input name="names" list="all-names" required placeholder="الاسم المراد تغييره" autoComplete="off" className="input min-w-0 flex-1" />
           <input name="target" list="all-names" required placeholder="الاسم الصحيح" autoComplete="off" className="input min-w-0 flex-1" />
           <datalist id="all-names">
@@ -166,7 +187,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
       </section>
 
       <section className="card min-w-0 space-y-3 p-4">
-        <h2 className="text-lg font-bold text-brand-800">آخر عمليات التوحيد — {fieldLabel}</h2>
+        <h2 className="text-lg font-bold text-brand-800">آخر عمليات التوحيد — {fieldLabel}{sectionName ? ` (${sectionName})` : ''}</h2>
         {history.length === 0 && <p className="text-sm text-muted">لا توجد عمليات بعد.</p>}
         <ul className="space-y-2">
           {history.map((h) => (
