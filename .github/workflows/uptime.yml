@@ -29,7 +29,9 @@ jobs:
             home=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://almaseeed.com/ || echo 000)
             health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 https://almaseeed.com/api/health || echo 000)
             echo "try $i: home=$home health=$health"
-            if [ "$home" = "200" ] && [ "$health" = "200" ]; then ok=1; break; fi
+            # Down = home page not 200, or health unreachable/5xx (503 = DB down).
+            # A 404 from health just means a build without that route — still up.
+            if [ "$home" = "200" ] && [ "$health" != "000" ] && [ "${health#5}" = "$health" ]; then ok=1; break; fi
             sleep 30
           done
           echo "ok=$ok" >> "$GITHUB_OUTPUT"
