@@ -21,6 +21,7 @@ import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
+import { matchSuggestions, variantOf } from './names';
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
 import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue } from './storage';
@@ -900,6 +901,21 @@ const FIT_VIEWPORT = `(function(){try{var m=document.querySelector('meta[name=vi
 // from /api/mobile/fields (the SAME definitions the website form uses), so it
 // can never diverge from the site; the upload + submit go through the mobile
 // endpoints that run the SAME server validation.
+// Text field that offers names already in the archive while typing, and — if
+// what was typed is only a spelling variant of an existing name («شيخ ابراهيم
+// دنقول» vs «الشيخ إبراهيم دنقول») — offers the archive's spelling in one tap,
+// so the same person isn't recorded twice. Mirrors the website's NameInput.
+function NameField({ value, onChange, list, style, placeholder }) {
+  const [focused, setFocused] = useState(false);
+  const sugg = focused ? matchSuggestions(list, value) : [];
+  const variant = !focused ? variantOf(list, value) : null;
+  return <View>
+    <TextInput value={value} onChangeText={onChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} style={style} placeholder={placeholder} placeholderTextColor="#9aa4a0" />
+    {sugg.length > 0 && <View style={styles.suggBox}>{sugg.map((s) => <TouchableOpacity key={s} onPress={() => { onChange(s); Keyboard.dismiss(); }} style={styles.suggItem} activeOpacity={0.7}><Text style={styles.suggTxt} numberOfLines={1}>{s}</Text></TouchableOpacity>)}</View>}
+    {!!variant && <TouchableOpacity onPress={() => onChange(variant)} style={styles.variantBox} activeOpacity={0.8}><Text style={styles.variantTxt}>موجود في الأرشيف باسم «{variant}» — <Text style={{ fontWeight: '800', textDecorationLine: 'underline' }}>اضغط لاستخدامه</Text></Text></TouchableOpacity>}
+  </View>;
+}
+
 function ShareSubmitScreen({ file, push, onBack, onDone }) {
   const [auth, setAuthState] = useState(undefined); // undefined = loading
   const [schema, setSchema] = useState(null);       // { categories, forms }
@@ -1094,6 +1110,8 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
          <Text style={styles.shareLabel}>{fld.label}{fld.required ? <Text style={{ color: C.danger }}> *</Text> : <Text style={styles.shareOpt}> (اختياري)</Text>}</Text>
          {fld.type === 'select'
            ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>{(fld.options || []).map((o) => <TouchableOpacity key={o.value} onPress={() => setVal(fld.name, o.value)} style={[styles.chip, vals[fld.name] === o.value && styles.chipActive]} activeOpacity={0.85}><Text style={[styles.chipTxt, vals[fld.name] === o.value && styles.chipTxtActive]}>{o.label}</Text></TouchableOpacity>)}</ScrollView>
+           : (schema?.suggestions?.[fld.name]?.length && fld.type !== 'textarea' && fld.type !== 'date')
+             ? <NameField value={vals[fld.name] || ''} onChange={(t) => setVal(fld.name, t)} list={schema.suggestions[fld.name]} style={styles.authInput} placeholder={fld.hint || 'اكتب أو اختر من الموجود'} />
            : <TextInput value={vals[fld.name] || ''} onChangeText={(t) => setVal(fld.name, t)} style={[styles.authInput, fld.type === 'textarea' && { minHeight: 84, textAlignVertical: 'top' }]} multiline={fld.type === 'textarea'} placeholder={fld.hint || (fld.type === 'date' ? 'سنة-شهر-يوم' : '')} placeholderTextColor="#9aa4a0" />}
          {!!fld.hint && fld.type !== 'select' && <Text style={styles.shareHint}>{fld.hint}</Text>}
        </View>)}
@@ -1432,6 +1450,11 @@ const styles = StyleSheet.create({
   shareLabel: { fontSize: 13, fontWeight: '700', color: C.brand, textAlign: 'right', marginTop: 14, marginBottom: 6 },
   shareOpt: { color: C.muted, fontSize: 12, fontWeight: '400' },
   shareHint: { color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 },
+  suggBox: { marginTop: 4, borderWidth: 1, borderColor: C.line, borderRadius: 10, backgroundColor: C.white, overflow: 'hidden' },
+  suggItem: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line },
+  suggTxt: { color: C.brand, fontSize: 14, textAlign: 'right', fontWeight: '600' },
+  variantBox: { marginTop: 6, backgroundColor: '#faf6ec', borderWidth: 1, borderColor: '#ecdcb0', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  variantTxt: { color: C.brand, fontSize: 13, textAlign: 'right', lineHeight: 20 },
   shareErr: { color: C.danger, fontSize: 13, fontWeight: '700', textAlign: 'right', marginTop: 14 },
   consentRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10, backgroundColor: C.white, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, marginTop: 12 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: C.brand, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
