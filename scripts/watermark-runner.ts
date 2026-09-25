@@ -19,6 +19,16 @@ if (process.env.WATERMARK_WORKER === 'off') {
   startWorkerLoop();
 }
 
+// Automatic transcription of spoken recordings (idle unless TRANSCRIBE_API_KEY is set).
+import('../src/lib/transcribe')
+  .then(({ startTranscribeLoop, transcriptionConfigured }) => {
+    if (transcriptionConfigured()) {
+      console.log('[transcribe] background transcription starting');
+      startTranscribeLoop();
+    }
+  })
+  .catch((e) => console.error('[transcribe] init failed', e));
+
 // Automatic daily database backup to durable storage (R2), off the request path.
 // A second, off-site copy of the archive's metadata in case the DB is lost. This
 // timer also keeps the process alive.

@@ -126,6 +126,7 @@ export function materialJsonLd(m: {
   author?: string | null;
   categoryName?: string | null;
   contributor?: string | null;
+  transcript?: string | null;
 }): Json {
   const url = `${SITE_URL}/material/${m.id}`;
   const kind = m.fileUrl ? m.fileKind : 'ARTICLE';
@@ -168,6 +169,8 @@ export function materialJsonLd(m: {
     if (dur) node.duration = dur;
     if (type === 'VideoObject') node.thumbnailUrl = absUrl(m.coverImage) || absUrl(OG_IMAGE);
     node.uploadDate = iso(m.publishedAt);
+    // schema.org transcript: what is said in the recording (capped for page size).
+    if (m.transcript) node.transcript = m.transcript.slice(0, 5000);
   }
   if (type === 'ImageObject') {
     if (m.fileUrl) node.contentUrl = absUrl(m.fileUrl);

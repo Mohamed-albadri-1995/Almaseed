@@ -14,7 +14,8 @@ export async function buildBackupJson(generatedBy = 'scheduled'): Promise<string
     favorites, deletionRequests, deletionVotes, contentReports, users,
   ] = await Promise.all([
     prisma.category.findMany(),
-    prisma.material.findMany(),
+    // Transcripts are omitted from queries by default — a backup needs them.
+    prisma.material.findMany({ omit: { transcript: false, transcriptSearch: false } }),
     prisma.reviewNote.findMany(),
     prisma.materialVersion.findMany(),
     prisma.rating.findMany(),

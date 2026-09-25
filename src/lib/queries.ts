@@ -253,9 +253,11 @@ export async function searchMaterials(filters: ArchiveFilters) {
     // Match normalized query terms (and synonyms) against searchText, and
     // also fall back to the raw query for exact/partial matches.
     const terms = expandSynonyms(normalizeArabic(q));
-    const or: Prisma.MaterialWhereInput[] = terms.map((t) => ({
-      searchText: { contains: t },
-    }));
+    const or: Prisma.MaterialWhereInput[] = terms.flatMap((t) => [
+      { searchText: { contains: t } },
+      // What was said in the recording (automatic transcript).
+      { transcriptSearch: { contains: t } },
+    ]);
     or.push({ title: { contains: q } });
     and.push({ OR: or });
   }
@@ -303,6 +305,8 @@ export async function getMaterial(id: string) {
   return prisma.material.findUnique({
     where: { id },
     include: { category: true, submittedBy: { select: { name: true } } },
+    // The material page shows the automatic transcript (omitted elsewhere).
+    omit: { transcript: false },
   });
 }
 

@@ -185,6 +185,7 @@ export default async function MaterialPage({
       author: (primaryPersonValue as string) || material.author,
       categoryName: material.category?.name,
       contributor: material.submittedBy?.name,
+      transcript: material.transcript,
     }),
     breadcrumbJsonLd([
       { name: 'الرئيسية', url: '/' },
@@ -315,6 +316,26 @@ export default async function MaterialPage({
                   dangerouslySetInnerHTML={{ __html: renderArticle(material.bodyText) }}
                 />
               </div>
+            </section>
+          )}
+
+          {/* Automatic transcript of the recording (lectures, sermons, rare archive).
+              Collapsed by default; clearly labelled as machine-made. */}
+          {material.transcript && (
+            <section className="mt-10">
+              <details className="group overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
+                  <Icon.file width={18} height={18} className="text-gold-300" />
+                  <span className="font-display text-lg font-bold">النص المفرّغ</span>
+                  <span className="ms-auto text-xs text-ivory-100/80 group-open:hidden">اضغط للعرض ▾</span>
+                </summary>
+                <div className="px-6 py-6 sm:px-10">
+                  <p className="mb-4 rounded-xl bg-gold-50 px-4 py-2 text-xs leading-6 text-brand-800 ring-1 ring-gold-200">
+                    تفريغ آلي للتسجيل الصوتي، قد يحتوي على أخطاء في بعض الكلمات والأسماء — المرجع هو التسجيل نفسه.
+                  </p>
+                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{material.transcript}</div>
+                </div>
+              </details>
             </section>
           )}
 

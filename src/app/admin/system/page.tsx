@@ -7,6 +7,8 @@ import { can } from '@/lib/rbac';
 import { getSystemStats } from '@/lib/stats';
 import { formatCount, formatFileSize } from '@/lib/format';
 import { type Role } from '@/lib/constants';
+import { prisma } from '@/lib/prisma';
+import { transcriptionConfigured } from '@/lib/transcribe';
 
 export const metadata: Metadata = { title: 'حالة النظام' };
 export const dynamic = 'force-dynamic';
@@ -16,6 +18,13 @@ export default async function SystemPage() {
   if (!user || !can.manageUsers(user.role as Role)) redirect('/admin');
 
   const s = await getSystemStats();
+  // Automatic transcription progress (published spoken recordings).
+  const spoken = { status: 'PUBLISHED', fileUrl: { not: null }, fileKind: { in: ['AUDIO', 'VIDEO'] }, category: { slug: { in: ['lectures', 'sermons', 'seminars'] } } };
+  const [trTotal, trDone, trFailed] = await Promise.all([
+    prisma.material.count({ where: spoken }),
+    prisma.material.count({ where: { ...spoken, transcriptSearch: { not: null } } }),
+    prisma.material.count({ where: { ...spoken, transcriptError: { not: null } } }),
+  ]);
   const maxDaily = Math.max(1, ...s.views.daily.map((d) => d.count));
   const maxCount = Math.max(1, ...s.distribution.map((d) => d.count));
 
@@ -40,6 +49,19 @@ export default async function SystemPage() {
           <p className="mt-1 text-sm text-muted">نزّل نسخة كاملة من بيانات الأرشيف (المواد والتصنيفات والمساهمين والمراجعات…) كملف JSON. احفظها في مكان آمن دوريًا.</p>
         </div>
         <a href="/api/admin/backup" download className="btn-primary shrink-0">تنزيل نسخة احتياطية</a>
+      </div>
+
+      {/* Automatic transcription status */}
+      <div className="mb-6 card p-5">
+        <h2 className="text-lg font-bold text-brand-800">التفريغ النصي الآلي</h2>
+        {transcriptionConfigured() ? (
+          <p className="mt-1 text-sm text-muted">
+            فُرّغ <b className="text-brand-800">{formatCount(trDone)}</b> من أصل <b className="text-brand-800">{formatCount(trTotal)}</b> تسجيلًا منشورًا (المحاضرات والمواعظ وأرشيف النوادر)
+            {trFailed > 0 && <> · <span className="text-danger">تعذّر {formatCount(trFailed)}</span></>}. يعمل في الخلفية تسجيلًا تلو الآخر، الأحدث أولًا.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-muted">غير مفعّل — أضف المتغير <code dir="ltr">TRANSCRIBE_API_KEY</code> في Railway لبدء تفريغ {formatCount(trTotal)} تسجيلًا منشورًا.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -8,6 +8,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Global `omit` (src/lib/prisma.ts): heavy transcript columns stay out of every
+  // query unless one asks for them. GA in Prisma 6; preview in 5.x.
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -122,6 +125,15 @@ model Material {
   // copy; these keep the source (also lets orphaned stamped copies be cleaned up).
   originalFileUrl    String?
   originalCoverImage String?
+
+  // Automatic speech-to-text of the recording (lectures, sermons, rare archive).
+  // transcriptSearch is its normalized form, written ONLY by the transcription
+  // job, so ordinary edits (which rebuild searchText from form fields) never
+  // drop it from search. transcribedAt = claimed/finished; transcriptError = last failure.
+  transcript       String?
+  transcriptSearch String?
+  transcribedAt    DateTime?
+  transcriptError  String?
 
   downloads Int @default(0)
   plays     Int @default(0)
