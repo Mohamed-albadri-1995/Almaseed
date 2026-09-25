@@ -11,8 +11,9 @@ import { ROLES, type Role } from '@/lib/constants';
 import { rateLimit, clientIp, MIN, HOUR } from '@/lib/rate-limit';
 import {
   needsTwoFactor, startChallenge, verifyChallenge, setPendingChallenge, readPendingChallenge,
-  clearPendingChallenge, setTrustedDevice, isTrustedDevice,
+  clearPendingChallenge, setTrustedDevice, isTrustedDevice, originFromHeaders,
 } from '@/lib/two-factor';
+import { headers } from 'next/headers';
 
 const TOO_MANY = 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.';
 
@@ -68,7 +69,7 @@ export async function loginAction(
   // Accounts above reviewer: a second step (emailed code), unless this browser
   // was trusted after an earlier code.
   if (needsTwoFactor(user.role) && !(await isTrustedDevice(user))) {
-    const ch = await startChallenge(user);
+    const ch = await startChallenge(user, originFromHeaders(headers(), 'web'));
     if ('error' in ch) return { error: ch.error };
     await setPendingChallenge(ch.id, next);
     redirect('/login/verify');
@@ -100,7 +101,7 @@ export async function resendLoginCodeAction(): Promise<AuthState> {
   const ch = await prisma.loginChallenge.findUnique({ where: { id: pending.cid } });
   const user = ch ? await prisma.user.findUnique({ where: { id: ch.userId } }) : null;
   if (!user || !user.active) return { error: 'انتهت الجلسة — سجّل الدخول من جديد.' };
-  const next = await startChallenge(user);
+  const next = await startChallenge(user, originFromHeaders(headers(), 'web'));
   if ('error' in next) return { error: next.error };
   await setPendingChallenge(next.id, pending.r);
   return {};

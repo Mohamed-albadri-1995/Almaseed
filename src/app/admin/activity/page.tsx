@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   backup_email: 'نسخة احتياطية بالبريد',
   orphan_cleanup: 'تنظيف ملفات غير مستخدمة',
   video_recompress_v1: 'إعادة ضغط الفيديوهات القديمة',
+  login_code_sent: 'طلب رمز دخول',
   undo_unify_names: 'تراجع عن توحيد أسماء',
 };
 
@@ -50,11 +51,18 @@ export default async function ActivityPage() {
           <ul className="divide-y divide-ivory-200">
             {logs.map((l) => (
               <li key={l.id} className="flex items-center justify-between gap-4 px-5 py-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <span className="chip">{ACTION_LABELS[l.action] ?? l.action}</span>
-                  <span className="text-brand-800">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="chip shrink-0">{ACTION_LABELS[l.action] ?? l.action}</span>
+                  <span className="min-w-0 text-brand-800">
                     <span className="font-semibold">{l.user?.name ?? 'نظام'}</span>
                     <span className="text-muted"> — {l.entity}</span>
+                    {l.action === 'login_code_sent' && l.meta && (() => {
+                      // Where the sign-in attempt came from (device · country · IP).
+                      try {
+                        const m = JSON.parse(l.meta) as { device?: string; country?: string | null; ip?: string };
+                        return <span className="block break-words text-xs text-muted">{[m.device, m.country, m.ip].filter(Boolean).join(' · ')}</span>;
+                      } catch { return null; }
+                    })()}
                   </span>
                 </div>
                 <span className="text-xs text-muted">{formatDateTime(l.createdAt)}</span>

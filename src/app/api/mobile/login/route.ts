@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
 import { loginSchema } from '@/lib/validation';
 import { rateLimit, ipFromHeaders, MIN } from '@/lib/rate-limit';
-import { needsTwoFactor, startChallenge, maskEmail } from '@/lib/two-factor';
+import { needsTwoFactor, startChallenge, maskEmail, originFromHeaders } from '@/lib/two-factor';
 import { mobileLoginResponse } from '@/lib/mobile-login-response';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     if (req.headers.get('x-almaseed-2fa') !== '1') {
       return NextResponse.json({ error: 'لحماية حسابات الإدارة صار الدخول برمز يصل إلى بريدك — حدّث التطبيق من Google Play ثم سجّل الدخول.' }, { status: 403 });
     }
-    const ch = await startChallenge(user);
+    const ch = await startChallenge(user, originFromHeaders(req.headers, 'app'));
     if ('error' in ch) return NextResponse.json({ error: ch.error }, { status: 403 });
     return NextResponse.json({ needsCode: true, challenge: ch.id, email: maskEmail(user.email) });
   }

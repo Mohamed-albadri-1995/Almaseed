@@ -6,6 +6,7 @@ import { prisma } from './prisma';
 import { sendEmail, isEmailConfigured } from './email';
 import { rateLimit, HOUR } from './rate-limit';
 import { ROLES } from './constants';
+import { logActivity } from './activity';
 
 // Two-step sign-in (email code) for every account ABOVE reviewer: editors,
 // content managers and admins can change or delete the archive, so a stolen
@@ -37,7 +38,27 @@ export function maskEmail(email: string): string {
 
 // Create a challenge and email its code. Returns the challenge id, or an error
 // message (rate limit / send failure).
-export async function startChallenge(user: { id: string; email: string; name: string }): Promise<{ id: string } | { error: string }> {
+// Where a sign-in attempt came from — shown in the code email and kept in the
+// activity log, so an unexpected code can be traced (and a stolen password spotted).
+export interface LoginOrigin { via: 'web' | 'app'; ip: string; country?: string | null; ua?: string | null }
+
+export function originFromHeaders(h: Headers, via: 'web' | 'app'): LoginOrigin {
+  return {
+    via,
+    ip: h.get('cf-connecting-ip') || (h.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown',
+    country: h.get('cf-ipcountry'),
+    ua: (h.get('user-agent') || '').slice(0, 160) || null,
+  };
+}
+
+function deviceLabel(o: LoginOrigin): string {
+  const ua = o.ua || '';
+  const os = /android/i.test(ua) ? 'أندرويد' : /iphone|ipad|ios/i.test(ua) ? 'آيفون' : /windows/i.test(ua) ? 'ويندوز' : /mac os/i.test(ua) ? 'ماك' : /linux/i.test(ua) ? 'لينكس' : '';
+  const where = o.via === 'app' ? 'تطبيق أرشيف المسيد' : 'متصفح الموقع';
+  return [where, os].filter(Boolean).join(' · ');
+}
+
+export async function startChallenge(user: { id: string; email: string; name: string }, origin?: LoginOrigin): Promise<{ id: string } | { error: string }> {
   if (!rateLimit(`2fa:send:${user.id}`, 5, HOUR)) {
     return { error: 'طلبت رموزًا كثيرة — انتظر قليلًا ثم حاول مجددًا.' };
   }
@@ -55,13 +76,19 @@ export async function startChallenge(user: { id: string; email: string; name: st
       <p>السلام عليكم ${user.name}،</p>
       <p>رمز تسجيل الدخول إلى لوحة الإشراف:</p>
       <p style="font-size:28px;font-weight:800;letter-spacing:6px;direction:ltr;text-align:right">${code}</p>
-      <p>صالح لمدة ${CODE_TTL_MIN} دقائق. إن لم تكن أنت من يحاول الدخول فغيّر كلمة المرور فورًا.</p>
+      <p>صالح لمدة ${CODE_TTL_MIN} دقائق.</p>
+      ${origin ? `<p style="color:#555">طُلب من: ${deviceLabel(origin)}${origin.country ? ` · الدولة: ${origin.country}` : ''} · IP: <span dir="ltr">${origin.ip}</span></p>` : ''}
+      <p><b>إن لم تكن أنت من يحاول الدخول</b> فكلمة مرورك معروفة لغيرك: غيّرها فورًا ثم اضغط «الخروج من الأجهزة الأخرى» في صفحة حسابك. لن يدخل أحد بدون هذا الرمز.</p>
     </div>`,
   });
   if (!sent) {
     await prisma.loginChallenge.delete({ where: { id: ch.id } }).catch(() => {});
     return { error: 'تعذّر إرسال رمز التحقق إلى بريدك — حاول مجددًا بعد قليل.' };
   }
+  await logActivity({
+    userId: user.id, action: 'login_code_sent', entity: 'user', entityId: user.id,
+    meta: origin ? { via: origin.via, ip: origin.ip, country: origin.country ?? null, device: deviceLabel(origin) } : undefined,
+  }).catch(() => {});
   return { id: ch.id };
 }
 
