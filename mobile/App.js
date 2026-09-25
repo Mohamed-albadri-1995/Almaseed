@@ -790,6 +790,9 @@ function Account({ push, onBack, onTour, cueGoogle, offline, onToggleOffline }) 
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
+  // Two-step sign-in (staff above reviewer): { challenge, email } while waiting for the code.
+  const [codeStep, setCodeStep] = useState(null);
+  const [code, setCode] = useState('');
   // After a fresh sign-in, point the user back to the home screen and to the
   // guided tour with gentle cues.
   const [showBackCue, setShowBackCue] = useState(false);
@@ -804,12 +807,25 @@ function Account({ push, onBack, onTour, cueGoogle, offline, onToggleOffline }) 
     try {
       setBusy(true);
       const r = await api.login(email.trim().toLowerCase(), pass);
+      // Staff above reviewer: a code was emailed — show the second step.
+      if (r && r.needsCode) { setCodeStep({ challenge: r.challenge, email: r.email }); setCode(''); return; }
       await setAuth(r); setAuthState(r); setPass('');
       cueAfterLogin();
       // Refresh this device's role on the server so staff get review alerts.
       reregisterPush();
       Alert.alert('تم الدخول', r.user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك.');
     } catch (e) { Alert.alert('تعذّر الدخول', String(e.message || e)); } finally { setBusy(false); }
+  };
+  const doVerify = async () => {
+    if (!codeStep || code.replace(/\D/g, '').length !== 6) { Alert.alert('الرمز', 'أدخل الرمز المكوّن من ٦ أرقام.'); return; }
+    try {
+      setBusy(true);
+      const r = await api.verifyLogin(codeStep.challenge, code.replace(/\D/g, ''));
+      await setAuth(r); setAuthState(r); setPass(''); setCodeStep(null); setCode('');
+      cueAfterLogin();
+      reregisterPush();
+      Alert.alert('تم الدخول', r.user?.isStaff ? 'ستصلك إشعارات المواد التي تنتظر المراجعة.' : 'تم تسجيل دخولك.');
+    } catch (e) { Alert.alert('تعذّر التحقق', String(e.message || e)); } finally { setBusy(false); }
   };
   const doLogout = async () => { await clearAuth(); setAuthState(null); reregisterPush(); };
   // One-tap Google via the system browser (Chrome Custom Tab shares the phone's
@@ -861,9 +877,17 @@ function Account({ push, onBack, onTour, cueGoogle, offline, onToggleOffline }) 
           <View style={styles.acctCard}>
             <Text style={styles.acctTitle}>تسجيل الدخول</Text>
             <Text style={styles.acctDesc}>للمشرفين والمراجعين: سجّل دخولك ليصلك إشعار فور وصول مادة تنتظر المراجعة.</Text>
+            {codeStep ? <>
+              <Text style={[styles.acctDesc, { marginTop: 8 }]}>أرسلنا رمزًا من ٦ أرقام إلى بريدك {codeStep.email || ''} — صالح ١٠ دقائق.</Text>
+              <TextInput value={code} onChangeText={setCode} placeholder="••••••" placeholderTextColor="#9aa4a0" keyboardType="number-pad" maxLength={7} textContentType="oneTimeCode" autoComplete="sms-otp" style={[styles.authInput, { textAlign: 'center', fontSize: 22, letterSpacing: 8, fontWeight: '800' }]} />
+              <TouchableOpacity style={styles.authBtn} onPress={doVerify} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>تأكيد الدخول</Text>}</TouchableOpacity>
+              <TouchableOpacity onPress={doLogin} disabled={busy} style={{ marginTop: 12 }} activeOpacity={0.7}><Text style={{ color: C.gold, textAlign: 'center', fontWeight: '700' }}>لم يصلك الرمز؟ أرسل رمزًا جديدًا</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => { setCodeStep(null); setCode(''); }} style={{ marginTop: 10 }} activeOpacity={0.7}><Text style={{ color: C.muted, textAlign: 'center' }}>رجوع</Text></TouchableOpacity>
+            </> : <>
             <TextInput value={email} onChangeText={setEmail} placeholder="البريد الإلكتروني" placeholderTextColor="#9aa4a0" autoCapitalize="none" keyboardType="email-address" style={styles.authInput} />
             <TextInput value={pass} onChangeText={setPass} placeholder="كلمة المرور" placeholderTextColor="#9aa4a0" secureTextEntry style={styles.authInput} />
             <TouchableOpacity style={styles.authBtn} onPress={doLogin} disabled={busy} activeOpacity={0.85}>{busy ? <ActivityIndicator color={C.white} /> : <Text style={styles.authBtnTxt}>دخول</Text>}</TouchableOpacity>
+            </>}
             <TouchableOpacity onPress={() => push('web', { url: `${API_BASE}/forgot-password`, title: 'استعادة كلمة المرور' })} style={{ marginTop: 12 }} activeOpacity={0.7}><Text style={{ color: C.gold, textAlign: 'center', fontWeight: '700', fontSize: 13 }}>نسيت كلمة المرور؟</Text></TouchableOpacity>
             <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orTxt}>أو</Text><View style={styles.orLine} /></View>
             <FirstUseCue controlled={showGoogleCue} placement="above" label="سجّل الدخول من هنا">

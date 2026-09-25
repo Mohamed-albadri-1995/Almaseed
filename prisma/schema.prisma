@@ -300,3 +300,16 @@ model ActivityLog {
   createdAt DateTime @default(now())
   @@index([createdAt])
 }
+
+// Two-step sign-in for staff above reviewer: a short-lived 6-digit code sent by
+// email after a correct password. Only the code's hash is stored.
+model LoginChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import Script from 'next/script';
-import { loginAction, registerAction, type AuthState } from '@/app/auth-actions';
+import { loginAction, registerAction, verifyLoginCodeAction, resendLoginCodeAction, type AuthState } from '@/app/auth-actions';
 
 const initial: AuthState = {};
 
@@ -107,6 +108,43 @@ export function RegisterForm() {
         <span>أوافق على شروط الاستخدام وسياسة النشر.</span>
       </label>
       <SubmitButton label="إنشاء حساب" />
+    </form>
+  );
+}
+
+// Second step of a staff sign-in: the 6-digit code emailed after the password.
+export function VerifyCodeForm() {
+  const [state, action] = useFormState(verifyLoginCodeAction, initial);
+  const [resend, setResend] = useState<{ busy?: boolean; msg?: string; error?: string }>({});
+  return (
+    <form action={action} className="space-y-4">
+      <ErrorBox error={state.error || resend.error} />
+      {resend.msg && <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{resend.msg}</div>}
+      <div>
+        <label className="label" htmlFor="code">رمز التحقق</label>
+        <input
+          id="code" name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}"
+          maxLength={7} dir="ltr" autoFocus placeholder="••••••"
+          className="input text-center text-2xl font-bold tracking-[0.5em]"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-muted">
+        <input type="checkbox" name="trust" className="rounded" defaultChecked />
+        تذكّر هذا الجهاز ٣٠ يومًا (لا تفعّله على جهاز مشترك)
+      </label>
+      <SubmitButton label="تأكيد الدخول" />
+      <button
+        type="button"
+        disabled={resend.busy}
+        onClick={async () => {
+          setResend({ busy: true });
+          const r = await resendLoginCodeAction();
+          setResend(r.error ? { error: r.error } : { msg: 'أُرسل رمز جديد إلى بريدك.' });
+        }}
+        className="w-full text-center text-sm font-semibold text-brand-700 hover:underline disabled:opacity-50"
+      >
+        {resend.busy ? 'جارٍ الإرسال…' : 'لم يصلك الرمز؟ أرسل رمزًا جديدًا'}
+      </button>
     </form>
   );
 }

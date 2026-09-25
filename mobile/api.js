@@ -125,11 +125,20 @@ function getCached(path, loader) {
 }
 
 export const api = {
+  // X-Almaseed-2FA tells the server this build can show the emailed-code step
+  // (staff above reviewer): it then answers { needsCode, challenge, email }.
   login: (email, password) =>
     j('/api/mobile/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Almaseed-2FA': '1' },
       body: JSON.stringify({ email, password }),
+    }),
+
+  verifyLogin: (challenge, code) =>
+    j('/api/mobile/login/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge, code }),
     }),
 
   categories: () => getCached('/api/mobile/categories', () => j('/api/mobile/categories')),

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/auth';
-import { signMobileToken } from '@/lib/mobile-auth';
 import { loginSchema } from '@/lib/validation';
-import { ROLE_LABELS, type Role } from '@/lib/constants';
 import { rateLimit, ipFromHeaders, MIN } from '@/lib/rate-limit';
+import { needsTwoFactor, startChallenge, maskEmail } from '@/lib/two-factor';
+import { mobileLoginResponse } from '@/lib/mobile-login-response';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,20 +27,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'البريد أو كلمة المرور غير صحيحة' }, { status: 401 });
   }
 
-  const token = await signMobileToken({
-    uid: user.id,
-    role: user.role as Role,
-    name: user.name,
-    sv: user.sessionVersion,
-  });
-  return NextResponse.json({
-    token,
-    user: {
-      id: user.id,
-      name: user.name,
-      role: user.role,
-      roleLabel: ROLE_LABELS[user.role as Role] ?? user.role,
-      isStaff: user.role !== 'CONTRIBUTOR',
-    },
-  });
+  // Accounts above reviewer: second step by emailed code. Older app builds
+  // can't show the code field, so they get a clear «update the app» message.
+  if (needsTwoFactor(user.role)) {
+    if (req.headers.get('x-almaseed-2fa') !== '1') {
+      return NextResponse.json({ error: 'لحماية حسابات الإدارة صار الدخول برمز يصل إلى بريدك — حدّث التطبيق من Google Play ثم سجّل الدخول.' }, { status: 403 });
+    }
+    const ch = await startChallenge(user);
+    if ('error' in ch) return NextResponse.json({ error: ch.error }, { status: 403 });
+    return NextResponse.json({ needsCode: true, challenge: ch.id, email: maskEmail(user.email) });
+  }
+
+  return mobileLoginResponse(user);
 }

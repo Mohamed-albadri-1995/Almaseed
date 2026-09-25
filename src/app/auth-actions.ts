@@ -9,6 +9,10 @@ import { loginSchema, registerSchema } from '@/lib/validation';
 import { sendEmail, appUrl } from '@/lib/email';
 import { ROLES, type Role } from '@/lib/constants';
 import { rateLimit, clientIp, MIN, HOUR } from '@/lib/rate-limit';
+import {
+  needsTwoFactor, startChallenge, verifyChallenge, setPendingChallenge, readPendingChallenge,
+  clearPendingChallenge, setTrustedDevice, isTrustedDevice,
+} from '@/lib/two-factor';
 
 const TOO_MANY = 'محاولات كثيرة جدًا — انتظر قليلًا ثم حاول مجددًا.';
 
@@ -59,9 +63,47 @@ export async function loginAction(
     return { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' };
   }
 
+  const next = safeRedirect(formData.get('redirect'));
+
+  // Accounts above reviewer: a second step (emailed code), unless this browser
+  // was trusted after an earlier code.
+  if (needsTwoFactor(user.role) && !(await isTrustedDevice(user))) {
+    const ch = await startChallenge(user);
+    if ('error' in ch) return { error: ch.error };
+    await setPendingChallenge(ch.id, next);
+    redirect('/login/verify');
+  }
+
   await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
 
-  redirect(safeRedirect(formData.get('redirect')));
+  redirect(next);
+}
+
+// Second step of a staff sign-in: check the emailed code.
+export async function verifyLoginCodeAction(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const pending = await readPendingChallenge();
+  if (!pending) return { error: 'انتهت الجلسة — سجّل الدخول من جديد.' };
+  if (!rateLimit(`2fa:verify:ip:${clientIp()}`, 30, 15 * MIN)) return { error: TOO_MANY };
+  const res = await verifyChallenge(pending.cid, String(formData.get('code') ?? ''));
+  if ('error' in res) return { error: res.error };
+  const user = res.user;
+  await createSession({ uid: user.id, role: user.role as Role, name: user.name, sv: user.sessionVersion });
+  if (formData.get('trust') === 'on') await setTrustedDevice(user);
+  clearPendingChallenge();
+  redirect(safeRedirect(pending.r));
+}
+
+// Send a fresh code for the pending sign-in.
+export async function resendLoginCodeAction(): Promise<AuthState> {
+  const pending = await readPendingChallenge();
+  if (!pending) return { error: 'انتهت الجلسة — سجّل الدخول من جديد.' };
+  const ch = await prisma.loginChallenge.findUnique({ where: { id: pending.cid } });
+  const user = ch ? await prisma.user.findUnique({ where: { id: ch.userId } }) : null;
+  if (!user || !user.active) return { error: 'انتهت الجلسة — سجّل الدخول من جديد.' };
+  const next = await startChallenge(user);
+  if ('error' in next) return { error: next.error };
+  await setPendingChallenge(next.id, pending.r);
+  return {};
 }
 
 export async function registerAction(
