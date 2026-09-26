@@ -45,6 +45,12 @@ function parseMaterialRef(raw: FormDataEntryValue | null): string {
   return m ? m[1] : '';
 }
 
+// Fire-and-forget for slow side effects (push to devices): the server keeps
+// running after the response, so the reviewer is redirected immediately.
+function inBackground(p: Promise<unknown>) {
+  p.catch((e) => console.error('[background]', e instanceof Error ? e.message : e));
+}
+
 export async function reviewDecisionAction(formData: FormData) {
   const user = await requireReviewer();
   const materialId = formData.get('materialId') as string;
@@ -98,11 +104,11 @@ export async function reviewDecisionAction(formData: FormData) {
           link: '/account',
         },
       });
-      await pushToUsers([material.submittedById], {
+      inBackground(pushToUsers([material.submittedById], {
         title: 'تم رفض مادتك',
         body: `«${material.title}» — رفضها مراجعان فحُذفت من الأرشيف${reason ? ` (${reason})` : ''}.`,
         data: { type: 'material_rejected' },
-      }).catch(() => {});
+      }));
     }
     await logActivity({
       userId: user.id,
@@ -184,11 +190,11 @@ export async function reviewDecisionAction(formData: FormData) {
     });
     // Also push to the contributor's device so accept / needs-edit / (a first
     // rejection shows as «معلّقة») reach them even when the app is closed.
-    await pushToUsers([material.submittedById], {
+    inBackground(pushToUsers([material.submittedById], {
       title: notifyTitle,
       body,
       data: { materialId: material.id, type: 'review_decision', to },
-    }).catch(() => {});
+    }));
   }
 
   await logActivity({
@@ -202,11 +208,13 @@ export async function reviewDecisionAction(formData: FormData) {
   // First publication → OS push to every registered device. Guarded on
   // publishedAt so re-approving an already-published material doesn't re-notify.
   if (action === REVIEW_ACTIONS.APPROVE && !wasPublishedBefore) {
-    await notifyAllNewMaterial({
+    // Broadcast to every device in the background — it can take seconds and
+    // the reviewer shouldn't wait on it (the reported slow «تأكيد القرار»).
+    inBackground(notifyAllNewMaterial({
       id: material.id,
       title: material.title,
       category: material.category ? { name: material.category.name } : null,
-    }).catch(() => {});
+    }));
     void pingIndexNow([`/material/${material.id}`]);
   }
 
@@ -225,11 +233,11 @@ export async function reviewDecisionAction(formData: FormData) {
           link: `/admin/review/${material.id}`,
         })),
       });
-      await pushToUsers(others.map((u) => u.id), {
+      inBackground(pushToUsers(others.map((u) => u.id), {
         title: 'مادة معلّقة تحتاج رأيك',
         body,
         data: { materialId: material.id, type: 'review_hold' },
-      }).catch(() => {});
+      }));
     }
   }
 

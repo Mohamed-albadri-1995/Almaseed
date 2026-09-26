@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Icon } from './icons';
 import { reviewDecisionAction } from '@/app/admin/actions';
 import { REVIEW_REASONS, REVIEW_ACTIONS } from '@/lib/constants';
@@ -96,13 +97,23 @@ export function ReviewPanel({
         <textarea name="note" rows={3} className="input" placeholder="اكتب توضيحاً يظهر للمساهم…" />
       </div>
 
-      <button
-        type="submit"
-        disabled={!action}
-        className="btn-primary mt-4 w-full disabled:opacity-50"
-      >
-        تأكيد القرار
-      </button>
+      <ConfirmButton disabled={!action} />
     </form>
+  );
+}
+
+// Immediate feedback on tap (and no double submit) while the decision is saved.
+function ConfirmButton({ disabled }: { disabled: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={disabled || pending}
+      aria-busy={pending}
+      className="btn-primary mt-4 flex w-full items-center justify-center gap-2 disabled:opacity-50"
+    >
+      {pending && <span aria-hidden className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+      {pending ? 'جارٍ تنفيذ القرار…' : 'تأكيد القرار'}
+    </button>
   );
 }
