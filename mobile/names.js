@@ -46,6 +46,11 @@ export function nameKey(value) {
   return s;
 }
 
+// Same as nameKey but also ignores spaces («محمدإبراهيم» = «محمد إبراهيم»).
+export function nameId(value) {
+  return nameKey(value).replace(/ /g, '');
+}
+
 // Existing names containing what was typed (by normalized text), best first.
 export function matchSuggestions(list, typed, max = 5) {
   const q = normalizeArabic(typed);
@@ -64,8 +69,8 @@ export function matchSuggestions(list, typed, max = 5) {
 export function variantOf(list, typed) {
   const v = (typed || '').trim();
   if (!v || !list) return null;
-  const k = nameKey(v);
+  const k = nameId(v);
   if (!k) return null;
-  for (const s of list) if (s !== v && nameKey(s) === k) return s;
+  for (const s of list) if (s !== v && nameId(s) === k) return s;
   return null;
 }

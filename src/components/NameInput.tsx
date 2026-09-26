@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import { nameKey } from '@/lib/names';
+import { nameId } from '@/lib/names';
 
 // Text input with the archive's existing values as suggestions (choose-or-add).
 // If what was typed is only a spelling variant of an existing name («شيخ ابراهيم
@@ -21,7 +21,7 @@ export function NameInput({
   const [match, setMatch] = useState<string | null>(null);
   const byKey = useMemo(() => {
     const m = new Map<string, string>();
-    for (const s of suggestions ?? []) { const k = nameKey(s); if (k && !m.has(k)) m.set(k, s); }
+    for (const s of suggestions ?? []) { const k = nameId(s); if (k && !m.has(k)) m.set(k, s); }
     return m;
   }, [suggestions]);
   const listId = `${id}-options`;
@@ -29,7 +29,7 @@ export function NameInput({
 
   const check = () => {
     const v = (ref.current?.value || '').trim();
-    const existing = v ? byKey.get(nameKey(v)) : undefined;
+    const existing = v ? byKey.get(nameId(v)) : undefined;
     setMatch(existing && existing !== v ? existing : null);
   };
 

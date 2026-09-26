@@ -33,6 +33,12 @@ export function nameKey(value?: string | null): string {
   return s;
 }
 
+// Identity of a name: its key with spaces removed too, so a missing or extra
+// space («محمدإبراهيم» / «محمد إبراهيم», «عبدالله» / «عبد الله») is the same name.
+export function nameId(value?: string | null): string {
+  return nameKey(value).replace(/ /g, '');
+}
+
 export interface NameGroup { key: string; names: { name: string; count: number }[]; total: number }
 
 // Group raw values by nameKey. Each group's names are sorted most-used first,
@@ -42,16 +48,17 @@ export function groupNames(values: (string | null | undefined)[]): NameGroup[] {
   for (const v of values) {
     const name = (v || '').trim();
     if (!name) continue;
-    const key = nameKey(name) || name;
-    let m = byKey.get(key);
-    if (!m) { m = new Map(); byKey.set(key, m); }
+    const id = nameId(name) || name;
+    let m = byKey.get(id);
+    if (!m) { m = new Map(); byKey.set(id, m); }
     m.set(name, (m.get(name) ?? 0) + 1);
   }
-  return Array.from(byKey.entries()).map(([key, m]) => {
+  return Array.from(byKey.values()).map((m) => {
     const names = Array.from(m.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.length - b.name.length || a.name.localeCompare(b.name, 'ar'));
-    return { key, names, total: names.reduce((s, n) => s + n.count, 0) };
+    // The (spaced) key of the most-used spelling, for the looser word checks.
+    return { key: nameKey(names[0].name) || names[0].name, names, total: names.reduce((s, n) => s + n.count, 0) };
   });
 }
 

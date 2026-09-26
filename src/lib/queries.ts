@@ -1,5 +1,5 @@
 import { prisma } from './prisma';
-import { groupNames, nameKey } from './names';
+import { groupNames, nameId } from './names';
 import { MATERIAL_STATUS } from './constants';
 import { normalizeArabic, expandSynonyms } from './search';
 import type { Prisma } from '@prisma/client';
@@ -212,13 +212,13 @@ export async function searchMaterials(filters: ArchiveFilters) {
     for (const key of ['performer', 'narrator', 'speaker', 'topic', 'host', 'organizer', 'author'] as const) {
       const v = facets[key];
       if (!v) continue;
-      const k = nameKey(v);
+      const k = nameId(v);
       const used = await prisma.material.findMany({
         where: { ...PUBLIC_WHERE, [key]: { not: null } },
         select: { [key]: true },
         distinct: [key],
       }) as unknown as Record<string, string | null>[];
-      const variants = Array.from(new Set([v, ...used.map((r) => r[key] || '').filter((x) => x && nameKey(x) === k)]));
+      const variants = Array.from(new Set([v, ...used.map((r) => r[key] || '').filter((x) => x && nameId(x) === k)]));
       (where as Record<string, unknown>)[key] = { in: variants };
     }
   }
