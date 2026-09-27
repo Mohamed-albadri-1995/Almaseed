@@ -47,6 +47,17 @@ async function brandCover(contributor?: string | null): Promise<Buffer> {
 
 let ffmpegChecked = false;
 let ffmpegOk = false;
+// Mono source? (ffmpeg prints the stream layout on stderr.)
+async function isMonoAudio(path: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const p = spawn('ffmpeg', ['-hide_banner', '-i', path], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d.toString(); });
+    p.on('error', () => resolve(false));
+    p.on('close', () => resolve(/Audio:[^\n]*\bmono\b/.test(err)));
+  });
+}
+
 export async function hasFfmpeg(): Promise<boolean> {
   if (ffmpegChecked) return ffmpegOk;
   ffmpegChecked = true;
@@ -146,13 +157,41 @@ function metaArg(key: string, value?: string | null): string[] {
   return v ? ['-metadata', `${key}=${v}`] : [];
 }
 
+// Is this mp3 constant-bitrate? Scans the first frames' headers (a VBR file
+// shows several bitrates within a few seconds).
+const MP3_KBPS = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
+export function isConstantBitrateMp3(d: Buffer): boolean {
+  let i = d.length > 10 && d.toString('latin1', 0, 3) === 'ID3'
+    ? 10 + ((d[6] << 21) | (d[7] << 14) | (d[8] << 7) | d[9]) : 0;
+  const seen = new Set<number>();
+  let frames = 0;
+  while (i + 4 < d.length && frames < 3000) {
+    if (d[i] === 0xff && (d[i + 1] & 0xe0) === 0xe0) {
+      const ver = (d[i + 1] >> 3) & 3, layer = (d[i + 1] >> 1) & 3;
+      const bi = d[i + 2] >> 4, si = (d[i + 2] >> 2) & 3, pad = (d[i + 2] >> 1) & 1;
+      if (ver === 3 && layer === 1 && bi > 0 && bi < 15 && si < 3) {
+        const kbps = MP3_KBPS[bi];
+        seen.add(kbps);
+        if (seen.size > 1) return false;
+        frames++;
+        i += Math.floor((144 * kbps * 1000) / [44100, 48000, 32000][si]) + pad;
+        continue;
+      }
+    }
+    i++;
+  }
+  return frames > 0;
+}
+
 // Embed the branded cover (+ title/artist tags) into an audio file so external
 // players show the emblem and a proper name instead of «Unknown artist».
 //
 // The output is ALWAYS mp3: mp3's ID3 cover art is the one format every phone
-// player reliably renders. If the source is already mp3 the audio is copied
-// (lossless, fast); otherwise it is transcoded to mp3 (VBR ~165kbps). Returns
-// the new URL, or null if nothing could be produced.
+// player reliably renders. A constant-bitrate mp3 is copied (lossless, fast);
+// anything else — including VARIABLE-bitrate mp3 — is encoded to CONSTANT
+// bitrate (128k stereo / 96k mono): Android's player can only estimate where to
+// jump in a VBR mp3, so seeking forward stalled or restarted from the start.
+// Returns the new URL, or null if nothing could be produced.
 export async function watermarkAudioInPlace(
   url: string,
   ext: string,
@@ -178,7 +217,8 @@ export async function watermarkAudioInPlace(
     if (!art) art = await brandCover(contributor);
     await writeFile(artWm, art);
 
-    const isMp3 = (ext || '').toLowerCase() === 'mp3';
+    const copy = (ext || '').toLowerCase() === 'mp3' && isConstantBitrateMp3(await readFile(inPath));
+    const mono = copy ? false : await isMonoAudio(inPath);
     await runFfmpeg([
       '-y',
       '-threads', '1',
@@ -186,8 +226,8 @@ export async function watermarkAudioInPlace(
       '-i', artWm,
       '-map', '0:a',
       '-map', '1:0',
-      // Copy when already mp3; otherwise transcode to mp3 so the cover sticks.
-      '-c:a', ...(isMp3 ? ['copy'] : ['libmp3lame', '-q:a', '4']),
+      // Copy a CBR mp3; otherwise encode CBR mp3 (seekable + the cover sticks).
+      '-c:a', ...(copy ? ['copy'] : ['libmp3lame', '-b:a', mono ? '96k' : '128k']),
       ...metaArg('title', meta?.title),
       ...metaArg('artist', contributor || 'الطريقة السمّانية — السجادة السليمانية'),
       ...metaArg('album', 'أرشيف المسيد'),

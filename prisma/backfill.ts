@@ -64,10 +64,26 @@ async function requeueVideosForRecompress() {
   console.log(`🎞️  Queued ${res.count} existing video(s) for recompression.`);
 }
 
+// One-time: re-process existing audio so variable-bitrate mp3s become constant
+// bitrate (seeking forward in the app stalled/restarted on VBR files). The
+// worker re-reads each from originalFileUrl; CBR mp3s are just copied again.
+async function requeueAudioForCbr() {
+  const MARK = 'audio_cbr_v1';
+  const done = await prisma.activityLog.findFirst({ where: { action: MARK } });
+  if (done) return;
+  const res = await prisma.material.updateMany({
+    where: { fileKind: 'AUDIO', originalFileUrl: { not: null }, watermarkedAt: { not: null } },
+    data: { watermarkedAt: null },
+  });
+  await prisma.activityLog.create({ data: { action: MARK, entity: 'system', meta: JSON.stringify({ requeued: res.count }) } });
+  console.log(`🎧 Queued ${res.count} existing audio file(s) for constant-bitrate re-encode.`);
+}
+
 async function main() {
   await renameCategories();
   await migrateSeminarSpeaker();
   await requeueVideosForRecompress();
+  await requeueAudioForCbr();
   const materials = await prisma.material.findMany();
   let normalized = 0;
   let reindexed = 0;

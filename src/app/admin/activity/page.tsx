@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   backup_email: 'نسخة احتياطية بالبريد',
   orphan_cleanup: 'تنظيف ملفات غير مستخدمة',
   video_recompress_v1: 'إعادة ضغط الفيديوهات القديمة',
+  audio_cbr_v1: 'إعادة ترميز الصوتيات لتسريع التقديم',
   login_code_sent: 'طلب رمز دخول',
   password_login_blocked: 'مُنع دخول بكلمة المرور (Google فقط)',
   undo_unify_names: 'تراجع عن توحيد أسماء',

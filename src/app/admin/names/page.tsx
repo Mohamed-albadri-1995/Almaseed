@@ -11,6 +11,7 @@ import { fieldsFor, type NameField } from './fields';
 import { CATEGORY_FORMS } from '@/lib/fields';
 import { unifyNamesAction, undoUnifyAction } from './actions';
 import { ConfirmUnify } from './ConfirmUnify';
+import { SuggestInput } from '@/components/SuggestInput';
 
 export const metadata: Metadata = { title: 'توحيد الأسماء' };
 export const dynamic = 'force-dynamic';
@@ -69,6 +70,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
   const groups = groupNames(rows.map((r) => r[field]));
   const clusters = buildClusters(groups);
   const allNames = groups.flatMap((g) => g.names).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  const nameHints = Object.fromEntries(allNames.map((n) => [n.name, `${formatCount(n.count)} مادة`]));
   const logs = await prisma.activityLog.findMany({
     where: { action: 'unify_names' },
     orderBy: { createdAt: 'desc' },
@@ -136,7 +138,7 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
           أسماء متشابهة — {fieldLabel}{sectionName ? ` (${sectionName})` : ''} <span className="text-sm font-normal text-muted">({formatCount(clusters.length)} مجموعة)</span>
         </h2>
         {clusters.length === 0 && <p className="card p-5 text-sm text-muted">لا توجد أسماء متشابهة في هذا الحقل.</p>}
-        {clusters.map((c, idx) => (
+        {clusters.map((c) => (
           <form key={`${section}:${field}:${c.names.map((n) => n.name).join('|')}`} action={unifyNamesAction} className="card min-w-0 space-y-3 p-4">
             <input type="hidden" name="field" value={field} />
             <input type="hidden" name="section" value={section} />
@@ -152,18 +154,14 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
               ))}
             </ul>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <input
+              <SuggestInput
                 name="target"
                 defaultValue={c.names[0].name}
-                list={`target-${idx}`}
-                autoComplete="off"
+                suggestions={c.names.map((n) => n.name)}
                 required
-                className="input min-w-0 flex-1"
-                aria-label="الاسم الصحيح"
+                wrapperClassName="flex-1"
+                ariaLabel="الاسم الصحيح"
               />
-              <datalist id={`target-${idx}`}>
-                {c.names.map((n) => <option key={n.name} value={n.name} />)}
-              </datalist>
               <ConfirmUnify />
             </div>
             <p className="field-hint">المُعلَّم مسبقًا: صيغ إملائية للاسم نفسه. غير المُعلَّم: أسماء قريبة — علّمها فقط إن كانت للشخص نفسه.</p>
@@ -177,11 +175,8 @@ export default async function NamesPage({ searchParams }: { searchParams: { fiel
         <form key={`manual:${section}:${field}:${searchParams.done ?? ''}:${searchParams.undone ?? ''}`} action={unifyNamesAction} className="flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="field" value={field} />
             <input type="hidden" name="section" value={section} />
-          <input name="names" list="all-names" required placeholder="الاسم المراد تغييره" autoComplete="off" className="input min-w-0 flex-1" />
-          <input name="target" list="all-names" required placeholder="الاسم الصحيح" autoComplete="off" className="input min-w-0 flex-1" />
-          <datalist id="all-names">
-            {allNames.map((n) => <option key={n.name} value={n.name}>{`${n.count} مادة`}</option>)}
-          </datalist>
+          <SuggestInput name="names" suggestions={allNames.map((n) => n.name)} hints={nameHints} required placeholder="الاسم المراد تغييره" wrapperClassName="flex-1" />
+          <SuggestInput name="target" suggestions={allNames.map((n) => n.name)} hints={nameHints} required placeholder="الاسم الصحيح" wrapperClassName="flex-1" />
           <ConfirmUnify />
         </form>
       </section>
