@@ -1,10 +1,10 @@
 /* ALL GOOD Power Construction: site styles */
 
 :root {
-  --navy: #0b2f5b;
-  --blue: #1a67a8;
-  --sky: #4fb6e6;
-  --ink: #18212d;
+  --navy: #00346a;   /* logo wordmark */
+  --blue: #1b5897;   /* logo ring */
+  --sky: #60c5ef;    /* logo highlight */
+  --ink: #10233a;
   --muted: #5e6a79;
   --faint: #9aa4b1;
   --line: #e3e8ee;
@@ -175,7 +175,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .badge {
   font-size: 12px; font-weight: 700; letter-spacing: .04em;
   padding: 3px 10px; border-radius: 999px;
-  background: #e7f4fb; color: var(--blue);
+  background: #e6f5fc; color: var(--blue);
 }
 
 /* ---------- projects ---------- */
@@ -186,7 +186,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   padding: 28px;
   transition: border-color .2s, box-shadow .2s;
 }
-.project:hover { border-color: #cfd8e3; box-shadow: 0 8px 24px rgba(11, 47, 91, .06); }
+.project:hover { border-color: #cfd8e3; box-shadow: 0 8px 24px rgba(0, 52, 106, .08); }
 .project__tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); margin-bottom: 8px; }
 .project h3 { font-size: 19px; margin-bottom: 18px; }
 .project dl { margin: 0; display: grid; grid-template-columns: 70px 1fr; gap: 10px 12px; font-size: 14px; }
@@ -204,7 +204,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   cursor: pointer;
 }
 .tab:hover { border-color: var(--navy); }
-.tab.is-active { background: var(--ink); border-color: var(--ink); color: var(--white); }
+.tab.is-active { background: var(--navy); border-color: var(--navy); color: var(--white); }
 
 .logo-grid {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
