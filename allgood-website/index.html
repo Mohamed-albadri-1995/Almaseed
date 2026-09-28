@@ -31,7 +31,6 @@
     <nav class="nav" id="nav">
       <a href="#about">About</a>
       <a href="#services">Services</a>
-      <a href="#products">Products</a>
       <a href="#projects">Projects</a>
       <a href="#partners">Partners</a>
       <a href="#contact" class="btn btn--small">Contact us</a>
@@ -147,12 +146,22 @@
         <h2>Five business units, one point of contact</h2>
       </header>
 
-      <div class="services">
-        <article class="service">
-          <span class="service__num">01</span>
-          <h3>Electrical materials supply</h3>
-          <p class="service__note">Exclusive authorized agent of <strong>Bahra Electric</strong>, Saudi Arabia's largest local cable manufacturer. SEC-compliant.</p>
-          <ul>
+      <div class="tabs tabs--left tabs--units" role="tablist" aria-label="Business units">
+        <button class="tab is-active" role="tab" aria-selected="true" aria-controls="bu-elec" id="tb-elec">Electrical materials</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="bu-steel" id="tb-steel" tabindex="-1">Steel &amp; metal fabrication</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="bu-constr" id="tb-constr" tabindex="-1">Engineering construction</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="bu-equip" id="tb-equip" tabindex="-1">Equipment &amp; site support</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="bu-mfg" id="tb-mfg" tabindex="-1">Local manufacturing</button>
+      </div>
+
+      <div class="unit-panel" id="bu-elec" role="tabpanel" aria-labelledby="tb-elec">
+        <div class="unit">
+          <div class="unit__text">
+            <span class="service__num">01</span>
+            <h3>Electrical materials</h3>
+            <p class="service__note">Exclusive authorized agent of <strong>Bahra Electric</strong>, Saudi Arabia's largest local cable manufacturer. SEC-compliant power, control, instrumentation and communication materials.</p>
+          </div>
+          <ul class="unit__list">
             <li>Medium &amp; low voltage power cables</li>
             <li>Control &amp; instrumentation cables</li>
             <li>Fiber optic composite cables</li>
@@ -160,259 +169,9 @@
             <li>Distribution boxes, transformers, generators</li>
             <li>Communications accessories &amp; fiber optic cabinets</li>
           </ul>
-        </article>
-
-        <article class="service">
-          <span class="service__num">02</span>
-          <h3>Steel structure &amp; metal fabrication</h3>
-          <p class="service__note">In-house manufacturing for oil, chemical and power infrastructure. Built to ASME, ASTM, DIN and GB standards.</p>
-          <ul>
-            <li>Pressure pipe systems</li>
-            <li>Industrial valves</li>
-            <li>High-strength fasteners</li>
-            <li>Embedded parts &amp; anchor bolts</li>
-            <li>Steel structure components</li>
-          </ul>
-        </article>
-
-        <article class="service">
-          <span class="service__num">03</span>
-          <h3>Engineering construction services</h3>
-          <p class="service__note">Professional crews working to international standards, with a zero safety incident record.</p>
-          <ul>
-            <li>Waterproofing</li>
-            <li>Anti-corrosion &amp; insulation</li>
-            <li>Scaffolding</li>
-            <li>Industrial pipeline installation</li>
-            <li>Temporary camp construction</li>
-          </ul>
-        </article>
-
-        <article class="service service--wide service--plain">
-          <div class="service__body">
-            <span class="service__num">04</span>
-            <h3>Equipment rental, generators &amp; transport</h3>
-            <p class="service__note">Agency brands: <strong>Cummins</strong> diesel generator sets, <strong>Stamford</strong> alternators and <strong>Deep Sea</strong> controllers. Installation, commissioning, maintenance and 24-hour emergency response across the Kingdom.</p>
-            <div class="service__cols service__cols--5">
-              <div>
-                <h4>Earth moving</h4>
-                <ul>
-                  <li>Wheel loaders</li>
-                  <li>Skid loaders</li>
-                  <li>Excavators</li>
-                  <li>Graders</li>
-                  <li>Dump trucks</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Heavy lift</h4>
-                <ul>
-                  <li>Truck cranes (multiple tonnages)</li>
-                  <li>Boom trucks</li>
-                  <li>Man lifts &amp; aerial platforms</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Power</h4>
-                <ul>
-                  <li>Diesel generators</li>
-                  <li>Electrical distribution systems</li>
-                  <li>Air conditioners &amp; heaters</li>
-                  <li>Tower lights</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Welding</h4>
-                <ul>
-                  <li>Welding machines</li>
-                  <li>Vessel, tank &amp; pipe turning rolls</li>
-                  <li>Welding positioners</li>
-                  <li>Pipe stands</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Transport</h4>
-                <ul>
-                  <li>Trucks &amp; tractor heads</li>
-                  <li>Low-bed &amp; flat-bed trailers</li>
-                  <li>Heavy-haul, in and outside ports</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="service service--wide">
-          <div class="service__body">
-            <span class="service__num">05</span>
-            <h3>Cable tray factory <span class="badge">Under development</span></h3>
-            <p class="service__note">A fully automated local factory, in line with Saudi Vision 2030 localization and IKTVA local content goals. Together with Bahra Electric, it will offer a complete cable-and-tray package from one supplier.</p>
-            <div class="service__cols">
-              <div>
-                <h4>Tray types</h4>
-                <ul>
-                  <li>Trough</li>
-                  <li>Perforated</li>
-                  <li>Ladder</li>
-                  <li>Wide-span</li>
-                </ul>
-              </div>
-              <div>
-                <h4>Materials</h4>
-                <ul>
-                  <li>Hot-dip galvanized steel</li>
-                  <li>Stainless steel</li>
-                  <li>Aluminum alloy</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <img class="service__img" src="assets/factory.jpg" alt="Automated metal forming production line" width="726" height="1000" loading="lazy">
-        </article>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ PRODUCTS ============ -->
-  <section class="section" id="products">
-    <div class="container">
-      <header class="section__head">
-        <p class="eyebrow">Products</p>
-        <h2>Product range</h2>
-        <p class="section__sub">Materials from world-renowned manufacturers, sourced from anywhere in the world to your specification.</p>
-      </header>
-
-      <div class="tabs tabs--left" role="tablist" aria-label="Product categories">
-        <button class="tab is-active" role="tab" aria-selected="true" aria-controls="pr-piping" id="tp-piping">Piping &amp; oilfield</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="pr-instr" id="tp-instr" tabindex="-1">Instrumentation</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="pr-elec" id="tp-elec" tabindex="-1">Electrical</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="pr-comm" id="tp-comm" tabindex="-1">Communication</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="pr-fast" id="tp-fast" tabindex="-1">Fasteners &amp; specialized</button>
-        <button class="tab" role="tab" aria-selected="false" aria-controls="pr-civil" id="tp-civil" tabindex="-1">Civil &amp; building</button>
-      </div>
-
-      <!-- Piping & oilfield -->
-      <div class="products" id="pr-piping" role="tabpanel" aria-labelledby="tp-piping">
-        <article class="product">
-          <h3>Pipes</h3>
-          <dl>
-            <dt>Material</dt><dd>CS, SS, low temp, alloy, copper, nickel, special alloys</dd>
-            <dt>Grade</dt><dd>ASTM A53, ASTM A106, API 5L Gr.B, SS 304/304L, SS 316/316L, CuNi 90/10</dd>
-            <dt>Size</dt><dd>½″ – 72″, seamless &amp; welded</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Flanges</h3>
-          <dl>
-            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys</dd>
-            <dt>Size</dt><dd>½″ – 48″</dd>
-            <dt>Class</dt><dd>150, 300, 600, 900, 1500, 2500</dd>
-            <dt>Type</dt><dd>WN, SW, THD, blind, slip-on, orifice, lap joint</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Butt-weld fittings</h3>
-          <dl>
-            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys, Hastelloy</dd>
-            <dt>Size</dt><dd>½″ – 72″, SCH 10 – 160, STD, XS, XXS</dd>
-            <dt>Type</dt><dd>Elbow, tee, cap, reducer, cross, stub end</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Forged fittings</h3>
-          <dl>
-            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys, Hastelloy</dd>
-            <dt>Size</dt><dd>½″ – 4″; 3000#, 6000#, 9000#, 150# SW &amp; THD</dd>
-            <dt>Type</dt><dd>Elbow, tee, cap, reducer, swage nipple, nipple, cross, O-lets</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Valves</h3>
-          <dl>
-            <dt>Type</dt><dd>Gate, globe, check, ball, plug, butterfly, strainer, steam trap, extended body, bellow seal, Y-type</dd>
-            <dt>Material</dt><dd>CS, SS, duplex, brass, bronze, DI, CI, nickel alloys, Hastelloy</dd>
-            <dt>End</dt><dd>THD, SW, flanged</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Gaskets</h3>
-          <dl>
-            <dt>Type</dt><dd>Spiral wound, metal jacketed, solid metal, non-metallic, ring type</dd>
-            <dt>Material</dt><dd>Rubber, EPDM, Buna, neoprene, Viton, silicone, nitrile, grafoil, mica, PEEK, titanium, nickel alloys</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Plates, sheets &amp; bars</h3>
-          <dl>
-            <dt>Form</dt><dd>Sheets, plates, bars, rods, wire, strip</dd>
-            <dt>Material</dt><dd>CS, SS, nickel alloys, titanium, Hastelloy, duplex</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Expansion joints</h3>
-          <dl>
-            <dt>Size</dt><dd>½″ and above</dd>
-          </dl>
-        </article>
-      </div>
-
-      <!-- Instrumentation -->
-      <div class="products" id="pr-instr" role="tabpanel" aria-labelledby="tp-instr" hidden>
-        <article class="product">
-          <h3>Tubing</h3>
-          <dl>
-            <dt>Form</dt><dd>Straight lengths &amp; coils (up to 3,000 ft seamless), seamless &amp; welded</dd>
-            <dt>Material</dt><dd>Stainless steel &amp; exotic alloys</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Tube fittings</h3>
-          <dl>
-            <dt>Brands</dt><dd>Swagelok, Parker, DK-Tech; high-pressure fittings from Autoclave Engineers (USA) and other Saudi Aramco approved suppliers</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Tube supports</h3>
-          <dl>
-            <dt>Items</dt><dd>Channels, splices, tees, elbows &amp; clamps, in stainless steel</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Instrument valves</h3>
-          <dl>
-            <dt>Type</dt><dd>Ball, gauge, needle, solenoid, manifold</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Transmitters &amp; switches</h3>
-          <dl>
-            <dt>Transmitters</dt><dd>Density, flow, level, temperature</dd>
-            <dt>Switches</dt><dd>Pressure, temperature, flow, level</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Analyzers &amp; flow meters</h3>
-          <dl>
-            <dt>Analyzers</dt><dd>Oxygen, moisture, density, specific gravity</dd>
-            <dt>Flow meters</dt><dd>Electromagnetic, turbine, ultrasonic</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Calibration equipment</h3>
-          <dl>
-            <dt>Items</dt><dd>Hydraulic &amp; pneumatic dead-weight testers, indicators, recorders, power supplies, totalizers, transducers</dd>
-          </dl>
-        </article>
-        <article class="product">
-          <h3>Instrument electronics</h3>
-          <dl>
-            <dt>Items</dt><dd>Alarms, RTDs &amp; thermocouples, thermowells, seal pots, gauges, barriers, relays, annunciators</dd>
-          </dl>
-        </article>
-      </div>
-
-      <!-- Electrical -->
-      <div class="products" id="pr-elec" role="tabpanel" aria-labelledby="tp-elec" hidden>
+        </div>
+        <h4 class="unit__label">Product range</h4>
+        <div class="products">
         <article class="product">
           <h3>Conduit bodies, boxes &amp; enclosures</h3>
           <dl>
@@ -483,10 +242,57 @@
             <dt>Brands</dt><dd>Klein Tools</dd>
           </dl>
         </article>
-      </div>
-
-      <!-- Communication -->
-      <div class="products" id="pr-comm" role="tabpanel" aria-labelledby="tp-comm" hidden>
+        <article class="product">
+          <h3>Tubing</h3>
+          <dl>
+            <dt>Form</dt><dd>Straight lengths &amp; coils (up to 3,000 ft seamless), seamless &amp; welded</dd>
+            <dt>Material</dt><dd>Stainless steel &amp; exotic alloys</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Tube fittings</h3>
+          <dl>
+            <dt>Brands</dt><dd>Swagelok, Parker, DK-Tech; high-pressure fittings from Autoclave Engineers (USA) and other Saudi Aramco approved suppliers</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Tube supports</h3>
+          <dl>
+            <dt>Items</dt><dd>Channels, splices, tees, elbows &amp; clamps, in stainless steel</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Instrument valves</h3>
+          <dl>
+            <dt>Type</dt><dd>Ball, gauge, needle, solenoid, manifold</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Transmitters &amp; switches</h3>
+          <dl>
+            <dt>Transmitters</dt><dd>Density, flow, level, temperature</dd>
+            <dt>Switches</dt><dd>Pressure, temperature, flow, level</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Analyzers &amp; flow meters</h3>
+          <dl>
+            <dt>Analyzers</dt><dd>Oxygen, moisture, density, specific gravity</dd>
+            <dt>Flow meters</dt><dd>Electromagnetic, turbine, ultrasonic</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Calibration equipment</h3>
+          <dl>
+            <dt>Items</dt><dd>Hydraulic &amp; pneumatic dead-weight testers, indicators, recorders, power supplies, totalizers, transducers</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Instrument electronics</h3>
+          <dl>
+            <dt>Items</dt><dd>Alarms, RTDs &amp; thermocouples, thermowells, seal pots, gauges, barriers, relays, annunciators</dd>
+          </dl>
+        </article>
         <article class="product">
           <h3>Fiber optic &amp; telecom cable</h3>
           <dl>
@@ -522,10 +328,87 @@
             <dt>Brands</dt><dd>Reliance Comm/Tec, Klein Tools</dd>
           </dl>
         </article>
+        </div>
       </div>
 
-      <!-- Fasteners & specialized -->
-      <div class="products" id="pr-fast" role="tabpanel" aria-labelledby="tp-fast" hidden>
+      <div class="unit-panel" id="bu-steel" role="tabpanel" aria-labelledby="tb-steel" hidden>
+        <div class="unit">
+          <div class="unit__text">
+            <span class="service__num">02</span>
+            <h3>Steel &amp; metal fabrication</h3>
+            <p class="service__note">In-house manufacturing of metal and steel structures for oil, chemical and power infrastructure. Built to ASME, ASTM, DIN and GB standards.</p>
+          </div>
+          <ul class="unit__list">
+            <li>Pressure pipe systems</li>
+            <li>Industrial valves</li>
+            <li>High-strength fasteners</li>
+            <li>Embedded parts &amp; anchor bolts</li>
+            <li>Steel structure components</li>
+          </ul>
+        </div>
+        <h4 class="unit__label">Product range</h4>
+        <div class="products">
+        <article class="product">
+          <h3>Pipes</h3>
+          <dl>
+            <dt>Material</dt><dd>CS, SS, low temp, alloy, copper, nickel, special alloys</dd>
+            <dt>Grade</dt><dd>ASTM A53, ASTM A106, API 5L Gr.B, SS 304/304L, SS 316/316L, CuNi 90/10</dd>
+            <dt>Size</dt><dd>½″ – 72″, seamless &amp; welded</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Flanges</h3>
+          <dl>
+            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys</dd>
+            <dt>Size</dt><dd>½″ – 48″</dd>
+            <dt>Class</dt><dd>150, 300, 600, 900, 1500, 2500</dd>
+            <dt>Type</dt><dd>WN, SW, THD, blind, slip-on, orifice, lap joint</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Butt-weld fittings</h3>
+          <dl>
+            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys, Hastelloy</dd>
+            <dt>Size</dt><dd>½″ – 72″, SCH 10 – 160, STD, XS, XXS</dd>
+            <dt>Type</dt><dd>Elbow, tee, cap, reducer, cross, stub end</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Forged fittings</h3>
+          <dl>
+            <dt>Material</dt><dd>CS, SS, low temp, duplex, Cu, Ni, nickel alloys, Hastelloy</dd>
+            <dt>Size</dt><dd>½″ – 4″; 3000#, 6000#, 9000#, 150# SW &amp; THD</dd>
+            <dt>Type</dt><dd>Elbow, tee, cap, reducer, swage nipple, nipple, cross, O-lets</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Valves</h3>
+          <dl>
+            <dt>Type</dt><dd>Gate, globe, check, ball, plug, butterfly, strainer, steam trap, extended body, bellow seal, Y-type</dd>
+            <dt>Material</dt><dd>CS, SS, duplex, brass, bronze, DI, CI, nickel alloys, Hastelloy</dd>
+            <dt>End</dt><dd>THD, SW, flanged</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Gaskets</h3>
+          <dl>
+            <dt>Type</dt><dd>Spiral wound, metal jacketed, solid metal, non-metallic, ring type</dd>
+            <dt>Material</dt><dd>Rubber, EPDM, Buna, neoprene, Viton, silicone, nitrile, grafoil, mica, PEEK, titanium, nickel alloys</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Plates, sheets &amp; bars</h3>
+          <dl>
+            <dt>Form</dt><dd>Sheets, plates, bars, rods, wire, strip</dd>
+            <dt>Material</dt><dd>CS, SS, nickel alloys, titanium, Hastelloy, duplex</dd>
+          </dl>
+        </article>
+        <article class="product">
+          <h3>Expansion joints</h3>
+          <dl>
+            <dt>Size</dt><dd>½″ and above</dd>
+          </dl>
+        </article>
         <article class="product">
           <h3>Stud bolts</h3>
           <dl>
@@ -567,16 +450,26 @@
             <dt>Finish</dt><dd>Fluoropolymer, Xylan, Teflon, cadmium, zinc, hot-dip &amp; mechanical galvanized, moly, epoxy, polyurethane</dd>
           </dl>
         </article>
-        <article class="product">
-          <h3>Water pumps</h3>
-          <dl>
-            <dt>Brand</dt><dd>Sole agent for Price Pumps (USA)</dd>
-          </dl>
-        </article>
+        </div>
       </div>
 
-      <!-- Civil & building -->
-      <div class="products" id="pr-civil" role="tabpanel" aria-labelledby="tp-civil" hidden>
+      <div class="unit-panel" id="bu-constr" role="tabpanel" aria-labelledby="tb-constr" hidden>
+        <div class="unit">
+          <div class="unit__text">
+            <span class="service__num">03</span>
+            <h3>Engineering construction</h3>
+            <p class="service__note">Professional crews working to international standards, with a zero safety incident record, on large industrial and energy projects across Saudi Arabia.</p>
+          </div>
+          <ul class="unit__list">
+            <li>Waterproofing</li>
+            <li>Anti-corrosion &amp; insulation</li>
+            <li>Scaffolding</li>
+            <li>Industrial pipeline installation</li>
+            <li>Temporary camp construction</li>
+          </ul>
+        </div>
+        <h4 class="unit__label">Building materials</h4>
+        <div class="products">
         <article class="product">
           <h3>Building materials</h3>
           <dl>
@@ -595,12 +488,114 @@
             <dt>Items</dt><dd>Epoxy paints</dd>
           </dl>
         </article>
+        </div>
       </div>
+
+      <div class="unit-panel" id="bu-equip" role="tabpanel" aria-labelledby="tb-equip" hidden>
+        <div class="unit">
+          <div class="unit__text">
+            <span class="service__num">04</span>
+            <h3>Equipment &amp; site support</h3>
+            <p class="service__note">Agency brands: <strong>Cummins</strong> diesel generator sets, <strong>Stamford</strong> alternators and <strong>Deep Sea</strong> controllers. Installation, commissioning, maintenance and 24-hour emergency response across the Kingdom.</p>
+          </div>
+          <ul class="unit__list">
+            <li>Heavy equipment rental</li>
+            <li>Generator supply &amp; rental</li>
+            <li>Welding equipment rental</li>
+            <li>Heavy transport &amp; logistics</li>
+            <li>24-hour emergency response</li>
+          </ul>
+        </div>
+        <h4 class="unit__label">Fleet &amp; equipment</h4>
+        <div class="products">
+        <article class="product">
+          <h3>Earth moving</h3>
+          <ul class="product__list">
+            <li>Wheel loaders</li>
+            <li>Skid loaders</li>
+            <li>Excavators</li>
+            <li>Graders</li>
+            <li>Dump trucks</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Heavy lift</h3>
+          <ul class="product__list">
+            <li>Truck cranes (multiple tonnages)</li>
+            <li>Boom trucks</li>
+            <li>Man lifts &amp; aerial platforms</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Power</h3>
+          <ul class="product__list">
+            <li>Diesel generators</li>
+            <li>Electrical distribution systems</li>
+            <li>Air conditioners &amp; heaters</li>
+            <li>Tower lights</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Welding</h3>
+          <ul class="product__list">
+            <li>Welding machines</li>
+            <li>Vessel, tank &amp; pipe turning rolls</li>
+            <li>Welding positioners</li>
+            <li>Pipe stands</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Transport</h3>
+          <ul class="product__list">
+            <li>Trucks &amp; tractor heads</li>
+            <li>Low-bed &amp; flat-bed trailers</li>
+            <li>Heavy haul, in and outside ports</li>
+          </ul>
+        </article>
+        <article class="product">
+          <h3>Water pumps</h3>
+          <dl>
+            <dt>Brand</dt><dd>Sole agent for Price Pumps (USA)</dd>
+          </dl>
+        </article>
+        </div>
+      </div>
+
+      <div class="unit-panel" id="bu-mfg" role="tabpanel" aria-labelledby="tb-mfg" hidden>
+        <div class="unit unit--media">
+          <div class="unit__text">
+            <span class="service__num">05</span>
+            <h3>Local manufacturing <span class="badge">Under development</span></h3>
+            <p class="service__note">A fully automated cable tray factory, in line with Saudi Vision 2030 localization and IKTVA local content goals. Together with Bahra Electric, it will offer a complete cable-and-tray package from one supplier.</p>
+            <div class="service__cols">
+              <div>
+                <h4>Tray types</h4>
+                <ul class="unit__list">
+                  <li>Trough</li>
+                  <li>Perforated</li>
+                  <li>Ladder</li>
+                  <li>Wide-span</li>
+                </ul>
+              </div>
+              <div>
+                <h4>Materials</h4>
+                <ul class="unit__list">
+                  <li>Hot-dip galvanized steel</li>
+                  <li>Stainless steel</li>
+                  <li>Aluminum alloy</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <img class="unit__img" src="assets/factory.jpg" alt="Automated metal forming production line" width="726" height="1000" loading="lazy">
+        </div>
+      </div>
+
     </div>
   </section>
 
   <!-- ============ PROJECTS ============ -->
-  <section class="section section--soft" id="projects">
+  <section class="section" id="projects">
     <div class="container">
       <header class="section__head">
         <p class="eyebrow">Projects</p>
@@ -662,7 +657,7 @@
   </section>
 
   <!-- ============ PARTNERS ============ -->
-  <section class="section" id="partners">
+  <section class="section section--soft" id="partners">
     <div class="container">
       <header class="section__head section__head--center">
         <h2>Trusted by contractors, partners and the industry</h2>
@@ -703,7 +698,7 @@
   </section>
 
   <!-- ============ WHY US ============ -->
-  <section class="section section--soft" id="why">
+  <section class="section" id="why">
     <div class="container">
       <header class="section__head">
         <p class="eyebrow">Why ALL GOOD</p>
@@ -732,7 +727,7 @@
   </section>
 
   <!-- ============ CONTACT ============ -->
-  <section class="section" id="contact">
+  <section class="section section--soft" id="contact">
     <div class="container">
       <header class="section__head">
         <p class="eyebrow">Contact</p>
