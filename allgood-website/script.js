@@ -47,17 +47,21 @@ document.querySelectorAll("[data-gallery]").forEach((g) => {
   const track = g.querySelector(".gallery__track");
   const [prev, next] = g.querySelectorAll(".gallery__btn");
 
+  // In Arabic (right-to-left) the row scrolls the other way
+  const rtl = getComputedStyle(track).direction === "rtl";
+
   function update() {
     const max = track.scrollWidth - track.clientWidth - 2;
-    prev.disabled = track.scrollLeft <= 2;
-    next.disabled = track.scrollLeft >= max;
+    const pos = Math.abs(track.scrollLeft);
+    prev.disabled = pos <= 2;
+    next.disabled = pos >= max;
   }
 
   g.querySelectorAll(".gallery__btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const item = track.querySelector(".gallery__item");
       const step = item ? item.getBoundingClientRect().width + 16 : track.clientWidth;
-      track.scrollBy({ left: step * Number(btn.dataset.dir) });
+      track.scrollBy({ left: step * Number(btn.dataset.dir) * (rtl ? -1 : 1) });
     });
   });
 

@@ -2,7 +2,10 @@
 
 A static, single-page company website: plain HTML, CSS and a little JavaScript, with no build step.
 
-- `index.html`: all page content
+- `index.html`: the English page (the source for all languages)
+- `ar.html`, `zh.html`: Arabic and Chinese pages, generated from `index.html`
+- `tools/translate.py`: the Arabic and Chinese wording, and the script that builds `ar.html` and `zh.html`
+- `tools/placeholders.py`: rebuilds the labeled grey photo placeholders
 - `styles.css`: styles (brand colors are the variables at the top)
 - `script.js`: mobile menu and partner tabs
 - `assets/`: logo and favicon
@@ -26,15 +29,30 @@ name**. Grey images that say "Replace …" are placeholders waiting for a real i
 | `unit-04-1.jpg` … `unit-04-4.jpg` | Equipment & site support photo row | 1200×900 |
 | `unit-05-1.jpg` … `unit-05-4.jpg` | Local manufacturing photo row | 1200×900 |
 | `project-1-turaif.jpg` … `project-5-pp12.jpg` | Selected projects row | 1200×800 |
-| `project-N-….jpg`, `project-N-…-2.jpg`, `-3.jpg` | Photos inside each project's details window | 1200×800 |
+| `project-N-….jpg`, `project-N-…-2.jpg`, `-3.jpg` | Project site photos inside each project's details window | 1200×800 |
+| `project-N-…-delivery-1.jpg` … `-3.jpg` | Order delivery photos inside each project's details window | 1200×800 |
 | `team-1.jpg` … `team-4.jpg` | Meet the team (shown as circles) | 600×600 |
 | `wechat-qr.png` | WeChat QR code in Contact | 600×600 |
-| `assets/logos/*.png` | Partners section | 480×240, transparent or white background |
+| `assets/logos/*.png` | Partner logo tiles (the name is shown under each logo) | 480×240, transparent or white background |
 
 To add a fifth photo to a unit's row, copy one `<img … unit-0X-4.jpg …>` line in
 `index.html` and change the number.
 
+## Languages
+
+The site is in English, Arabic (right to left) and Chinese, with a switcher in the menu.
+Edit the English text in `index.html` only, then run:
+
+    python3 tools/translate.py
+
+It rebuilds `ar.html` and `zh.html`. If you added or changed English text, it lists what
+still needs a translation; add it to the `AR` and `ZH` tables in `tools/translate.py` and
+run it again. Have a native speaker review the Arabic and Chinese wording before launch.
+
 ## Things to fill in
+
+- **Qiddiya:** the project is listed, but its client, business unit, scope and result say
+  "To be added". Fill them in `index.html` (and their translations).
 
 - **WeChat:** replace the text `WeChat ID` in `index.html` with the real ID, and replace
   `assets/photos/wechat-qr.png` with the real QR code.
