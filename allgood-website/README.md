@@ -10,23 +10,27 @@ A static, single-page company website: plain HTML, CSS and a little JavaScript, 
 
 The content comes from the *ALL GOOD Company Profile 2026* presentation.
 
-## Photos
+## Photos and logos
 
-Every photo on the page is a file in `assets/photos/`. To change one, replace the file
-with your own photo **using the same file name**. Grey images that say "Replace: …" are
-placeholders waiting for a real photo.
+Every photo is a file in `assets/photos/`, and every partner logo is a file in
+`assets/logos/`. To change one, replace the file with your own **using the same file
+name**. Grey images that say "Replace …" are placeholders waiting for a real image.
 
 | File | Where it appears | Suggested size |
 |---|---|---|
 | `hero.jpg` | Top of the page | 1000×1000 |
 | `about.jpg` | About us | 1200×900 |
-| `unit-01-electrical.jpg` | Electrical materials | 1200×900 |
-| `unit-02-steel.jpg` | Steel & metal fabrication | 1200×900 |
-| `unit-03-construction.jpg` | Engineering construction | 1200×900 |
-| `unit-04-equipment.jpg` | Equipment & site support | 1200×900 |
-| `unit-05-manufacturing.jpg` | Local manufacturing | 1200×900 |
-| `project-1-turaif.jpg` … `project-5-pp12.jpg` | Selected projects | 1200×800 |
+| `unit-01-1.jpg` … `unit-01-4.jpg` | Electrical materials photo row | 1200×900 |
+| `unit-02-1.jpg` … `unit-02-4.jpg` | Steel & metal fabrication photo row | 1200×900 |
+| `unit-03-1.jpg` … `unit-03-4.jpg` | Engineering construction photo row | 1200×900 |
+| `unit-04-1.jpg` … `unit-04-4.jpg` | Equipment & site support photo row | 1200×900 |
+| `unit-05-1.jpg` … `unit-05-4.jpg` | Local manufacturing photo row | 1200×900 |
+| `project-1-turaif.jpg` … `project-5-pp12.jpg` | Selected projects row | 1200×800 |
 | `contact-person.jpg` | Contact (shown as a circle) | 600×600 |
+| `assets/logos/*.png` | Partners section | 480×240, transparent or white background |
+
+To add a fifth photo to a unit's row, copy one `<img … unit-0X-4.jpg …>` line in
+`index.html` and change the number.
 
 ## Preview
 

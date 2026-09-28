@@ -14,7 +14,7 @@ nav.addEventListener("click", (e) => {
   }
 });
 
-// Tabs (products and partners); each tab list works on its own
+// Tabs (partners)
 document.querySelectorAll("[role=tablist]").forEach((list) => {
   const tabs = [...list.querySelectorAll("[role=tab]")];
 
@@ -41,3 +41,27 @@ document.querySelectorAll("[role=tablist]").forEach((list) => {
 
 // Footer year
 document.getElementById("year").textContent = new Date().getFullYear();
+
+// Horizontal photo rows: arrow buttons move one item; buttons dim at the ends
+document.querySelectorAll("[data-gallery]").forEach((g) => {
+  const track = g.querySelector(".gallery__track");
+  const [prev, next] = g.querySelectorAll(".gallery__btn");
+
+  function update() {
+    const max = track.scrollWidth - track.clientWidth - 2;
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = track.scrollLeft >= max;
+  }
+
+  g.querySelectorAll(".gallery__btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = track.querySelector(".gallery__item");
+      const step = item ? item.getBoundingClientRect().width + 16 : track.clientWidth;
+      track.scrollBy({ left: step * Number(btn.dataset.dir) });
+    });
+  });
+
+  track.addEventListener("scroll", update, { passive: true });
+  window.addEventListener("resize", update);
+  update();
+});
