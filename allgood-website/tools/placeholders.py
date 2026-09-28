@@ -38,7 +38,7 @@ SITE_3 = {
 }
 # our role on each project decides which photo rows its details window has
 SUPPLIER = {"1-turaif", "2-saidawi", "3-qassim", "4-wadi", "5-pp12"}
-SUBCONTRACTOR = {"5-pp12", "6-qiddiya"}
+CONTRACTOR = {"5-pp12", "6-qiddiya"}
 WORKS = [
     "Your crew working inside the project.",
     "Work in progress: installation or construction.",
@@ -83,7 +83,7 @@ for key, name, overview in PROJECTS:
     if key in SUPPLIER:
         SLOTS += [(f"project-{key}-delivery-{i}.jpg", f"{name} · delivery {i}", d, 1200, 800)
                   for i, d in enumerate(DELIVERY, 1)]
-    if key in SUBCONTRACTOR:
+    if key in CONTRACTOR:
         SLOTS += [(f"project-{key}-works-{i}.jpg", f"{name} · our works {i}", d, 1200, 800)
                   for i, d in enumerate(WORKS, 1)]
 ROUND = [("team-1.jpg", "Yu Peng Peng", "Portrait photo")]
