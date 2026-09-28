@@ -18,7 +18,7 @@ PROJECTS = [
     ("3-qassim", "Qassim", "the Qassim CCGT power plant"),
     ("4-wadi", "Wadi", "the Wadi solar plant"),
     ("5-pp12", "PP12", "the PP12 project camp"),
-    ("6-qiddiya", "Qiddiya", "your work at Qiddiya"),
+    ("6-qiddiya", "Qiddiya", "the Qiddiya Delta B office"),
 ]
 SITE_2 = {
     "1-turaif": "Your cable drums delivered to site.",
@@ -26,7 +26,7 @@ SITE_2 = {
     "3-qassim": "Steel structure components on site.",
     "4-wadi": "The steel structure erected on site.",
     "5-pp12": "Prefabricated cafeteria and dormitories.",
-    "6-qiddiya": "Your materials installed on site.",
+    "6-qiddiya": "Steel frame erection of the office building.",
 }
 SITE_3 = {
     "1-turaif": "Cable laying or grid connection work.",
@@ -34,7 +34,7 @@ SITE_3 = {
     "3-qassim": "Pipes and flanges you supplied.",
     "4-wadi": "Flanges, fittings and fasteners supplied.",
     "5-pp12": "Steel structures under construction.",
-    "6-qiddiya": "Installation or handover on site.",
+    "6-qiddiya": "The finished office, parking shades and landscaping.",
 }
 # our role on each project decides which photo rows its details window has
 SUPPLIER = {"1-turaif", "2-saidawi", "3-qassim", "4-wadi", "5-pp12"}
@@ -123,9 +123,12 @@ def draw(file, title, desc, w, h, round_=False):
     im.save("assets/photos/" + file, **opts)
 
 
+# files that already hold real photos: never overwrite them
+REAL = {"project-6-qiddiya.jpg"}
+
 wanted = set(sys.argv[1:])
 for slot in SLOTS:
-    if not wanted or slot[0] in wanted:
+    if slot[0] not in REAL and (not wanted or slot[0] in wanted):
         draw(*slot)
 for file, title, desc in ROUND:
     if not wanted or file in wanted:
