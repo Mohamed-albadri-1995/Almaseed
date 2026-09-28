@@ -166,8 +166,13 @@ ul { margin: 0; padding: 0; list-style: none; }
   content: ""; position: absolute; left: 0; top: .7em;
   width: 6px; height: 6px; border-radius: 50%; background: var(--sky);
 }
-.unit h4, .unit__label { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
-.unit__label { margin: 32px 0 14px; }
+.unit h4 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+.unit__label {
+  display: flex; align-items: center; gap: 14px;
+  margin: 40px 0 16px;
+  font-size: 18px; font-weight: 700; color: var(--navy);
+}
+.unit__label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .service__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
 
 .unit--media { grid-template-columns: 1.2fr 1fr; padding: 0; overflow: hidden; }
