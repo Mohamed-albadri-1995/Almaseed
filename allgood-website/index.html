@@ -261,15 +261,22 @@
         <div>
           <p class="eyebrow">Projects</p>
           <h2>Selected projects</h2>
-          <p class="subtitle">Delivered with world-class EPC contractors across the Kingdom.</p>
+          <p class="subtitle">As a supplier, as a subcontractor on site, or both on the same project.</p>
         </div>
       </header>
+
+      <ul class="how">
+        <li><span class="role role--supplier">Supplier</span><p>We source, deliver and hand over materials and equipment to the project's contractors.</p></li>
+        <li><span class="role role--subcontractor">Subcontractor</span><p>Our own crews carry out works inside the project, such as construction, installation and site services.</p></li>
+        <li><span class="roles"><span class="role role--subcontractor">Subcontractor</span><span class="role role--supplier">Supplier</span></span><p>On large projects we do both: one division works on site as a subcontractor while another supplies other contractors.</p></li>
+      </ul>
 
       <div class="gallery gallery--projects" data-gallery>
         <div class="gallery__track" tabindex="0" aria-label="Selected projects">
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-1" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-1-turaif.jpg" alt="Turaif Wind Power Project" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--supplier">Supplier</span></span>
               <span class="project__tag">Wind power</span>
               <span class="project__title">Turaif Wind Power Project</span>
               <span class="project__short">Full HV/LV cable supply for PowerChina. On-time grid connection.</span>
@@ -279,6 +286,7 @@
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-2" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-2-saidawi.jpg" alt="Saidawi Solar Power Project" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--supplier">Supplier</span></span>
               <span class="project__tag">Solar power</span>
               <span class="project__title">Saidawi Solar Power Project</span>
               <span class="project__short">Complete cable and cable tray system for Energy China.</span>
@@ -288,6 +296,7 @@
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-3" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-3-qassim.jpg" alt="Riyadh Qassim CCGT" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--supplier">Supplier</span></span>
               <span class="project__tag">Power plant</span>
               <span class="project__title">Riyadh Qassim CCGT</span>
               <span class="project__short">Steel structures, pipes and flanges for PowerChina.</span>
@@ -297,6 +306,7 @@
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-4" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-4-wadi.jpg" alt="Wadi Solar Power Project" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--supplier">Supplier</span></span>
               <span class="project__tag">Solar power</span>
               <span class="project__title">Wadi Solar Power Project</span>
               <span class="project__short">Complete steel structure package for Shandong Electric.</span>
@@ -306,18 +316,20 @@
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-5" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-5-pp12.jpg" alt="PP12 Gas Turbine" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--subcontractor">Subcontractor</span><span class="role role--supplier">Supplier</span></span>
               <span class="project__tag">Gas turbine</span>
               <span class="project__title">PP12 Gas Turbine</span>
-              <span class="project__short">Camp expansion: prefabricated buildings and steel structures.</span>
+              <span class="project__short">Camp expansion built on site, with our own steel materials.</span>
               <span class="project__more">View details <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></span>
             </button>
           </article>
           <article class="project gallery__item">
             <button class="project__open" type="button" data-open="project-6" aria-haspopup="dialog">
               <img class="photo" src="assets/photos/project-6-qiddiya.jpg" alt="Qiddiya" width="1200" height="800" loading="lazy">
+              <span class="roles"><span class="role role--subcontractor">Subcontractor</span></span>
               <span class="project__tag">Giga-project</span>
               <span class="project__title">Qiddiya</span>
-              <span class="project__short">Supply for the Qiddiya giga-project in Riyadh.</span>
+              <span class="project__short">Works inside the Qiddiya giga-project in Riyadh.</span>
               <span class="project__more">View details <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></span>
             </button>
           </article>
@@ -491,6 +503,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--supplier">Supplier</span></span>
       <p class="project__tag">Wind power</p>
       <h3 class="modal__title" id="project-1-title">Turaif Wind Power Project</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -518,10 +531,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Supplier</dd>
         <dt>Location</dt><dd>Turaif, Saudi Arabia</dd>
         <dt>EPC</dt><dd>PowerChina: Shandong Electric Power Construction Corp. No.3</dd>
         <dt>Business unit</dt><dd>Electrical materials</dd>
-        <dt>Scope</dt><dd>Full supply of HV and LV wind power cables, compliant with SEC standards.</dd>
+        <dt>Scope as supplier</dt><dd>Full supply of HV and LV wind power cables, compliant with SEC standards.</dd>
         <dt>Result</dt><dd>On-time grid connection, with quality certified by the contractor.</dd>
       </dl>
     </div>
@@ -531,6 +545,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--supplier">Supplier</span></span>
       <p class="project__tag">Solar power</p>
       <h3 class="modal__title" id="project-2-title">Saidawi Solar Power Project</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -558,10 +573,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Supplier</dd>
         <dt>Location</dt><dd>Saudi Arabia</dd>
         <dt>EPC</dt><dd>Energy China: Hunan Electric Power Construction Co., Ltd.</dd>
         <dt>Business unit</dt><dd>Electrical materials</dd>
-        <dt>Scope</dt><dd>Full cable and cable tray system, in trough and ladder types.</dd>
+        <dt>Scope as supplier</dt><dd>Full cable and cable tray system, in trough and ladder types.</dd>
         <dt>Result</dt><dd>One integrated cable-and-tray package; ALL GOOD became a strategic supplier for Energy China.</dd>
       </dl>
     </div>
@@ -571,6 +587,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--supplier">Supplier</span></span>
       <p class="project__tag">Power plant</p>
       <h3 class="modal__title" id="project-3-title">Riyadh Qassim CCGT</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -598,10 +615,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Supplier</dd>
         <dt>Location</dt><dd>Riyadh &amp; Qassim, Saudi Arabia</dd>
         <dt>Client / EPC</dt><dd>PowerChina</dd>
         <dt>Business unit</dt><dd>Steel &amp; metal fabrication</dd>
-        <dt>Scope</dt><dd>Bulk supply of steel structural components for large gas turbine power plants: pipes, flanges and a full steel package.</dd>
+        <dt>Scope as supplier</dt><dd>Bulk supply of steel structural components for large gas turbine power plants: pipes, flanges and a full steel package.</dd>
         <dt>Result</dt><dd>Delivered to a strict schedule and quality standard, leading to a long-term strategic partnership.</dd>
       </dl>
     </div>
@@ -611,6 +629,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--supplier">Supplier</span></span>
       <p class="project__tag">Solar power</p>
       <h3 class="modal__title" id="project-4-title">Wadi Solar Power Project</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -638,10 +657,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Supplier</dd>
         <dt>Location</dt><dd>Saudi Arabia</dd>
         <dt>Client / EPC</dt><dd>Shandong Electric Power Construction Group</dd>
         <dt>Business unit</dt><dd>Steel &amp; metal fabrication</dd>
-        <dt>Scope</dt><dd>Complete steel structure, plus the full series of flanges, pipe fittings, fasteners and embedded parts.</dd>
+        <dt>Scope as supplier</dt><dd>Complete steel structure, plus the full series of flanges, pipe fittings, fasteners and embedded parts.</dd>
         <dt>Result</dt><dd>Full compliance with international quality standards and smooth project completion.</dd>
       </dl>
     </div>
@@ -651,6 +671,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--subcontractor">Subcontractor</span><span class="role role--supplier">Supplier</span></span>
       <p class="project__tag">Gas turbine</p>
       <h3 class="modal__title" id="project-5-title">PP12 Gas Turbine</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -659,6 +680,18 @@
           <img class="photo gallery__item" src="assets/photos/project-5-pp12.jpg" alt="PP12 Gas Turbine: project site, photo 1" width="1200" height="800" loading="lazy">
           <img class="photo gallery__item" src="assets/photos/project-5-pp12-2.jpg" alt="PP12 Gas Turbine: project site, photo 2" width="1200" height="800" loading="lazy">
           <img class="photo gallery__item" src="assets/photos/project-5-pp12-3.jpg" alt="PP12 Gas Turbine: project site, photo 3" width="1200" height="800" loading="lazy">
+        </div>
+        <div class="gallery__nav">
+          <button class="gallery__btn" data-dir="-1" aria-label="Previous photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="gallery__btn" data-dir="1" aria-label="Next photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <h4 class="modal__sub">Our works on site</h4>
+      <div class="gallery" data-gallery>
+        <div class="gallery__track" tabindex="0" aria-label="PP12 Gas Turbine: our works on site photos">
+          <img class="photo gallery__item" src="assets/photos/project-5-pp12-works-1.jpg" alt="PP12 Gas Turbine: our works on site, photo 1" width="1200" height="800" loading="lazy">
+          <img class="photo gallery__item" src="assets/photos/project-5-pp12-works-2.jpg" alt="PP12 Gas Turbine: our works on site, photo 2" width="1200" height="800" loading="lazy">
+          <img class="photo gallery__item" src="assets/photos/project-5-pp12-works-3.jpg" alt="PP12 Gas Turbine: our works on site, photo 3" width="1200" height="800" loading="lazy">
         </div>
         <div class="gallery__nav">
           <button class="gallery__btn" data-dir="-1" aria-label="Previous photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -678,10 +711,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Subcontractor &amp; Supplier</dd>
         <dt>Location</dt><dd>Saudi Arabia</dd>
-        <dt>Business unit</dt><dd>Engineering construction</dd>
-        <dt>Scope</dt><dd>Expansion of the project camp: prefabricated buildings and steel structures for the cafeteria, activity room and staff dormitories.</dd>
-        <dt>Result</dt><dd>Full-range steel materials compliant with ASME and ASTM standards.</dd>
+        <dt>Business units</dt><dd>Engineering construction · Steel &amp; metal fabrication</dd>
+        <dt>Scope as subcontractor</dt><dd>Expansion of the project camp: prefabricated buildings and steel structures for the cafeteria, activity room and staff dormitories.</dd>
+        <dt>Scope as supplier</dt><dd>Full-range steel structure materials for the camp buildings, compliant with ASME and ASTM standards.</dd>
       </dl>
     </div>
   </dialog>
@@ -690,6 +724,7 @@
       <button class="modal__close" type="button" data-close aria-label="Close">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
+      <span class="roles"><span class="role role--subcontractor">Subcontractor</span></span>
       <p class="project__tag">Giga-project</p>
       <h3 class="modal__title" id="project-6-title">Qiddiya</h3>
       <h4 class="modal__sub">Project site</h4>
@@ -704,12 +739,12 @@
           <button class="gallery__btn" data-dir="1" aria-label="Next photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
         </div>
       </div>
-      <h4 class="modal__sub">Order deliveries</h4>
+      <h4 class="modal__sub">Our works on site</h4>
       <div class="gallery" data-gallery>
-        <div class="gallery__track" tabindex="0" aria-label="Qiddiya: order delivery photos">
-          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-delivery-1.jpg" alt="Qiddiya: order delivery, photo 1" width="1200" height="800" loading="lazy">
-          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-delivery-2.jpg" alt="Qiddiya: order delivery, photo 2" width="1200" height="800" loading="lazy">
-          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-delivery-3.jpg" alt="Qiddiya: order delivery, photo 3" width="1200" height="800" loading="lazy">
+        <div class="gallery__track" tabindex="0" aria-label="Qiddiya: our works on site photos">
+          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-works-1.jpg" alt="Qiddiya: our works on site, photo 1" width="1200" height="800" loading="lazy">
+          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-works-2.jpg" alt="Qiddiya: our works on site, photo 2" width="1200" height="800" loading="lazy">
+          <img class="photo gallery__item" src="assets/photos/project-6-qiddiya-works-3.jpg" alt="Qiddiya: our works on site, photo 3" width="1200" height="800" loading="lazy">
         </div>
         <div class="gallery__nav">
           <button class="gallery__btn" data-dir="-1" aria-label="Previous photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -717,11 +752,11 @@
         </div>
       </div>
       <dl class="details">
+        <dt>Our role</dt><dd>Subcontractor</dd>
         <dt>Location</dt><dd>Qiddiya, Riyadh, Saudi Arabia</dd>
         <dt>Client / EPC</dt><dd>To be added</dd>
         <dt>Business unit</dt><dd>To be added</dd>
-        <dt>Scope</dt><dd>To be added.</dd>
-        <dt>Result</dt><dd>To be added.</dd>
+        <dt>Scope as subcontractor</dt><dd>To be added.</dd>
       </dl>
     </div>
   </dialog>
