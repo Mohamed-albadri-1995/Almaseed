@@ -34,7 +34,7 @@ ul, dl { margin: 0; padding: 0; list-style: none; }
 .muted { color: var(--muted); }
 .container { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 24px; }
 
-.photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); background: var(--soft); }
+.photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); background: var(--soft); border: 1px solid #d3dce6; }
 
 /* small labels: short rule + spaced capitals */
 .eyebrow {
@@ -87,19 +87,25 @@ ul, dl { margin: 0; padding: 0; list-style: none; }
 .stats strong { display: block; font-size: 40px; font-weight: 300; color: var(--navy); line-height: 1.1; }
 .stats span { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
 
-/* major sections: clear boundaries (alternating grounds + a top rule) */
-.section { padding: 112px 0; border-top: 1px solid var(--line); }
-.section--soft { background: var(--soft); }
-.section--navy { background: var(--navy); border-top: 0; }
-.section__head { max-width: 680px; margin-bottom: 64px; }
-.section__head--center { margin-left: auto; margin-right: auto; text-align: center; }
-.section__head--center .eyebrow { justify-content: center; }
-.section .eyebrow { color: var(--blue); font-weight: 700; }
-.section .eyebrow::before { background: var(--navy); height: 3px; width: 40px; }
-.section h2 { font-size: clamp(30px, 3.6vw, 44px); }
+/* major sections: each is a full-width band with its own ground,
+   opened by a numbered header and a navy rule across the page */
+.section { padding: 96px 0 104px; }
+.section--tint { background: #e9eff6; }
+.section--navy { background: var(--navy); }
+.section__head {
+  display: flex; align-items: flex-start; gap: 28px;
+  padding-bottom: 32px; margin-bottom: 56px;
+  border-bottom: 2px solid var(--navy);
+}
+.section__index { font-size: 64px; font-weight: 300; line-height: .9; color: var(--sky); flex: none; min-width: 84px; }
+.section .eyebrow { color: var(--blue); font-weight: 700; margin-bottom: 10px; }
+.section .eyebrow::before { display: none; }
+.section h2 { font-size: clamp(28px, 3.4vw, 42px); }
+.section .subtitle { margin-top: 8px; }
+.section--navy .section__head { border-bottom-color: rgba(255,255,255,.5); }
 .section--navy h2 { color: var(--white); }
 .section--navy .eyebrow { color: var(--sky); }
-.section--navy .eyebrow::before { background: var(--sky); }
+.section--navy .section__index { color: rgba(255,255,255,.55); }
 
 /* about */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
@@ -113,13 +119,13 @@ ul, dl { margin: 0; padding: 0; list-style: none; }
 
 /* business units: sub-parts inside Services, lighter boundaries */
 .units { display: grid; gap: 24px; }
-.unit { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); padding: 40px; }
+.unit { background: var(--soft); border: 1px solid var(--line); border-radius: var(--radius); padding: 40px; }
 .unit__head { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; margin-bottom: 28px; }
 .unit__num { font-size: 11px; letter-spacing: .24em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; }
 .unit h3 { font-size: 26px; margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 14px; }
 .unit .muted { font-size: 16px; font-weight: 300; margin: 0; }
-.ticks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; border-top: 1px solid var(--line); }
-.ticks li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.ticks { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; border-top: 1px solid #d9e0e8; }
+.ticks li { padding: 10px 0; border-bottom: 1px solid #d9e0e8; font-size: 15px; }
 .badge { font-size: 11px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--blue); }
 
 /* horizontal photo rows (swipe, scroll or use the arrows) */
@@ -208,7 +214,8 @@ ul, dl { margin: 0; padding: 0; list-style: none; }
   .stats { margin-top: 48px; }
   .stats strong { font-size: 32px; }
   .section { padding: 72px 0; }
-  .section__head { margin-bottom: 40px; }
+  .section__head { margin-bottom: 36px; gap: 16px; padding-bottom: 24px; }
+  .section__index { font-size: 40px; min-width: 0; }
   .unit { padding: 24px 20px; }
   .unit h3 { font-size: 23px; }
   .ticks { grid-template-columns: 1fr; }
