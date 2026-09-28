@@ -26,11 +26,21 @@ name**. Grey images that say "Replace …" are placeholders waiting for a real i
 | `unit-04-1.jpg` … `unit-04-4.jpg` | Equipment & site support photo row | 1200×900 |
 | `unit-05-1.jpg` … `unit-05-4.jpg` | Local manufacturing photo row | 1200×900 |
 | `project-1-turaif.jpg` … `project-5-pp12.jpg` | Selected projects row | 1200×800 |
-| `contact-person.jpg` | Contact (shown as a circle) | 600×600 |
+| `project-N-….jpg`, `project-N-…-2.jpg`, `-3.jpg` | Photos inside each project's details window | 1200×800 |
+| `team-1.jpg` … `team-4.jpg` | Meet the team (shown as circles) | 600×600 |
+| `wechat-qr.png` | WeChat QR code in Contact | 600×600 |
 | `assets/logos/*.png` | Partners section | 480×240, transparent or white background |
 
 To add a fifth photo to a unit's row, copy one `<img … unit-0X-4.jpg …>` line in
 `index.html` and change the number.
+
+## Things to fill in
+
+- **WeChat:** replace the text `WeChat ID` in `index.html` with the real ID, and replace
+  `assets/photos/wechat-qr.png` with the real QR code.
+- **Map:** the map shows Riyadh. For the exact office pin, replace `Riyadh%2C%20Saudi%20Arabia`
+  in the map `src` in `index.html` with the office address (or a Google Maps place name).
+- **Team:** replace "Team member name", "Position" and the short biography for each person.
 
 ## Preview
 

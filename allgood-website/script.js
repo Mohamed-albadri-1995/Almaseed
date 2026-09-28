@@ -62,6 +62,23 @@ document.querySelectorAll("[data-gallery]").forEach((g) => {
   });
 
   track.addEventListener("scroll", update, { passive: true });
+  g.addEventListener("refresh", update);
   window.addEventListener("resize", update);
   update();
+});
+
+// Project details: each card opens its own window; close with ×, Esc or a click outside
+document.querySelectorAll("[data-open]").forEach((btn) => {
+  const dialog = document.getElementById(btn.dataset.open);
+  btn.addEventListener("click", () => {
+    dialog.showModal();
+    dialog.querySelectorAll("[data-gallery]").forEach((g) => g.dispatchEvent(new Event("refresh")));
+  });
+});
+
+document.querySelectorAll("dialog.modal").forEach((dialog) => {
+  dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
 });
