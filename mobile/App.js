@@ -1291,18 +1291,31 @@ const SPEEDS = [1, 1.25, 1.5, 2, 0.75];
 // Seek bar: capture the gesture before the surrounding ScrollView can claim it.
 // Use the touch coordinate relative to the seek view for both tap and drag.
 function SeekBar({ position, duration, onSeek }) {
-  const wRef = useRef(1);
+  // Finger position is measured against the WHOLE bar on screen (pageX minus the
+  // bar's left edge). locationX is relative to whichever child is under the
+  // finger (the thumb / the filled part), which made a drag jump to the start.
+  const hitRef = useRef(null);
+  const box = useRef({ x: 0, w: 1 });
   const [drag, setDrag] = useState(null);
+  // After release, keep showing the chosen spot until playback catches up, so
+  // the thumb doesn't snap back to the old position while the seek loads.
+  const [pending, setPending] = useState(null);
   const clamp = (x) => Math.max(0, Math.min(1, x));
-  const fractionFromEvent = (e) => clamp((e.nativeEvent.locationX || 0) / wRef.current);
-  const begin = (e) => setDrag(fractionFromEvent(e));
-  const move = (e) => setDrag(fractionFromEvent(e));
-  const finish = (e) => { const f = fractionFromEvent(e); setDrag(null); onSeek(f); };
-  const frac = drag != null ? drag : duration ? Math.max(0, Math.min(1, position / duration)) : 0;
+  const measure = () => { hitRef.current?.measureInWindow?.((x, _y, w) => { if (w) box.current = { x, w }; }); };
+  const frac = (e) => clamp(((e.nativeEvent.pageX || 0) - box.current.x) / box.current.w);
+  const begin = (e) => { measure(); setDrag(frac(e)); };
+  const move = (e) => setDrag(frac(e));
+  const finish = (e) => { const f = frac(e); setDrag(null); if (duration) { setPending({ f, at: Date.now() }); onSeek(f); } };
+  useEffect(() => {
+    if (!pending || !duration) return;
+    if (Math.abs(position - pending.f * duration) < 2 || Date.now() - pending.at > 8000) setPending(null);
+  }, [position, duration, pending]);
+  const shown = drag != null ? drag : pending ? pending.f : duration ? clamp(position / duration) : 0;
   return <View style={styles.seekWrap}>
     <View
+      ref={hitRef}
       style={styles.seekHit}
-      onLayout={(e) => { wRef.current = e.nativeEvent.layout.width || 1; }}
+      onLayout={measure}
       onStartShouldSetResponder={() => true}
       onStartShouldSetResponderCapture={() => true}
       onMoveShouldSetResponder={() => true}
@@ -1313,9 +1326,9 @@ function SeekBar({ position, duration, onSeek }) {
       onResponderRelease={finish}
       onResponderTerminate={() => setDrag(null)}
     >
-      <View style={styles.seekTrack}><View style={[styles.seekFill, { width: `${frac * 100}%` }]} /><View style={[styles.seekThumb, { left: `${frac * 100}%` }]} /></View>
+      <View pointerEvents="none" style={styles.seekTrack}><View style={[styles.seekFill, { width: `${shown * 100}%` }]} /><View style={[styles.seekThumb, { left: `${shown * 100}%` }]} /></View>
     </View>
-    <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null ? drag * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
+    <View style={styles.seekTimes}><Text style={styles.seekTime}>{fmtTime(drag != null || pending ? shown * duration : position)}</Text><Text style={styles.seekTime}>{fmtTime(duration)}</Text></View>
   </View>;
 }
 function FullAudioPlayer({ title, person, poster, onStop }) {
