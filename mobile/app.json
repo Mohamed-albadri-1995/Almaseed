@@ -82,7 +82,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 160,
+      "versionCode": 161,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
@@ -103,11 +103,6 @@
             {
               "scheme": "https",
               "host": "almaseeed.com",
-              "pathPrefix": "/material/"
-            },
-            {
-              "scheme": "https",
-              "host": "www.almaseeed.com",
               "pathPrefix": "/material/"
             }
           ],
