@@ -8,7 +8,9 @@ import { toggleFavorite, reportContent } from '@/app/actions';
 export function ShareButton({ title }: { title: string }) {
   const [copied, setCopied] = useState(false);
   const share = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
+    // «?s=1» marks a shared link: opening it on Android tries the app first
+    // (see OpenInApp). The page itself is the same (canonical has no param).
+    const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?s=1` : '';
     if (navigator.share) {
       try {
         await navigator.share({ title, url });

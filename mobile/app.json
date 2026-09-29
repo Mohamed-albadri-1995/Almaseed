@@ -16,25 +16,55 @@
       "resizeMode": "contain"
     },
     "plugins": [
-      ["expo-splash-screen", { "image": "./assets/splash.png", "backgroundColor": "#1f3d33", "resizeMode": "contain" }],
-      ["expo-media-library", {
-        "photosPermission": "لحفظ الصور والملفات في جهازك.",
-        "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
-        "isAccessMediaLocationEnabled": false
-      }],
-      ["expo-notifications", {
-        "color": "#1f3d33"
-      }],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#1f3d33",
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "لحفظ الصور والملفات في جهازك.",
+          "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1f3d33"
+        }
+      ],
       "./plugins/with-pdf-downloader",
       "./plugins/with-force-rtl",
       "./plugins/with-release-signing",
       "./plugins/with-android-fixes",
-      ["expo-share-intent", {
-        "androidIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"],
-        "androidMultiIntentFilters": ["*/*", "audio/*", "image/*", "video/*", "application/octet-stream"]
-      }]
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": [
+            "*/*",
+            "audio/*",
+            "image/*",
+            "video/*",
+            "application/octet-stream"
+          ],
+          "androidMultiIntentFilters": [
+            "*/*",
+            "audio/*",
+            "image/*",
+            "video/*",
+            "application/octet-stream"
+          ]
+        }
+      ]
     ],
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "extra": {
       "eas": {
         "projectId": "6ef6d279-0b1b-417f-af4f-d44b0237aa3a"
@@ -44,18 +74,49 @@
       "supportsTablet": true,
       "bundleIdentifier": "app.almaseed.archive",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 159,
+      "versionCode": 160,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
       },
-      "permissions": ["FOREGROUND_SERVICE", "FOREGROUND_SERVICE_MEDIA_PLAYBACK", "WAKE_LOCK", "CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"]
+      "permissions": [
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "WAKE_LOCK",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "almaseeed.com",
+              "pathPrefix": "/material/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.almaseeed.com",
+              "pathPrefix": "/material/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     }
   }
 }

@@ -258,7 +258,9 @@ export const SORT_OPTIONS = [
 export const ANDROID_APP = {
   packageId: 'app.almaseed.archive',
   playUrl: 'https://play.google.com/store/apps/details?id=app.almaseed.archive',
-  published: false,
+  // Set NEXT_PUBLIC_ANDROID_PUBLISHED=1 in Railway once the app is live in
+  // Production — the store link then shows, and shared links fall back to Play.
+  published: process.env.NEXT_PUBLIC_ANDROID_PUBLISHED === '1',
 } as const;
 
 // ---------------------------------------------------------------------------
