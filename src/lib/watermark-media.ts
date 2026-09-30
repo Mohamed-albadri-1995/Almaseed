@@ -60,6 +60,44 @@ async function readHead(path: string, bytes: number): Promise<Buffer> {
   }
 }
 
+// Duration in whole seconds, from ffmpeg's stream info (null if unknown).
+export async function probeDurationSec(input: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const p = spawn('ffmpeg', ['-hide_banner', '-i', input], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d.toString(); if (err.length > 20000) err = err.slice(-20000); });
+    p.on('error', () => resolve(null));
+    p.on('close', () => {
+      const m = err.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      resolve(m ? Math.round(+m[1] * 3600 + +m[2] * 60 + +m[3]) || null : null);
+    });
+  });
+}
+
+// A real thumbnail + duration for a video, so search engines see a proper
+// video page (every video used to share the site banner as its thumbnail and
+// had no duration — Google then reports «Video isn't on a watch page»). The
+// file is streamed to temp disk first (flat memory; ffmpeg's own https support
+// varies between builds).
+export async function videoThumbnail(
+  url: string,
+  save: (localPath: string, contentType: string) => Promise<string>,
+): Promise<{ cover: string | null; durationSec: number | null }> {
+  return withTempDir(async (dir) => {
+    const input = join(dir, 'in.mp4');
+    await localCopy(url, input);
+    const durationSec = await probeDurationSec(input);
+    const out = join(dir, 'thumb.jpg');
+    // A frame ~10% in (1–20s): past fade-ins / black openings.
+    const at = durationSec ? Math.min(20, Math.max(1, Math.round(durationSec * 0.1))) : 1;
+    const grab = (seek: string[]) => runFfmpeg(['-y', '-threads', '1', ...seek, '-i', input, '-frames:v', '1', '-vf', 'scale=w=1280:h=1280:force_original_aspect_ratio=decrease', '-q:v', '3', out]);
+    try { await grab(['-ss', String(at)]); } catch { await grab([]); }
+    const buf = await readFile(out).catch(() => null);
+    const cover = buf && buf.length > 1000 ? await save(out, 'image/jpeg') : null;
+    return { cover, durationSec };
+  });
+}
+
 // Mono source? (ffmpeg prints the stream layout on stderr.)
 async function isMonoAudio(path: string): Promise<boolean> {
   return new Promise((resolve) => {

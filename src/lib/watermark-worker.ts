@@ -17,6 +17,7 @@ import {
 } from './watermark';
 import { saveUpload, saveUploadFromFile, deleteUpload } from './storage';
 import {
+  videoThumbnail,
   hasFfmpeg,
   watermarkVideoInPlace,
   watermarkAudioInPlace,
@@ -187,6 +188,40 @@ export async function processOnePending(): Promise<'processed' | 'idle'> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Videos without a thumbnail or duration (older uploads, or ones sent without
+// a cover): take a frame + the length from the video itself. One per call, only
+// after the video's own processing is done. Failures are remembered for this
+// process's lifetime so a broken file isn't retried in a loop.
+const thumbFailed = new Set<string>();
+export async function fillOneVideoThumbnail(): Promise<boolean> {
+  if (!(await hasFfmpeg())) return false;
+  const m = await prisma.material.findFirst({
+    where: {
+      fileKind: 'VIDEO', fileUrl: { not: null }, watermarkedAt: { not: null },
+      OR: [{ coverImage: null }, { durationSec: null }],
+      ...(thumbFailed.size ? { id: { notIn: Array.from(thumbFailed) } } : {}),
+    },
+    orderBy: { publishedAt: 'desc' },
+    select: { id: true, title: true, fileUrl: true, coverImage: true, durationSec: true },
+  });
+  if (!m?.fileUrl) return false;
+  try {
+    const needCover = !m.coverImage;
+    const r = await videoThumbnail(m.fileUrl, async (p, ct) => (needCover ? saveUploadFromFile(newName('jpg'), p, ct) : ''));
+    const data: { coverImage?: string; durationSec?: number } = {};
+    if (needCover && r.cover) data.coverImage = r.cover;
+    if (!m.durationSec && r.durationSec) data.durationSec = r.durationSec;
+    if (!Object.keys(data).length) { thumbFailed.add(m.id); return true; }
+    await prisma.material.update({ where: { id: m.id }, data });
+    if ((needCover && !data.coverImage) || (!m.durationSec && !data.durationSec)) thumbFailed.add(m.id);
+    console.log(`[thumbs] ${m.id} ${m.title}${data.coverImage ? ' +thumbnail' : ''}${data.durationSec ? ` +${data.durationSec}s` : ''}`);
+  } catch (e) {
+    thumbFailed.add(m.id);
+    console.error(`[thumbs] failed ${m.id} ${m.title}:`, e instanceof Error ? e.message : e);
+  }
+  return true;
+}
+
 let started = false;
 export function startWorkerLoop(): void {
   if (started) return;
@@ -199,6 +234,8 @@ export function startWorkerLoop(): void {
       let did: 'processed' | 'idle' = 'idle';
       try {
         did = await processOnePending();
+        // Idle → fill in missing video thumbnails/durations, one at a time.
+        if (did === 'idle' && (await fillOneVideoThumbnail())) did = 'processed';
       } catch (e) {
         console.error('[watermark] loop error:', e instanceof Error ? e.message : e);
       }
