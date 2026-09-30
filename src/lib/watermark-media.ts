@@ -6,7 +6,7 @@
 // blocked or slowed.
 
 import { spawn } from 'child_process';
-import { mkdtemp, rm, readFile, writeFile } from 'fs/promises';
+import { mkdtemp, rm, readFile, writeFile, open } from 'fs/promises';
 import { createWriteStream, createReadStream } from 'fs';
 import { tmpdir } from 'os';
 import { join, basename } from 'path';
@@ -47,6 +47,19 @@ async function brandCover(contributor?: string | null): Promise<Buffer> {
 
 let ffmpegChecked = false;
 let ffmpegOk = false;
+// First `bytes` of a file — enough for header checks without loading a
+// (possibly 100MB+, 2-hour lecture) recording into memory.
+async function readHead(path: string, bytes: number): Promise<Buffer> {
+  const fh = await open(path, 'r');
+  try {
+    const buf = Buffer.alloc(bytes);
+    const { bytesRead } = await fh.read(buf, 0, bytes, 0);
+    return buf.subarray(0, bytesRead);
+  } finally {
+    await fh.close();
+  }
+}
+
 // Mono source? (ffmpeg prints the stream layout on stderr.)
 async function isMonoAudio(path: string): Promise<boolean> {
   return new Promise((resolve) => {
@@ -217,7 +230,7 @@ export async function watermarkAudioInPlace(
     if (!art) art = await brandCover(contributor);
     await writeFile(artWm, art);
 
-    const copy = (ext || '').toLowerCase() === 'mp3' && isConstantBitrateMp3(await readFile(inPath));
+    const copy = (ext || '').toLowerCase() === 'mp3' && isConstantBitrateMp3(await readHead(inPath, 4 * 1024 * 1024));
     const mono = copy ? false : await isMonoAudio(inPath);
     await runFfmpeg([
       '-y',
