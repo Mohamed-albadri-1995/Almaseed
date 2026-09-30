@@ -34,6 +34,13 @@ function newName(ext: string): string {
   return `${randomBytes(8).toString('hex')}.${(ext || 'dat').toLowerCase()}`;
 }
 
+// Thumbnails we generate ourselves (not an uploaded cover): recognisable by name,
+// so a re-stamp never stamps them and a replaced image gets a fresh one.
+function thumbName(ext: string): string {
+  return `thumb-${randomBytes(8).toString('hex')}.${ext}`;
+}
+const isAutoThumb = (u?: string | null) => !!u && /(^|\/)thumb-[0-9a-f]{16}\.(webp|jpg)$/.test(u);
+
 function extOf(url: string, fileType?: string | null): string {
   const t = (fileType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   if (t && t.length <= 4) return t;
@@ -75,7 +82,7 @@ type PendingRow = {
 async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   const done: string[] = [];
   const updates: {
-    fileUrl?: string; coverImage?: string; fileType?: string;
+    fileUrl?: string; coverImage?: string | null; fileType?: string;
     originalFileUrl?: string; originalCoverImage?: string;
   } = {};
   // Pre-render the brand label once (emblem + المساهم name + site) so every
@@ -86,7 +93,9 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
   // Always stamp from the pristine source. The first time, fileUrl/coverImage
   // still hold the original; we capture them so re-running never stamps a stamp.
   const srcFile = m.originalFileUrl ?? m.fileUrl;
-  const srcCover = m.originalCoverImage ?? m.coverImage;
+  // An auto-generated thumbnail isn't a cover to stamp (it's made from the
+  // already-stamped file).
+  const srcCover = isAutoThumb(m.coverImage) ? null : (m.originalCoverImage ?? m.coverImage);
 
   if (srcFile) {
     const ext = extOf(srcFile, m.fileType);
@@ -109,6 +118,9 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
       const u = await watermarkAudioInPlace(srcFile, ext, (p, ct) => saveUploadFromFile(newName('mp3'), p, ct), { contributor, title: m.title });
       if (u) { updates.fileUrl = u; updates.fileType = 'mp3'; done.push('audio-art'); }
     }
+    // A new image file makes its auto thumbnail stale — drop it; the idle pass
+    // generates a fresh one from the new file.
+    if (m.fileKind === 'IMAGE' && updates.fileUrl && isAutoThumb(m.coverImage)) updates.coverImage = null;
     // Preserve the original once (only when we actually produced a stamped copy).
     if (updates.fileUrl && !m.originalFileUrl && m.fileUrl) updates.originalFileUrl = m.fileUrl;
   }
@@ -135,6 +147,7 @@ async function processMaterial(m: PendingRow, ff: boolean): Promise<string[]> {
     if (m.originalCoverImage && m.coverImage && updates.coverImage && m.coverImage !== m.originalCoverImage) {
       await deleteUpload(m.coverImage, m.id).catch(() => {});
     }
+    if (updates.coverImage === null && m.coverImage) await deleteUpload(m.coverImage, m.id).catch(() => {});
   }
   return done;
 }
@@ -207,7 +220,7 @@ export async function fillOneVideoThumbnail(): Promise<boolean> {
   if (!m?.fileUrl) return false;
   try {
     const needCover = !m.coverImage;
-    const r = await videoThumbnail(m.fileUrl, async (p, ct) => (needCover ? saveUploadFromFile(newName('jpg'), p, ct) : ''));
+    const r = await videoThumbnail(m.fileUrl, async (p, ct) => (needCover ? saveUploadFromFile(thumbName('jpg'), p, ct) : ''));
     const data: { coverImage?: string; durationSec?: number } = {};
     if (needCover && r.cover) data.coverImage = r.cover;
     if (!m.durationSec && r.durationSec) data.durationSec = r.durationSec;
@@ -218,6 +231,38 @@ export async function fillOneVideoThumbnail(): Promise<boolean> {
   } catch (e) {
     thumbFailed.add(m.id);
     console.error(`[thumbs] failed ${m.id} ${m.title}:`, e instanceof Error ? e.message : e);
+  }
+  return true;
+}
+
+// Image materials had no thumbnail, so lists (the app feed, notifications)
+// showed a generic icon. Make a small one (≤480px, webp) from the stamped image.
+const imageThumbFailed = new Set<string>();
+export async function fillOneImageThumbnail(): Promise<boolean> {
+  const m = await prisma.material.findFirst({
+    where: {
+      fileKind: 'IMAGE', fileUrl: { not: null }, watermarkedAt: { not: null }, coverImage: null,
+      ...(imageThumbFailed.size ? { id: { notIn: Array.from(imageThumbFailed) } } : {}),
+    },
+    orderBy: { publishedAt: 'desc' },
+    select: { id: true, title: true, fileUrl: true },
+  });
+  if (!m?.fileUrl) return false;
+  try {
+    const sharpMod = (await import('sharp')).default;
+    const buf = await sharpMod(await readBytes(m.fileUrl), { failOn: 'none' })
+      .rotate()
+      .resize({ width: 480, height: 480, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+    const url = await saveUpload(thumbName('webp'), buf, 'image/webp');
+    // Only if still without a cover (an editor may have added one meanwhile).
+    const res = await prisma.material.updateMany({ where: { id: m.id, coverImage: null }, data: { coverImage: url } });
+    if (res.count !== 1) await deleteUpload(url, m.id).catch(() => {});
+    console.log(`[thumbs] ${m.id} ${m.title} +image thumbnail (${Math.round(buf.length / 1024)}KB)`);
+  } catch (e) {
+    imageThumbFailed.add(m.id);
+    console.error(`[thumbs] image failed ${m.id} ${m.title}:`, e instanceof Error ? e.message : e);
   }
   return true;
 }
@@ -235,7 +280,7 @@ export function startWorkerLoop(): void {
       try {
         did = await processOnePending();
         // Idle → fill in missing video thumbnails/durations, one at a time.
-        if (did === 'idle' && (await fillOneVideoThumbnail())) did = 'processed';
+        if (did === 'idle' && ((await fillOneVideoThumbnail()) || (await fillOneImageThumbnail()))) did = 'processed';
       } catch (e) {
         console.error('[watermark] loop error:', e instanceof Error ? e.message : e);
       }
