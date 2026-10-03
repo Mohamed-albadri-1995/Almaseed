@@ -17,7 +17,11 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma
 RUN npm ci
 
-# Build the app.
+# Build the app. NEXT_PUBLIC_* values are inlined into the browser bundle at
+# build time, so Railway's service variable must be declared as a build ARG —
+# otherwise the client code always sees it as unset.
+ARG NEXT_PUBLIC_ANDROID_PUBLISHED
+ENV NEXT_PUBLIC_ANDROID_PUBLISHED=$NEXT_PUBLIC_ANDROID_PUBLISHED
 COPY . .
 RUN npm run build
 
