@@ -191,6 +191,16 @@ export const api = {
     } catch {}
   },
 
+  // Like / dislike + view count for one material. Never cached — the numbers
+  // must reflect the tap the user just made.
+  reactions: (id, device) => j(`/api/mobile/materials/${id}/reactions?device=${encodeURIComponent(device)}`),
+  react: (id, device, value) =>
+    j(`/api/mobile/materials/${id}/reactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device, value }),
+    }),
+
   // Category form definitions (same source of truth as the website form), used
   // by the native share-to-app submit screen so its fields always match.
   fields: () => getCached('/api/mobile/fields', () => j('/api/mobile/fields')),

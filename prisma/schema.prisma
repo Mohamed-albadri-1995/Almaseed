@@ -140,6 +140,9 @@ model Material {
 
   downloads Int @default(0)
   plays     Int @default(0)
+  // Like / dislike totals, kept in step with the Reaction rows (one per device).
+  likes     Int @default(0)
+  dislikes  Int @default(0)
 
   submittedById String?
   submittedBy   User?   @relation("submittedBy", fields: [submittedById], references: [id])
@@ -168,6 +171,7 @@ model Material {
   versions    MaterialVersion[]
   ratings     Rating[]
   comments    Comment[]
+  reactions   Reaction[]
   deletionRequest DeletionRequest?
 
   @@index([status])
@@ -212,6 +216,20 @@ model Rating {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   @@unique([userId, materialId])
+  @@index([materialId])
+}
+
+// Like (+1) / dislike (-1) from the app. Anyone can react — no sign-in — so a
+// reaction is keyed by an anonymous per-install device id; one per material.
+model Reaction {
+  id         String   @id @default(cuid())
+  materialId String
+  material   Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  voterKey   String
+  value      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@unique([materialId, voterKey])
   @@index([materialId])
 }
 

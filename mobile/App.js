@@ -29,7 +29,7 @@ import { matchSuggestions, variantOf } from './names';
 const bridgeUrl = (to, token) => `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
-import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue } from './storage';
+import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue, getDeviceId } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 import { EMBLEM_DATA_URI } from './emblemData';
 import { useShareIntent } from 'expo-share-intent';
@@ -1293,13 +1293,67 @@ function ArticleHtml({ html }) {
   const doc = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Aref+Ruqaa:wght@400;700&display=swap" rel="stylesheet"><style>html,body{margin:0;padding:0}body{padding:16px;font-family:'Cairo','Tajawal',-apple-system,Roboto,'Segoe UI',sans-serif;font-size:17.2px;line-height:2.2;color:#20302a;background:#faf7f0;direction:rtl;text-align:right;word-wrap:break-word}h1,h2{font-family:'Aref Ruqaa','Amiri','Cairo',serif;font-weight:700;color:#1f3d33;line-height:1.6}h1{font-size:1.9em;margin:.6em 0 .4em}h2{font-size:1.5em;margin:.6em 0 .4em}strong{font-weight:700;color:#173029}img{display:block;max-width:100%;height:auto;max-height:70vh;margin:14px auto;border-radius:12px}*{max-width:100%}</style></head><body>${body}<script>function P(){try{window.ReactNativeWebView.postMessage(String(document.body.scrollHeight))}catch(e){}}window.addEventListener('load',P);setTimeout(P,250);setTimeout(P,800);setTimeout(P,1600);document.fonts&&document.fonts.ready.then(P);</script></body></html>`;
   return <View style={styles.articleWrap}><WebView originWhitelist={['*']} source={{ html: doc }} style={{ width: '100%', height }} scrollEnabled={false} showsVerticalScrollIndicator={false} onMessage={(e) => { const h = Number(e.nativeEvent.data); if (h && Math.abs(h - height) > 4) setHeight(h); }} /></View>;
 }
+// «كم مرة» short form for counts: 950 · 1.2 ألف · 3 مليون.
+const shortCount = (n) => {
+  const v = Number(n) || 0;
+  const f = (x) => String(Math.round(x * 10) / 10);
+  return v >= 1e6 ? `${f(v / 1e6)} مليون` : v >= 1e3 ? `${f(v / 1e3)} ألف` : String(v);
+};
+// Like / dislike / views row under a material (like YouTube). Anyone can react
+// — one reaction per install, keyed by an anonymous device id. Taps update
+// instantly and then settle on the server's numbers.
+function ReactionBar({ id }) {
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let off = false;
+    getDeviceId().then((d) => api.reactions(id, d)).then((r) => { if (!off) setS(r); }).catch(() => {});
+    return () => { off = true; };
+  }, [id]);
+  if (!s) return null;
+  const tap = async (want) => {
+    if (busy) return;
+    const value = s.mine === want ? 0 : want;
+    const prev = s;
+    setS({
+      ...s,
+      mine: value,
+      likes: s.likes + (value === 1 ? 1 : 0) - (s.mine === 1 ? 1 : 0),
+      dislikes: s.dislikes + (value === -1 ? 1 : 0) - (s.mine === -1 ? 1 : 0),
+    });
+    setBusy(true);
+    try { setS(await api.react(id, await getDeviceId(), value)); } catch { setS(prev); } finally { setBusy(false); }
+  };
+  const pill = (active) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: active ? C.brand : '#eef2ef' });
+  const txt = (active) => ({ color: active ? '#fff' : C.brand, fontWeight: '700', fontSize: 14 });
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 12 }}>
+      <TouchableOpacity onPress={() => tap(1)} activeOpacity={0.8} style={pill(s.mine === 1)} accessibilityLabel="أعجبني">
+        <Ionicons name={s.mine === 1 ? 'thumbs-up' : 'thumbs-up-outline'} size={18} color={s.mine === 1 ? '#fff' : C.brand} />
+        <Text style={txt(s.mine === 1)}>{shortCount(s.likes)}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => tap(-1)} activeOpacity={0.8} style={pill(s.mine === -1)} accessibilityLabel="لم يعجبني">
+        <Ionicons name={s.mine === -1 ? 'thumbs-down' : 'thumbs-down-outline'} size={18} color={s.mine === -1 ? '#fff' : C.brand} />
+        <Text style={txt(s.mine === -1)}>{shortCount(s.dislikes)}</Text>
+      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6 }}>
+        <Ionicons name="eye-outline" size={18} color={C.muted} />
+        <Text style={{ color: C.muted, fontSize: 14 }}>{shortCount(s.views)} مشاهدة</Text>
+      </View>
+    </View>
+  );
+}
+
 function MaterialScreen({ id, push, onBack, onPlay, onStop, nowId }) {
   const [m, setM] = useState(null); const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
+  // Opening a video/image/document/article counts as one view (audio counts
+  // when it starts playing). The server allows one per device per 30 minutes.
+  useEffect(() => { if (m && m.id === id && m.fileKind !== 'AUDIO') api.registerPlay(m.id); }, [m, id]);
   const playingHere = m && nowId === m.id;
   const isBook = m?.category?.slug === 'readings';
   const person = isBook ? m.author : (m?.performer || m?.speaker || m?.host);
-  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /></ScrollView>}</View>;
+  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}<ReactionBar id={m.id} />{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /></ScrollView>}</View>;
 }
 // Video playback via expo-video (expo-av was removed in SDK 54). Inline with
 // native controls plus a fullscreen button.
