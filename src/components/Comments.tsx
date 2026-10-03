@@ -6,14 +6,19 @@ import { Icon } from './icons';
 import { postComment, deleteComment } from '@/app/actions';
 import { timeAgo } from '@/lib/format';
 
-export interface CommentItem {
+export interface ReplyItem {
   id: string;
   body: string;
   createdAt: string | Date;
   authorName: string;
   authorId: string;
 }
+export interface CommentItem extends ReplyItem {
+  replies: ReplyItem[];
+}
 
+// Comments with one level of replies (like YouTube). Reading is public;
+// writing needs an account. The author or staff can delete.
 export function Comments({
   materialId,
   comments,
@@ -30,18 +35,17 @@ export function Comments({
   const [list, setList] = useState(comments);
   const [body, setBody] = useState('');
   const [error, setError] = useState('');
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyBody, setReplyBody] = useState('');
   const [pending, start] = useTransition();
+  const total = list.reduce((n, c) => n + 1 + c.replies.length, 0);
 
   const add = () => {
     setError('');
     start(async () => {
       const res = await postComment(materialId, body);
       if (res.ok) {
-        // optimistic prepend; the id will be corrected on next load
-        setList((l) => [
-          { id: `tmp-${Date.now()}`, body: body.trim(), createdAt: new Date(), authorName: 'أنت', authorId: currentUserId ?? '' },
-          ...l,
-        ]);
+        setList((l) => [{ ...res.comment, replies: [] }, ...l]);
         setBody('');
       } else {
         setError(res.error ?? 'تعذّر إرسال التعليق');
@@ -49,17 +53,55 @@ export function Comments({
     });
   };
 
-  const remove = (id: string) => {
+  const reply = (parentId: string) => {
+    setError('');
     start(async () => {
-      const res = await deleteComment(id);
-      if (res.ok) setList((l) => l.filter((c) => c.id !== id));
+      const res = await postComment(materialId, replyBody, parentId);
+      if (res.ok) {
+        setList((l) => l.map((c) => (c.id === parentId ? { ...c, replies: [...c.replies, res.comment] } : c)));
+        setReplyBody('');
+        setReplyTo(null);
+      } else {
+        setError(res.error ?? 'تعذّر إرسال الرد');
+      }
     });
   };
 
+  const remove = (id: string) => {
+    start(async () => {
+      const res = await deleteComment(id);
+      if (res.ok) {
+        setList((l) => l.filter((c) => c.id !== id).map((c) => ({ ...c, replies: c.replies.filter((r) => r.id !== id) })));
+      }
+    });
+  };
+
+  const Item = ({ c, small = false }: { c: ReplyItem; small?: boolean }) => (
+    <div className="flex items-start gap-3">
+      <span className={`flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700 ${small ? 'h-7 w-7 text-xs' : 'h-9 w-9 text-sm'}`}>
+        {c.authorName.charAt(0)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm">
+            <span className="font-semibold text-brand-800">{c.authorName}</span>
+            <span className="ms-2 text-xs text-muted">{timeAgo(c.createdAt)}</span>
+          </p>
+          {(canModerate || c.authorId === currentUserId) && (
+            <button onClick={() => remove(c.id)} disabled={pending} className="text-muted hover:text-danger" aria-label="حذف">
+              <Icon.x width={15} height={15} />
+            </button>
+          )}
+        </div>
+        <p className="mt-1 whitespace-pre-line text-sm leading-7 text-ink/90">{c.body}</p>
+      </div>
+    </div>
+  );
+
   return (
-    <section className="mt-10">
+    <section id="comments" className="mt-10 scroll-mt-24">
       <h2 className="section-title mb-4 text-xl">
-        التعليقات {list.length > 0 && <span className="text-muted">({list.length})</span>}
+        التعليقات {total > 0 && <span className="text-muted">({total})</span>}
       </h2>
 
       {loggedIn ? (
@@ -67,22 +109,22 @@ export function Comments({
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={3}
+            rows={2}
             className="input"
-            placeholder="شارك رأيك أو أضف معلومة عن هذه المادة…"
+            placeholder="أضف تعليقًا…"
             maxLength={1000}
           />
-          {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+          {error && !replyTo && <p className="mt-1 text-xs text-danger">{error}</p>}
           <div className="mt-2 flex justify-end">
             <button onClick={add} disabled={pending || body.trim().length < 2} className="btn-primary">
-              {pending ? 'جارٍ…' : 'إضافة تعليق'}
+              {pending && !replyTo ? 'جارٍ…' : 'تعليق'}
             </button>
           </div>
         </div>
       ) : (
         <div className="card mb-6 p-4 text-center text-sm text-muted">
           <Link href="/login" className="font-semibold text-brand-700 hover:underline">سجّل الدخول</Link>{' '}
-          لإضافة تعليق.
+          للتعليق والرد.
         </div>
       )}
 
@@ -92,28 +134,44 @@ export function Comments({
         <ul className="space-y-3">
           {list.map((c) => (
             <li key={c.id} className="card p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
-                    {c.authorName.charAt(0)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-brand-800">{c.authorName}</p>
-                    <p className="text-xs text-muted">{timeAgo(c.createdAt)}</p>
-                  </div>
-                </div>
-                {(canModerate || c.authorId === currentUserId) && !c.id.startsWith('tmp-') && (
+              <Item c={c} />
+              <div className="ms-12">
+                {loggedIn && (
                   <button
-                    onClick={() => remove(c.id)}
-                    disabled={pending}
-                    className="text-muted hover:text-danger"
-                    aria-label="حذف"
+                    onClick={() => { setReplyTo(replyTo === c.id ? null : c.id); setReplyBody(''); setError(''); }}
+                    className="mt-1 text-xs font-bold text-brand-700 hover:underline"
                   >
-                    <Icon.x width={16} height={16} />
+                    ردّ
                   </button>
                 )}
+                {c.replies.length > 0 && (
+                  <ul className="mt-3 space-y-3 border-s-2 border-brand-100 ps-3">
+                    {c.replies.map((r) => (
+                      <li key={r.id}><Item c={r} small /></li>
+                    ))}
+                  </ul>
+                )}
+                {replyTo === c.id && (
+                  <div className="mt-3">
+                    <textarea
+                      value={replyBody}
+                      onChange={(e) => setReplyBody(e.target.value)}
+                      rows={2}
+                      className="input"
+                      placeholder={`ردّ على ${c.authorName}…`}
+                      maxLength={1000}
+                      autoFocus
+                    />
+                    {error && <p className="mt-1 text-xs text-danger">{error}</p>}
+                    <div className="mt-2 flex justify-end gap-2">
+                      <button onClick={() => setReplyTo(null)} className="btn-ghost text-sm">إلغاء</button>
+                      <button onClick={() => reply(c.id)} disabled={pending || replyBody.trim().length < 2} className="btn-primary">
+                        {pending ? 'جارٍ…' : 'ردّ'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <p className="mt-2 whitespace-pre-line text-sm leading-7 text-ink/90">{c.body}</p>
             </li>
           ))}
         </ul>
