@@ -242,7 +242,13 @@ model Comment {
   body       String
   hidden     Boolean  @default(false)
   createdAt  DateTime @default(now())
+  // A reply points at a top-level comment (one level deep, like YouTube).
+  // Deleting a comment deletes its replies.
+  parentId   String?
+  parent     Comment?  @relation("replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    Comment[] @relation("replies")
   @@index([materialId])
+  @@index([parentId])
 }
 
 model MaterialVersion {

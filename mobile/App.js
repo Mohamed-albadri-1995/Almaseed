@@ -1344,6 +1344,100 @@ function ReactionBar({ id }) {
   );
 }
 
+// Comments under a material, with one level of replies (like YouTube).
+// Anyone can read; writing needs sign-in (the same account as the website).
+function CommentsSection({ id, push }) {
+  const [items, setItems] = useState(null);
+  const [auth, setAuthState] = useState(null);
+  const [body, setBody] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    getAuth().then(setAuthState).catch(() => {});
+    api.comments(id).then((d) => setItems(d.items || [])).catch(() => setItems([]));
+  }, [id]);
+  if (items === null) return null;
+  const total = items.reduce((n, c) => n + 1 + (c.replies || []).length, 0);
+  const send = async () => {
+    const text = body.trim();
+    if (text.length < 2 || sending || !auth?.token) return;
+    setSending(true);
+    try {
+      const { comment } = await api.postComment(auth.token, id, text, replyTo?.id);
+      setItems((l) => (comment.parentId
+        ? l.map((c) => (c.id === comment.parentId ? { ...c, replies: [...(c.replies || []), comment] } : c))
+        : [{ ...comment, replies: [] }, ...l]));
+      setBody(''); setReplyTo(null); Keyboard.dismiss();
+    } catch (e) {
+      Alert.alert('تعذّر الإرسال', e.status === 401 ? 'سجّل الدخول من جديد ثم حاول.' : String(e.message || e));
+    } finally { setSending(false); }
+  };
+  const remove = (cid) => Alert.alert('حذف التعليق', 'هل تريد حذف هذا التعليق؟', [
+    { text: 'إلغاء', style: 'cancel' },
+    { text: 'حذف', style: 'destructive', onPress: async () => {
+      try {
+        await api.deleteComment(auth.token, cid);
+        setItems((l) => l.filter((c) => c.id !== cid).map((c) => ({ ...c, replies: (c.replies || []).filter((r) => r.id !== cid) })));
+      } catch (e) { Alert.alert('تعذّر الحذف', String(e.message || e)); }
+    } },
+  ]);
+  const canDelete = (c) => auth?.user && (auth.user.isStaff || auth.user.id === c.authorId);
+  const Row = ({ c, small, onReply }) => (
+    <View style={{ flexDirection: 'row', gap: 10, marginTop: small ? 10 : 0 }}>
+      <View style={{ width: small ? 28 : 34, height: small ? 28 : 34, borderRadius: 17, backgroundColor: '#d6e5dd', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: C.brand, fontWeight: '700', fontSize: small ? 12 : 14 }}>{(c.authorName || '؟').charAt(0)}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color: C.brand, fontWeight: '700', fontSize: 13 }}>{c.authorName}</Text>
+          <Text style={{ color: C.muted, fontSize: 11 }}>{timeAgo(c.createdAt)}</Text>
+          <View style={{ flex: 1 }} />
+          {canDelete(c) && <TouchableOpacity onPress={() => remove(c.id)} hitSlop={8}><Ionicons name="trash-outline" size={15} color={C.muted} /></TouchableOpacity>}
+        </View>
+        <Text style={{ color: '#222', fontSize: 14, lineHeight: 22, marginTop: 2, textAlign: 'right' }}>{c.body}</Text>
+        {onReply && auth?.token && <TouchableOpacity onPress={onReply} hitSlop={6}><Text style={{ color: C.brand, fontWeight: '700', fontSize: 12, marginTop: 4 }}>ردّ</Text></TouchableOpacity>}
+      </View>
+    </View>
+  );
+  return (
+    <View style={{ marginTop: 20, borderTopWidth: 1, borderTopColor: '#e6ebe8', paddingTop: 16 }}>
+      <Text style={{ color: C.brand, fontWeight: '800', fontSize: 16, marginBottom: 12, textAlign: 'right' }}>التعليقات{total ? ` (${total})` : ''}</Text>
+      {auth?.token ? (
+        <View style={{ marginBottom: 14 }}>
+          {replyTo && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>ردّ على {replyTo.authorName}</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close-circle" size={16} color={C.muted} /></TouchableOpacity>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+            <TextInput value={body} onChangeText={setBody} placeholder={replyTo ? 'اكتب ردّك…' : 'أضف تعليقًا…'} placeholderTextColor="#9aa59f" multiline maxLength={1000}
+              style={{ flex: 1, minHeight: 42, maxHeight: 120, borderRadius: 21, backgroundColor: '#eef2ef', paddingHorizontal: 16, paddingVertical: 10, color: '#222', textAlign: 'right' }} />
+            <TouchableOpacity onPress={send} disabled={sending || body.trim().length < 2} activeOpacity={0.8}
+              style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: body.trim().length < 2 ? '#c9d6cf' : C.brand, alignItems: 'center', justifyContent: 'center' }}>
+              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" style={{ transform: [{ scaleX: -1 }] }} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity onPress={() => push && push('account')} activeOpacity={0.8} style={{ marginBottom: 14, padding: 12, borderRadius: 12, backgroundColor: '#eef2ef' }}>
+          <Text style={{ color: C.brand, textAlign: 'center', fontWeight: '700' }}>سجّل الدخول للتعليق والرد</Text>
+        </TouchableOpacity>
+      )}
+      {items.length === 0 ? <Text style={{ color: C.muted, textAlign: 'center', marginVertical: 8 }}>لا توجد تعليقات بعد — كن أول من يعلّق.</Text> : items.map((c) => (
+        <View key={c.id} style={{ marginBottom: 16 }}>
+          <Row c={c} onReply={() => setReplyTo(c)} />
+          {(c.replies || []).length > 0 && (
+            <View style={{ marginStart: 44, borderStartWidth: 2, borderStartColor: '#d6e5dd', paddingStart: 10 }}>
+              {c.replies.map((r) => <Row key={r.id} c={r} small onReply={() => setReplyTo(c)} />)}
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function MaterialScreen({ id, push, onBack, onPlay, onStop, nowId }) {
   const [m, setM] = useState(null); const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
@@ -1353,7 +1447,7 @@ function MaterialScreen({ id, push, onBack, onPlay, onStop, nowId }) {
   const playingHere = m && nowId === m.id;
   const isBook = m?.category?.slug === 'readings';
   const person = isBook ? m.author : (m?.performer || m?.speaker || m?.host);
-  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}<ReactionBar id={m.id} />{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /></ScrollView>}</View>;
+  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}<ReactionBar id={m.id} />{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /><CommentsSection id={m.id} push={push} /></ScrollView>}</View>;
 }
 // Video playback via expo-video (expo-av was removed in SDK 54). Inline with
 // native controls plus a fullscreen button.
