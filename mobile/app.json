@@ -29,7 +29,8 @@
         {
           "photosPermission": "لحفظ الصور والملفات في جهازك.",
           "savePhotosPermission": "لحفظ المدائح والمحاضرات والصور في جهازك.",
-          "isAccessMediaLocationEnabled": false
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": ["audio"]
         }
       ],
       [
@@ -82,7 +83,7 @@
     "android": {
       "package": "app.almaseed.archive",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 161,
+      "versionCode": 162,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1f3d33"
@@ -94,6 +95,11 @@
         "CAMERA",
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
       ],
       "intentFilters": [
         {
