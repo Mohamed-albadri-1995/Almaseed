@@ -188,8 +188,12 @@ export async function watermarkVideoInPlace(
       '-i', labelPath,
       '-filter_complex',
       // Downscale first (long side ≤ 1280, even dims), then overlay the label.
+      // The label is sized from the video itself — 20% of its short side, kept
+      // between 64 and 200px — so a small (e.g. WhatsApp 480×270) clip isn't
+      // half-covered by a fixed 200px stamp. Margin scales the same way.
       "[0:v]scale=w='if(gte(iw,ih),min(1280,iw),-2)':h='if(gte(iw,ih),-2,min(1280,ih))'[base];"
-        + '[1:v]format=rgba,scale=200:-1[lg];[base][lg]overlay=W-w-20:H-h-20,format=yuv420p[v]',
+        + "[1:v]format=rgba[lab];[lab][base]scale2ref=w='max(64,min(200,min(main_w,main_h)*0.2))':h='ow*ih/iw'[lg][base2];"
+        + "[base2][lg]overlay=W-w-'max(8,min(W,H)*0.03)':H-h-'max(8,min(W,H)*0.03)',format=yuv420p[v]",
       '-map', '[v]',
       '-map', '0:a?',
       '-threads', '1',
