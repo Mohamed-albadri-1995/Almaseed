@@ -10,6 +10,7 @@ import {
   ReportButton,
 } from '@/components/MaterialActions';
 import { StarRating } from '@/components/StarRating';
+import { ReactionBar } from '@/components/ReactionBar';
 import { Comments } from '@/components/Comments';
 import { Icon } from '@/components/icons';
 import { OpenInApp } from '@/components/OpenInApp';
@@ -299,8 +300,16 @@ export default async function MaterialPage({
             <OpenInApp id={material.id} />
           </div>
 
-          {/* Rating */}
+          {/* Like / dislike / views (shared with the app) */}
           <div className="mt-6">
+            <ReactionBar
+              id={material.id}
+              countView={!(material.fileUrl && (material.fileKind === 'AUDIO' || material.fileKind === 'VIDEO'))}
+            />
+          </div>
+
+          {/* Rating */}
+          <div className="mt-4">
             <StarRating
               materialId={material.id}
               average={ratingAgg._avg.value ?? 0}
