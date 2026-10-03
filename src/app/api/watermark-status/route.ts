@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 //   GET /api/watermark-status                → progress (+ failures)
 //   GET /api/watermark-status?requeue=all     → re-stamp everything
 //   GET /api/watermark-status?requeue=failed  → re-stamp only failures
+//   GET /api/watermark-status?requeue=video   → re-stamp only videos (e.g. after a label-size change)
 // pending = 0 AND failed = 0  → the backfill truly finished.
 const WATERMARKABLE: Prisma.MaterialWhereInput = {
   OR: [
@@ -27,12 +28,12 @@ export async function GET(req: Request) {
   }
 
   const requeue = new URL(req.url).searchParams.get('requeue');
-  if (requeue === 'all' || requeue === 'failed' || requeue === 'audio') {
+  if (requeue === 'all' || requeue === 'failed' || requeue === 'audio' || requeue === 'video') {
     const where: Prisma.MaterialWhereInput =
       requeue === 'failed'
         ? { watermarkError: { not: null } }
-        : requeue === 'audio'
-          ? { fileKind: 'AUDIO' }
+        : requeue === 'audio' || requeue === 'video'
+          ? { fileKind: requeue.toUpperCase() }
           : { AND: [WATERMARKABLE] };
     const r = await prisma.material.updateMany({
       where,
