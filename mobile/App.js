@@ -789,15 +789,15 @@ function NotificationsScreen({ push, onBack }) {
         <Text style={styles.empty}>لا توجد إشعارات بعد.</Text>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 12 }}>
-          {items.map((m) => {
+          {items.map((m, i) => {
             const at = m.at || m.publishedAt;
             const isNew = at && new Date(at).getTime() > seen;
             const isReview = m.type === 'review';
             return (
-              <TouchableOpacity key={`${m.type || 'new'}-${m.id}`} style={[styles.notifItem, isReview && styles.notifItemReview]} activeOpacity={0.85} onPress={() => openItem(m)}>
-                <View style={styles.notifThumb}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileUrl ? m.fileKind : 'ARTICLE'} size={22} />}</View>
+              <TouchableOpacity key={`${m.type || 'new'}-${m.id}-${i}`} style={[styles.notifItem, isReview && styles.notifItemReview]} activeOpacity={0.85} onPress={() => openItem(m)}>
+                <View style={styles.notifThumb}>{m.type === 'comment' ? <Ionicons name="chatbubble-ellipses-outline" size={22} color={C.brand} /> : m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileUrl ? m.fileKind : 'ARTICLE'} size={22} />}</View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifLead, isReview && styles.notifLeadReview]}>{isReview ? 'بانتظار المراجعة' : 'إضافة جديدة'}{m.category ? ` · ${m.category.name}` : ''}</Text>
+                  <Text style={[styles.notifLead, isReview && styles.notifLeadReview]}>{m.type === 'comment' ? (m.lead || 'تعليق جديد') : isReview ? 'بانتظار المراجعة' : 'إضافة جديدة'}{m.category ? ` · ${m.category.name}` : ''}</Text>
                   <Text style={styles.notifTitle} numberOfLines={2}>{m.title}</Text>
                   <Text style={styles.notifTime}>{timeAgo(at)}</Text>
                 </View>
@@ -1324,10 +1324,10 @@ function ReactionBar({ id }) {
     setBusy(true);
     try { setS(await api.react(id, await getDeviceId(), value)); } catch { setS(prev); } finally { setBusy(false); }
   };
-  const pill = (active) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: active ? C.brand : '#eef2ef' });
+  const pill = (active) => ({ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: active ? C.brand : '#eef2ef' });
   const txt = (active) => ({ color: active ? '#fff' : C.brand, fontWeight: '700', fontSize: 14 });
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 12 }}>
+    <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 12 }}>
       <TouchableOpacity onPress={() => tap(1)} activeOpacity={0.8} style={pill(s.mine === 1)} accessibilityLabel="أعجبني">
         <Ionicons name={s.mine === 1 ? 'thumbs-up' : 'thumbs-up-outline'} size={18} color={s.mine === 1 ? '#fff' : C.brand} />
         <Text style={txt(s.mine === 1)}>{shortCount(s.likes)}</Text>
@@ -1336,7 +1336,7 @@ function ReactionBar({ id }) {
         <Ionicons name={s.mine === -1 ? 'thumbs-down' : 'thumbs-down-outline'} size={18} color={s.mine === -1 ? '#fff' : C.brand} />
         <Text style={txt(s.mine === -1)}>{shortCount(s.dislikes)}</Text>
       </TouchableOpacity>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6 }}>
+      <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingHorizontal: 6 }}>
         <Ionicons name="eye-outline" size={18} color={C.muted} />
         <Text style={{ color: C.muted, fontSize: 14 }}>{shortCount(s.views)} مشاهدة</Text>
       </View>
@@ -1383,19 +1383,19 @@ function CommentsSection({ id, push }) {
   ]);
   const canDelete = (c) => auth?.user && (auth.user.isStaff || auth.user.id === c.authorId);
   const Row = ({ c, small, onReply }) => (
-    <View style={{ flexDirection: 'row', gap: 10, marginTop: small ? 10 : 0 }}>
+    <View style={{ flexDirection: 'row-reverse', gap: 10, marginTop: small ? 10 : 0 }}>
       <View style={{ width: small ? 28 : 34, height: small ? 28 : 34, borderRadius: 17, backgroundColor: '#d6e5dd', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ color: C.brand, fontWeight: '700', fontSize: small ? 12 : 14 }}>{(c.authorName || '؟').charAt(0)}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 8 }}>
           <Text style={{ color: C.brand, fontWeight: '700', fontSize: 13 }}>{c.authorName}</Text>
           <Text style={{ color: C.muted, fontSize: 11 }}>{timeAgo(c.createdAt)}</Text>
           <View style={{ flex: 1 }} />
           {canDelete(c) && <TouchableOpacity onPress={() => remove(c.id)} hitSlop={8}><Ionicons name="trash-outline" size={15} color={C.muted} /></TouchableOpacity>}
         </View>
         <Text style={{ color: '#222', fontSize: 14, lineHeight: 22, marginTop: 2, textAlign: 'right' }}>{c.body}</Text>
-        {onReply && auth?.token && <TouchableOpacity onPress={onReply} hitSlop={6}><Text style={{ color: C.brand, fontWeight: '700', fontSize: 12, marginTop: 4 }}>ردّ</Text></TouchableOpacity>}
+        {onReply && auth?.token && <TouchableOpacity onPress={onReply} hitSlop={6} style={{ alignSelf: 'flex-end' }}><Text style={{ color: C.brand, fontWeight: '700', fontSize: 12, marginTop: 4 }}>ردّ</Text></TouchableOpacity>}
       </View>
     </View>
   );
@@ -1405,12 +1405,12 @@ function CommentsSection({ id, push }) {
       {auth?.token ? (
         <View style={{ marginBottom: 14 }}>
           {replyTo && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <Text style={{ color: C.muted, fontSize: 12 }}>ردّ على {replyTo.authorName}</Text>
               <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close-circle" size={16} color={C.muted} /></TouchableOpacity>
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
             <TextInput value={body} onChangeText={setBody} placeholder={replyTo ? 'اكتب ردّك…' : 'أضف تعليقًا…'} placeholderTextColor="#9aa59f" multiline maxLength={1000}
               style={{ flex: 1, minHeight: 42, maxHeight: 120, borderRadius: 21, backgroundColor: '#eef2ef', paddingHorizontal: 16, paddingVertical: 10, color: '#222', textAlign: 'right' }} />
             <TouchableOpacity onPress={send} disabled={sending || body.trim().length < 2} activeOpacity={0.8}
@@ -1428,7 +1428,7 @@ function CommentsSection({ id, push }) {
         <View key={c.id} style={{ marginBottom: 16 }}>
           <Row c={c} onReply={() => setReplyTo(c)} />
           {(c.replies || []).length > 0 && (
-            <View style={{ marginStart: 44, borderStartWidth: 2, borderStartColor: '#d6e5dd', paddingStart: 10 }}>
+            <View style={{ marginRight: 44, borderRightWidth: 2, borderRightColor: '#d6e5dd', paddingRight: 10 }}>
               {c.replies.map((r) => <Row key={r.id} c={r} small onReply={() => setReplyTo(c)} />)}
             </View>
           )}

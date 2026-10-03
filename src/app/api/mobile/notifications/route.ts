@@ -13,8 +13,11 @@ type Item = {
   fileUrl: string | null;
   coverImage: string | null;
   at: Date | null;
-  type: 'new' | 'review';
+  type: 'new' | 'review' | 'comment';
   category: { name: string | null; slug: string } | null;
+  // Comment notifications: «ردّ فلان على تعليقك» + the comment text.
+  lead?: string;
+  text?: string | null;
 };
 
 // In-app notifications feed:
@@ -64,6 +67,23 @@ export async function GET(req: Request) {
           coverImage: m.coverImage, at: m.updatedAt, type: 'review', category: m.category,
         });
       }
+    }
+  }
+
+  // Comments on the user's materials and replies to their comments.
+  if (user) {
+    const notes = await prisma.notification.findMany({
+      where: { userId: user.id, link: { startsWith: '/material/', endsWith: '#comments' } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+      select: { id: true, title: true, body: true, link: true, createdAt: true },
+    });
+    for (const n of notes) {
+      const materialId = (n.link || '').slice('/material/'.length).replace('#comments', '');
+      items.push({
+        id: materialId, title: n.body || n.title, fileKind: null, fileUrl: null, coverImage: null,
+        at: n.createdAt, type: 'comment', category: null, lead: n.title, text: n.body,
+      });
     }
   }
 

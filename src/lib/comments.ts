@@ -1,6 +1,7 @@
 import { prisma } from './prisma';
 import { MATERIAL_STATUS } from './constants';
 import { rateLimit, MIN } from './rate-limit';
+import { pushToUsers } from './push';
 
 // Comments and one-level replies, shared by the website (server actions) and
 // the app (/api/mobile/...). Posting needs a signed-in account; reading is public.
@@ -44,7 +45,7 @@ export async function createComment(user: Author, materialId: string, rawBody: u
     return { ok: false, error: 'علّقت كثيرًا في وقت قصير — انتظر قليلًا.' };
   }
   const material = typeof materialId === 'string' && materialId
-    ? await prisma.material.findUnique({ where: { id: materialId }, select: { status: true, title: true } })
+    ? await prisma.material.findUnique({ where: { id: materialId }, select: { status: true, title: true, submittedById: true } })
     : null;
   if (material?.status !== MATERIAL_STATUS.PUBLISHED) return { ok: false, error: 'المادة غير متاحة' };
 
@@ -62,16 +63,15 @@ export async function createComment(user: Author, materialId: string, rawBody: u
     data: { userId: user.id, materialId, body: text, parentId },
     select: { id: true, body: true, createdAt: true, parentId: true },
   });
-  // Let the person who was answered know (not when replying to yourself).
-  if (notifyUserId && notifyUserId !== user.id) {
-    await prisma.notification.create({
-      data: {
-        userId: notifyUserId,
-        title: `ردّ ${user.name} على تعليقك`,
-        body: `${material.title}: ${text.slice(0, 120)}`,
-        link: `/material/${materialId}#comments`,
-      },
-    }).catch(() => {});
+  // Notify (bell + phone push): a reply → the person answered; a new comment
+  // → whoever contributed the material. Never yourself.
+  const target = parentId ? notifyUserId : material.submittedById;
+  if (target && target !== user.id) {
+    await notifyComment(target, {
+      title: parentId ? `ردّ ${user.name} على تعليقك` : `علّق ${user.name} على مادتك`,
+      body: `«${material.title}»: ${text.slice(0, 120)}`,
+      materialId,
+    });
   }
   return { ok: true, comment: { ...c, authorName: user.name, authorId: user.id } };
 }
@@ -84,4 +84,17 @@ export async function removeComment(user: { id: string; role: string }, commentI
   if (comment.userId !== user.id && user.role === 'CONTRIBUTOR') return { ok: false };
   await prisma.comment.delete({ where: { id: commentId } });
   return { ok: true, materialId: comment.materialId };
+}
+
+// The bell entry (its link marks it as a comment notification for the app's
+// feed) plus a push to the user's signed-in devices. Best-effort.
+async function notifyComment(userId: string, n: { title: string; body: string; materialId: string }) {
+  try {
+    await prisma.notification.create({
+      data: { userId, title: n.title, body: n.body, link: `/material/${n.materialId}#comments` },
+    });
+    await pushToUsers([userId], { title: n.title, body: n.body, data: { materialId: n.materialId, type: 'comment' } });
+  } catch (e) {
+    console.error('[comments] notify failed:', e instanceof Error ? e.message : e);
+  }
 }
