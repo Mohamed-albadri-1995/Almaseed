@@ -1,4 +1,4 @@
-import { ANDROID_APP } from '@/lib/constants';
+import { ANDROID_APP, OTHER_APPS } from '@/lib/constants';
 
 // Coloured Google Play triangle mark (inline so we need no external asset).
 function PlayMark({ size = 26 }: { size?: number }) {
@@ -60,6 +60,32 @@ export function AppDownload() {
             </div>
           )}
         </div>
+
+        {OTHER_APPS.length > 0 && (
+          <div className="border-t border-white/15 pt-6 md:col-span-2">
+            <p className="eyebrow text-center text-gold-300 md:text-right">تطبيقات أخرى للطريقة</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {OTHER_APPS.map((app) => (
+                <a
+                  key={app.playUrl}
+                  href={app.playUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 transition hover:bg-white/15"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-ivory-50">
+                    <PlayMark size={24} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-right">
+                    <span className="block font-bold text-ivory-50">{app.name}</span>
+                    <span className="mt-0.5 block text-sm text-ivory-100/80">{app.description}</span>
+                  </span>
+                  <span className="shrink-0 rounded-xl bg-ivory-50 px-3 py-1.5 text-sm font-bold text-brand-900">تنزيل</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { LogoLockup } from './Logo';
-import { ANDROID_APP } from '@/lib/constants';
+import { ANDROID_APP, OTHER_APPS } from '@/lib/constants';
 
 const COLS = [
   {
@@ -26,6 +26,7 @@ const COLS = [
       ...(ANDROID_APP.published
         ? [{ href: ANDROID_APP.playUrl, label: 'تطبيق الأندرويد' }]
         : []),
+      ...OTHER_APPS.map((app) => ({ href: app.playUrl, label: app.name })),
     ],
   },
   {
