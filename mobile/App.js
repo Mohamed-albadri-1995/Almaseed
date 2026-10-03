@@ -332,10 +332,32 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
       setUnread(n);
     } catch {}
   })(); }, []);
+  // The server pages results 20 at a time. Keep the filters of the last load so
+  // «load more» fetches the next page of the SAME list (the search box may have
+  // changed since), and a request id so a stale page never lands in a new list.
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listReq = useRef({ id: 0, cat: '', query: '', k: '' });
   const load = useCallback((cat, query, k) => {
-    setErr(''); setItems(null);
-    return api.materials(cat || undefined, query || undefined, 1, k || undefined).then((d) => setItems(d.items)).catch((e) => setErr(e.message));
+    setErr(''); setItems(null); setPage(1); setPages(1); setLoadingMore(false);
+    const id = listReq.current.id + 1;
+    listReq.current = { id, cat, query, k };
+    return api.materials(cat || undefined, query || undefined, 1, k || undefined).then((d) => {
+      if (listReq.current.id !== id) return;
+      setItems(d.items); setPage(d.page || 1); setPages(d.pages || 1);
+    }).catch((e) => { if (listReq.current.id === id) setErr(e.message); });
   }, []);
+  const loadMore = () => {
+    if (loadingMore || !items || page >= pages) return;
+    const { id, cat, query, k } = listReq.current;
+    setLoadingMore(true);
+    api.materials(cat || undefined, query || undefined, page + 1, k || undefined).then((d) => {
+      if (listReq.current.id !== id) return;
+      setItems((prev) => { const seen = new Set(prev.map((m) => m.id)); return [...prev, ...d.items.filter((m) => !seen.has(m.id))]; });
+      setPage(d.page || page + 1); setPages(d.pages || pages);
+    }).catch(() => {}).finally(() => { if (listReq.current.id === id) setLoadingMore(false); });
+  };
   useEffect(() => { load(active, q, kind); /* eslint-disable-next-line */ }, [active, kind]);
   // Debounced autocomplete — fetch suggestions ~300ms after the last keystroke.
   useEffect(() => {
@@ -419,7 +441,7 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
         </View>
       </FirstUseCue>
       {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
-        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} scrollEventThrottle={200} onScroll={({ nativeEvent: e }) => { if (e.layoutMeasurement.height + e.contentOffset.y >= e.contentSize.height - 600) loadMore(); }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
             <FirstUseCue flag="home-guide" label="شاهد الفيديو التعريفي" enabled={cuesEnabled}>
               <GuideVideoCard
@@ -432,7 +454,10 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
               />
             </FirstUseCue>
           )}
-          {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
+          {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}
+          {loadingMore ? <ActivityIndicator color={C.brand} style={{ marginVertical: 16 }} /> : page < pages ? (
+            <TouchableOpacity onPress={loadMore} activeOpacity={0.8} style={{ alignSelf: 'center', marginVertical: 12, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.brand }}><Text style={{ color: C.brand, fontWeight: '700' }}>عرض المزيد</Text></TouchableOpacity>
+          ) : null}<View style={{ height: 20 }} />
         </ScrollView>
       )}
     </View>
