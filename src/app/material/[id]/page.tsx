@@ -326,30 +326,10 @@ export default async function MaterialPage({
             </section>
           )}
 
-          {/* Automatic transcript of the recording (every section). Machine-made and
-              unreviewed, so it is CLOSED by default: visitors see only a small bar
-              they can open. The text is still in the page itself (inside <details>),
-              which search engines read — the same content for people and Google. */}
-          {material.transcript && (() => {
-            const sung = material.category?.slug === 'madeeh';
-            return (
-              <details className="group mt-10 overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5">
-                <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm text-brand-800 hover:bg-ivory-50">
-                  <Icon.file width={16} height={16} className="shrink-0 text-gold-600" />
-                  <h2 className="font-bold">النص المفرّغ آليًا</h2>
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">غير دقيق — غير مُراجَع</span>
-                  <span className="ms-auto text-xs text-muted group-open:hidden">عرض ▾</span>
-                  <span className="ms-auto hidden text-xs text-muted group-open:inline">إخفاء ▴</span>
-                </summary>
-                <div className="border-t border-ivory-200 px-5 py-5 sm:px-8">
-                  <p role="note" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
-                    ⚠️ كتبه برنامج آلي من الصوت ولم يراجعه أحد{sung ? '، والأخطاء في المديح أكثر لأن الكلام مُلحَّن' : ''}. لا يُنقل عنه ولا يُستشهد به — المرجع هو التسجيل نفسه.
-                  </p>
-                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{material.transcript}</div>
-                </div>
-              </details>
-            );
-          })()}
+          {/* The automatic transcript is NOT shown to visitors (machine-made, often
+              wrong). It is still used where it helps without being presented as a
+              text of record: the site's own search, the meta description fallback
+              and the schema.org `transcript` of the recording (JSON-LD above). */}
 
           {/* Description */}
           {material.description && (
