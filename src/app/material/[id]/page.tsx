@@ -10,6 +10,8 @@ import {
   ReportButton,
 } from '@/components/MaterialActions';
 import { StarRating } from '@/components/StarRating';
+import { ReactionBar } from '@/components/ReactionBar';
+import { listComments } from '@/lib/comments';
 import { Comments } from '@/components/Comments';
 import { Icon } from '@/components/icons';
 import { OpenInApp } from '@/components/OpenInApp';
@@ -131,21 +133,11 @@ export default async function MaterialPage({
           where: { userId_materialId: { userId: user.id, materialId: material.id } },
         })
       : Promise.resolve(null),
-    prisma.comment.findMany({
-      where: { materialId: material.id, hidden: false },
-      orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, name: true } } },
-    }),
+    listComments(material.id),
   ]);
 
   const canModerate = !!user && user.role !== 'CONTRIBUTOR';
-  const comments = commentRows.map((c) => ({
-    id: c.id,
-    body: c.body,
-    createdAt: c.createdAt,
-    authorName: c.user.name,
-    authorId: c.user.id,
-  }));
+  const comments = commentRows;
 
   const slug = material.category?.slug ?? '';
   const mat = material as unknown as Record<string, unknown>;
@@ -299,8 +291,16 @@ export default async function MaterialPage({
             <OpenInApp id={material.id} />
           </div>
 
-          {/* Rating */}
+          {/* Like / dislike / views (shared with the app) */}
           <div className="mt-6">
+            <ReactionBar
+              id={material.id}
+              countView={!(material.fileUrl && (material.fileKind === 'AUDIO' || material.fileKind === 'VIDEO'))}
+            />
+          </div>
+
+          {/* Rating */}
+          <div className="mt-4">
             <StarRating
               materialId={material.id}
               average={ratingAgg._avg.value ?? 0}

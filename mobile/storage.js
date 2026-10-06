@@ -91,3 +91,22 @@ export async function setFlagValue(key, on) {
     else await AsyncStorage.removeItem('almaseed.flag.' + key);
   } catch {}
 }
+
+// Anonymous per-install id for likes/dislikes (no sign-in needed). Created once
+// and kept, so each install has one reaction per material.
+const DEVICE_KEY = 'almaseed.device.v1';
+let deviceIdP = null;
+export function getDeviceId() {
+  if (!deviceIdP) {
+    deviceIdP = (async () => {
+      try {
+        const have = await AsyncStorage.getItem(DEVICE_KEY);
+        if (have) return have;
+      } catch {}
+      const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`.slice(0, 40);
+      try { await AsyncStorage.setItem(DEVICE_KEY, id); } catch {}
+      return id;
+    })();
+  }
+  return deviceIdP;
+}

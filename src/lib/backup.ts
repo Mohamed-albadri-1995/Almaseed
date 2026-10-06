@@ -11,7 +11,7 @@ import { logActivity } from './activity';
 export async function buildBackupJson(generatedBy = 'scheduled'): Promise<string> {
   const [
     categories, materials, reviewNotes, versions, ratings, comments,
-    favorites, deletionRequests, deletionVotes, contentReports, users,
+    favorites, deletionRequests, deletionVotes, contentReports, users, reactions,
   ] = await Promise.all([
     prisma.category.findMany(),
     // Transcripts are omitted from queries by default — a backup needs them.
@@ -30,6 +30,7 @@ export async function buildBackupJson(generatedBy = 'scheduled'): Promise<string
         assignedCategories: true, createdAt: true,
       },
     }),
+    prisma.reaction.findMany(),
   ]);
 
   const backup = {
@@ -50,11 +51,12 @@ export async function buildBackupJson(generatedBy = 'scheduled'): Promise<string
         deletionRequests: deletionRequests.length,
         deletionVotes: deletionVotes.length,
         contentReports: contentReports.length,
+        reactions: reactions.length,
       },
     },
     data: {
       categories, users, materials, reviewNotes, versions, ratings,
-      comments, favorites, deletionRequests, deletionVotes, contentReports,
+      comments, favorites, deletionRequests, deletionVotes, contentReports, reactions,
     },
   };
 

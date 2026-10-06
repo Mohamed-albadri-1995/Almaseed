@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/session';
 import { MATERIAL_STATUS } from '@/lib/constants';
 import { rateLimit, clientIp, MIN, HOUR } from '@/lib/rate-limit';
+import { createComment, removeComment } from '@/lib/comments';
 
 // Interactions (favorite/rate/comment/report) only make sense on a published
 // material. Checking up front also turns a bad/foreign id into a clean «not
@@ -91,35 +92,20 @@ export async function rateMaterial(materialId: string, value: number) {
   return { ok: true, value: v };
 }
 
-export async function postComment(materialId: string, body: string) {
+export async function postComment(materialId: string, body: string, parentId?: string) {
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: 'يجب تسجيل الدخول' };
-  const text = String(body ?? '').trim();
-  if (text.length < 2) return { ok: false, error: 'اكتب تعليقاً أطول' };
-  if (text.length > 1000) return { ok: false, error: 'التعليق طويل جداً' };
-  if (!rateLimit(`comment:${user.id}`, 10, 10 * MIN)) {
-    return { ok: false, error: 'علّقت كثيرًا في وقت قصير — انتظر قليلًا.' };
-  }
-  if (!(await isPublished(materialId))) return NOT_FOUND;
-
-  await prisma.comment.create({
-    data: { userId: user.id, materialId, body: text },
-  });
-  revalidatePath(`/material/${materialId}`);
-  return { ok: true };
+  if (!user) return { ok: false as const, error: 'يجب تسجيل الدخول' };
+  const res = await createComment(user, materialId, body, parentId);
+  if (res.ok) revalidatePath(`/material/${materialId}`);
+  return res;
 }
 
 export async function deleteComment(commentId: string) {
   const user = await getCurrentUser();
   if (!user) return { ok: false };
-  const comment = await prisma.comment.findUnique({ where: { id: commentId } });
-  if (!comment) return { ok: false };
-  // The author or any staff member may delete a comment.
-  const isStaffUser = user.role !== 'CONTRIBUTOR';
-  if (comment.userId !== user.id && !isStaffUser) return { ok: false };
-  await prisma.comment.delete({ where: { id: commentId } });
-  revalidatePath(`/material/${comment.materialId}`);
-  return { ok: true };
+  const res = await removeComment(user, commentId);
+  if (res.ok && res.materialId) revalidatePath(`/material/${res.materialId}`);
+  return { ok: res.ok };
 }
 
 export async function markAllNotificationsRead(): Promise<void> {

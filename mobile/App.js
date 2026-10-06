@@ -17,6 +17,7 @@ import SafSave from './modules/saf-save';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { Asset } from 'expo-asset';
+import * as MediaLibrary from 'expo-media-library';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { C } from './theme';
@@ -28,7 +29,7 @@ import { matchSuggestions, variantOf } from './names';
 const bridgeUrl = (to, token) => `${API_BASE}/mobile-bridge?to=${encodeURIComponent(to)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 import { api } from './api';
 import { ADMIN_URL, CONTRIBUTOR_URL, BUILD, API_BASE, API_HOST } from './config';
-import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue } from './storage';
+import { getDownloads, addDownload, removeDownload, getNotifSeen, setNotifSeen, getAuth, setAuth, clearAuth, getFlag, setFlag, setFlagValue, getDeviceId } from './storage';
 import { registerForPush, attachNotificationTap, reregisterPush } from './push';
 import { EMBLEM_DATA_URI } from './emblemData';
 import { useShareIntent } from 'expo-share-intent';
@@ -331,10 +332,32 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
       setUnread(n);
     } catch {}
   })(); }, []);
+  // The server pages results 20 at a time. Keep the filters of the last load so
+  // «load more» fetches the next page of the SAME list (the search box may have
+  // changed since), and a request id so a stale page never lands in a new list.
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const listReq = useRef({ id: 0, cat: '', query: '', k: '' });
   const load = useCallback((cat, query, k) => {
-    setErr(''); setItems(null);
-    return api.materials(cat || undefined, query || undefined, 1, k || undefined).then((d) => setItems(d.items)).catch((e) => setErr(e.message));
+    setErr(''); setItems(null); setPage(1); setPages(1); setLoadingMore(false);
+    const id = listReq.current.id + 1;
+    listReq.current = { id, cat, query, k };
+    return api.materials(cat || undefined, query || undefined, 1, k || undefined).then((d) => {
+      if (listReq.current.id !== id) return;
+      setItems(d.items); setPage(d.page || 1); setPages(d.pages || 1);
+    }).catch((e) => { if (listReq.current.id === id) setErr(e.message); });
   }, []);
+  const loadMore = () => {
+    if (loadingMore || !items || page >= pages) return;
+    const { id, cat, query, k } = listReq.current;
+    setLoadingMore(true);
+    api.materials(cat || undefined, query || undefined, page + 1, k || undefined).then((d) => {
+      if (listReq.current.id !== id) return;
+      setItems((prev) => { const seen = new Set(prev.map((m) => m.id)); return [...prev, ...d.items.filter((m) => !seen.has(m.id))]; });
+      setPage(d.page || page + 1); setPages(d.pages || pages);
+    }).catch(() => {}).finally(() => { if (listReq.current.id === id) setLoadingMore(false); });
+  };
   useEffect(() => { load(active, q, kind); /* eslint-disable-next-line */ }, [active, kind]);
   // Debounced autocomplete — fetch suggestions ~300ms after the last keystroke.
   useEffect(() => {
@@ -418,7 +441,7 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
         </View>
       </FirstUseCue>
       {err ? <ErrorBox msg={err} onRetry={() => load(active, q, kind)} /> : !items ? <Loader /> : (
-        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
+        <ScrollView contentContainerStyle={{ padding: 12, paddingTop: 4 }} scrollEventThrottle={200} onScroll={({ nativeEvent: e }) => { if (e.layoutMeasurement.height + e.contentOffset.y >= e.contentSize.height - 600) loadMore(); }} refreshControl={<RefreshControl tintColor={C.brand} refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(active, q, kind); setRefreshing(false); }} />}>
           {guideAuth !== undefined && (
             <FirstUseCue flag="home-guide" label="شاهد الفيديو التعريفي" enabled={cuesEnabled}>
               <GuideVideoCard
@@ -431,7 +454,10 @@ function Feed({ push, active, setActive, kind, setKind, q, setQ, cuesEnabled, of
               />
             </FirstUseCue>
           )}
-          {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}<View style={{ height: 20 }} />
+          {items.length === 0 && <Text style={styles.empty}>لا توجد مواد.</Text>}{items.map((m) => <FeedCard key={m.id} m={m} onPress={() => push('material', { id: m.id })} />)}
+          {loadingMore ? <ActivityIndicator color={C.brand} style={{ marginVertical: 16 }} /> : page < pages ? (
+            <TouchableOpacity onPress={loadMore} activeOpacity={0.8} style={{ alignSelf: 'center', marginVertical: 12, paddingVertical: 10, paddingHorizontal: 22, borderRadius: 12, borderWidth: 1, borderColor: C.brand }}><Text style={{ color: C.brand, fontWeight: '700' }}>عرض المزيد</Text></TouchableOpacity>
+          ) : null}<View style={{ height: 20 }} />
         </ScrollView>
       )}
     </View>
@@ -763,15 +789,15 @@ function NotificationsScreen({ push, onBack }) {
         <Text style={styles.empty}>لا توجد إشعارات بعد.</Text>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 12 }}>
-          {items.map((m) => {
+          {items.map((m, i) => {
             const at = m.at || m.publishedAt;
             const isNew = at && new Date(at).getTime() > seen;
             const isReview = m.type === 'review';
             return (
-              <TouchableOpacity key={`${m.type || 'new'}-${m.id}`} style={[styles.notifItem, isReview && styles.notifItemReview]} activeOpacity={0.85} onPress={() => openItem(m)}>
-                <View style={styles.notifThumb}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileUrl ? m.fileKind : 'ARTICLE'} size={22} />}</View>
+              <TouchableOpacity key={`${m.type || 'new'}-${m.id}-${i}`} style={[styles.notifItem, isReview && styles.notifItemReview]} activeOpacity={0.85} onPress={() => openItem(m)}>
+                <View style={styles.notifThumb}>{m.type === 'comment' ? <Ionicons name="chatbubble-ellipses-outline" size={22} color={C.brand} /> : m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : <KindIcon kind={m.fileUrl ? m.fileKind : 'ARTICLE'} size={22} />}</View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.notifLead, isReview && styles.notifLeadReview]}>{isReview ? 'بانتظار المراجعة' : 'إضافة جديدة'}{m.category ? ` · ${m.category.name}` : ''}</Text>
+                  <Text style={[styles.notifLead, isReview && styles.notifLeadReview]}>{m.type === 'comment' ? (m.lead || 'تعليق جديد') : isReview ? 'بانتظار المراجعة' : 'إضافة جديدة'}{m.category ? ` · ${m.category.name}` : ''}</Text>
                   <Text style={styles.notifTitle} numberOfLines={2}>{m.title}</Text>
                   <Text style={styles.notifTime}>{timeAgo(at)}</Text>
                 </View>
@@ -996,6 +1022,7 @@ function ShareSubmitScreen({ file, push, onBack, onDone }) {
             await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
           }
         } catch {}
+        try { await MediaLibrary.requestPermissionsAsync(false, ['audio']); } catch {}
         try {
           await doCopy();
         } catch (e2) {
@@ -1266,13 +1293,161 @@ function ArticleHtml({ html }) {
   const doc = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Aref+Ruqaa:wght@400;700&display=swap" rel="stylesheet"><style>html,body{margin:0;padding:0}body{padding:16px;font-family:'Cairo','Tajawal',-apple-system,Roboto,'Segoe UI',sans-serif;font-size:17.2px;line-height:2.2;color:#20302a;background:#faf7f0;direction:rtl;text-align:right;word-wrap:break-word}h1,h2{font-family:'Aref Ruqaa','Amiri','Cairo',serif;font-weight:700;color:#1f3d33;line-height:1.6}h1{font-size:1.9em;margin:.6em 0 .4em}h2{font-size:1.5em;margin:.6em 0 .4em}strong{font-weight:700;color:#173029}img{display:block;max-width:100%;height:auto;max-height:70vh;margin:14px auto;border-radius:12px}*{max-width:100%}</style></head><body>${body}<script>function P(){try{window.ReactNativeWebView.postMessage(String(document.body.scrollHeight))}catch(e){}}window.addEventListener('load',P);setTimeout(P,250);setTimeout(P,800);setTimeout(P,1600);document.fonts&&document.fonts.ready.then(P);</script></body></html>`;
   return <View style={styles.articleWrap}><WebView originWhitelist={['*']} source={{ html: doc }} style={{ width: '100%', height }} scrollEnabled={false} showsVerticalScrollIndicator={false} onMessage={(e) => { const h = Number(e.nativeEvent.data); if (h && Math.abs(h - height) > 4) setHeight(h); }} /></View>;
 }
+// «كم مرة» short form for counts: 950 · 1.2 ألف · 3 مليون.
+const shortCount = (n) => {
+  const v = Number(n) || 0;
+  const f = (x) => String(Math.round(x * 10) / 10);
+  return v >= 1e6 ? `${f(v / 1e6)} مليون` : v >= 1e3 ? `${f(v / 1e3)} ألف` : String(v);
+};
+// Like / dislike / views row under a material (like YouTube). Anyone can react
+// — one reaction per install, keyed by an anonymous device id. Taps update
+// instantly and then settle on the server's numbers.
+function ReactionBar({ id }) {
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let off = false;
+    getDeviceId().then((d) => api.reactions(id, d)).then((r) => { if (!off) setS(r); }).catch(() => {});
+    return () => { off = true; };
+  }, [id]);
+  if (!s) return null;
+  const tap = async (want) => {
+    if (busy) return;
+    const value = s.mine === want ? 0 : want;
+    const prev = s;
+    setS({
+      ...s,
+      mine: value,
+      likes: s.likes + (value === 1 ? 1 : 0) - (s.mine === 1 ? 1 : 0),
+      dislikes: s.dislikes + (value === -1 ? 1 : 0) - (s.mine === -1 ? 1 : 0),
+    });
+    setBusy(true);
+    try { setS(await api.react(id, await getDeviceId(), value)); } catch { setS(prev); } finally { setBusy(false); }
+  };
+  const pill = (active) => ({ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: active ? C.brand : '#eef2ef' });
+  const txt = (active) => ({ color: active ? '#fff' : C.brand, fontWeight: '700', fontSize: 14 });
+  return (
+    <View style={{ flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginVertical: 12 }}>
+      <TouchableOpacity onPress={() => tap(1)} activeOpacity={0.8} style={pill(s.mine === 1)} accessibilityLabel="أعجبني">
+        <Ionicons name={s.mine === 1 ? 'thumbs-up' : 'thumbs-up-outline'} size={18} color={s.mine === 1 ? '#fff' : C.brand} />
+        <Text style={txt(s.mine === 1)}>{shortCount(s.likes)}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => tap(-1)} activeOpacity={0.8} style={pill(s.mine === -1)} accessibilityLabel="لم يعجبني">
+        <Ionicons name={s.mine === -1 ? 'thumbs-down' : 'thumbs-down-outline'} size={18} color={s.mine === -1 ? '#fff' : C.brand} />
+        <Text style={txt(s.mine === -1)}>{shortCount(s.dislikes)}</Text>
+      </TouchableOpacity>
+      <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingHorizontal: 6 }}>
+        <Ionicons name="eye-outline" size={18} color={C.muted} />
+        <Text style={{ color: C.muted, fontSize: 14 }}>{shortCount(s.views)} مشاهدة</Text>
+      </View>
+    </View>
+  );
+}
+
+// Comments under a material, with one level of replies (like YouTube).
+// Anyone can read; writing needs sign-in (the same account as the website).
+function CommentsSection({ id, push }) {
+  const [items, setItems] = useState(null);
+  const [auth, setAuthState] = useState(null);
+  const [body, setBody] = useState('');
+  const [replyTo, setReplyTo] = useState(null);
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    getAuth().then(setAuthState).catch(() => {});
+    api.comments(id).then((d) => setItems(d.items || [])).catch(() => setItems([]));
+  }, [id]);
+  if (items === null) return null;
+  const total = items.reduce((n, c) => n + 1 + (c.replies || []).length, 0);
+  const send = async () => {
+    const text = body.trim();
+    if (text.length < 2 || sending || !auth?.token) return;
+    setSending(true);
+    try {
+      const { comment } = await api.postComment(auth.token, id, text, replyTo?.id);
+      setItems((l) => (comment.parentId
+        ? l.map((c) => (c.id === comment.parentId ? { ...c, replies: [...(c.replies || []), comment] } : c))
+        : [{ ...comment, replies: [] }, ...l]));
+      setBody(''); setReplyTo(null); Keyboard.dismiss();
+    } catch (e) {
+      Alert.alert('تعذّر الإرسال', e.status === 401 ? 'سجّل الدخول من جديد ثم حاول.' : String(e.message || e));
+    } finally { setSending(false); }
+  };
+  const remove = (cid) => Alert.alert('حذف التعليق', 'هل تريد حذف هذا التعليق؟', [
+    { text: 'إلغاء', style: 'cancel' },
+    { text: 'حذف', style: 'destructive', onPress: async () => {
+      try {
+        await api.deleteComment(auth.token, cid);
+        setItems((l) => l.filter((c) => c.id !== cid).map((c) => ({ ...c, replies: (c.replies || []).filter((r) => r.id !== cid) })));
+      } catch (e) { Alert.alert('تعذّر الحذف', String(e.message || e)); }
+    } },
+  ]);
+  const canDelete = (c) => auth?.user && (auth.user.isStaff || auth.user.id === c.authorId);
+  const Row = ({ c, small, onReply }) => (
+    <View style={{ flexDirection: 'row-reverse', gap: 10, marginTop: small ? 10 : 0 }}>
+      <View style={{ width: small ? 28 : 34, height: small ? 28 : 34, borderRadius: 17, backgroundColor: '#d6e5dd', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ color: C.brand, fontWeight: '700', fontSize: small ? 12 : 14 }}>{(c.authorName || '؟').charAt(0)}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 8 }}>
+          <Text style={{ color: C.brand, fontWeight: '700', fontSize: 13 }}>{c.authorName}</Text>
+          <Text style={{ color: C.muted, fontSize: 11 }}>{timeAgo(c.createdAt)}</Text>
+          <View style={{ flex: 1 }} />
+          {canDelete(c) && <TouchableOpacity onPress={() => remove(c.id)} hitSlop={8}><Ionicons name="trash-outline" size={15} color={C.muted} /></TouchableOpacity>}
+        </View>
+        <Text style={{ color: '#222', fontSize: 14, lineHeight: 22, marginTop: 2, textAlign: 'right' }}>{c.body}</Text>
+        {onReply && auth?.token && <TouchableOpacity onPress={onReply} hitSlop={6} style={{ alignSelf: 'flex-end' }}><Text style={{ color: C.brand, fontWeight: '700', fontSize: 12, marginTop: 4 }}>ردّ</Text></TouchableOpacity>}
+      </View>
+    </View>
+  );
+  return (
+    <View style={{ marginTop: 20, borderTopWidth: 1, borderTopColor: '#e6ebe8', paddingTop: 16 }}>
+      <Text style={{ color: C.brand, fontWeight: '800', fontSize: 16, marginBottom: 12, textAlign: 'right' }}>التعليقات{total ? ` (${total})` : ''}</Text>
+      {auth?.token ? (
+        <View style={{ marginBottom: 14 }}>
+          {replyTo && (
+            <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>ردّ على {replyTo.authorName}</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close-circle" size={16} color={C.muted} /></TouchableOpacity>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row-reverse', alignItems: 'flex-end', gap: 8 }}>
+            <TextInput value={body} onChangeText={setBody} placeholder={replyTo ? 'اكتب ردّك…' : 'أضف تعليقًا…'} placeholderTextColor="#9aa59f" multiline maxLength={1000}
+              style={{ flex: 1, minHeight: 42, maxHeight: 120, borderRadius: 21, backgroundColor: '#eef2ef', paddingHorizontal: 16, paddingVertical: 10, color: '#222', textAlign: 'right' }} />
+            <TouchableOpacity onPress={send} disabled={sending || body.trim().length < 2} activeOpacity={0.8}
+              style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: body.trim().length < 2 ? '#c9d6cf' : C.brand, alignItems: 'center', justifyContent: 'center' }}>
+              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={18} color="#fff" style={{ transform: [{ scaleX: -1 }] }} />}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity onPress={() => push && push('account')} activeOpacity={0.8} style={{ marginBottom: 14, padding: 12, borderRadius: 12, backgroundColor: '#eef2ef' }}>
+          <Text style={{ color: C.brand, textAlign: 'center', fontWeight: '700' }}>سجّل الدخول للتعليق والرد</Text>
+        </TouchableOpacity>
+      )}
+      {items.length === 0 ? <Text style={{ color: C.muted, textAlign: 'center', marginVertical: 8 }}>لا توجد تعليقات بعد — كن أول من يعلّق.</Text> : items.map((c) => (
+        <View key={c.id} style={{ marginBottom: 16 }}>
+          <Row c={c} onReply={() => setReplyTo(c)} />
+          {(c.replies || []).length > 0 && (
+            <View style={{ marginRight: 44, borderRightWidth: 2, borderRightColor: '#d6e5dd', paddingRight: 10 }}>
+              {c.replies.map((r) => <Row key={r.id} c={r} small onReply={() => setReplyTo(c)} />)}
+            </View>
+          )}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function MaterialScreen({ id, push, onBack, onPlay, onStop, nowId }) {
   const [m, setM] = useState(null); const [err, setErr] = useState('');
   useEffect(() => { api.material(id).then(setM).catch((e) => setErr(e.message)); }, [id]);
+  // Opening a video/image/document/article counts as one view (audio counts
+  // when it starts playing). The server allows one per device per 30 minutes.
+  useEffect(() => { if (m && m.id === id && m.fileKind !== 'AUDIO') api.registerPlay(m.id); }, [m, id]);
   const playingHere = m && nowId === m.id;
   const isBook = m?.category?.slug === 'readings';
   const person = isBook ? m.author : (m?.performer || m?.speaker || m?.host);
-  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /></ScrollView>}</View>;
+  return <View style={{ flex: 1 }}><Header title="تفاصيل المادة" onBack={onBack} />{err ? <ErrorBox msg={err} /> : !m ? <Loader /> : <ScrollView contentContainerStyle={{ padding: 16 }}><View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailTitle}>{m.title}</Text></View></View>{!!m.subtitle && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailSub}>{m.subtitle}</Text></View></View>}{!!person && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.detailPerson}>{isBook ? `الكاتب: ${person}` : person}</Text></View></View>}{!!m.contributor && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={[styles.detailPerson, { fontSize: 13 }]}>شاركها: {m.contributor}</Text></View></View>}{m.fileKind === 'IMAGE' && m.fileUrl ? <Image source={{ uri: m.fileUrl }} style={styles.image} resizeMode="contain" /> : m.fileKind === 'VIDEO' && m.fileUrl ? <InlineVideo url={m.fileUrl} poster={m.coverImage} /> : m.fileKind === 'DOCUMENT' && m.fileUrl ? <View style={styles.documentCard}><Text style={styles.documentIcon}>📄</Text><Text style={styles.documentTitle}>{m.fileType ? `مستند ${m.fileType}` : 'مستند'}</Text><Text style={styles.documentHint}>اعرض الكتاب أو ملف PDF داخل التطبيق، أو افتحه بتطبيق خارجي.</Text><View style={styles.docBtns}><TouchableOpacity style={styles.docViewBtn} onPress={() => push && push('pdf', { url: m.fileUrl, title: m.title })} activeOpacity={0.88}><Text style={styles.docViewTxt}>عرض داخل التطبيق</Text></TouchableOpacity><TouchableOpacity style={styles.docOpenBtn} onPress={() => Linking.openURL(m.fileUrl).catch(() => Alert.alert('تعذّر فتح المستند', 'لم يتمكن الجهاز من فتح هذا الملف.'))} activeOpacity={0.88}><Text style={styles.docOpenTxt}>فتح خارجياً</Text></TouchableOpacity></View></View> : m.fileKind === 'AUDIO' && m.fileUrl ? (playingHere ? <FullAudioPlayer title={m.title} person={person} poster={m.coverImage} onStop={onStop} /> : <TouchableOpacity style={styles.playCard} onPress={() => onPlay(m)} activeOpacity={0.9}>{m.coverImage ? <Image source={{ uri: m.coverImage }} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}<View style={styles.playCardOverlay}><View style={styles.playCircle}><Text style={styles.playCircleIcon}>▶</Text></View><Text style={styles.playCardLabel}>استماع</Text><Text style={styles.playCardHint}>يستمر التشغيل أثناء تصفّح باقي الصفحات</Text></View></TouchableOpacity>) : null}<ReactionBar id={m.id} />{!!m.bodyText && <ArticleHtml html={m.bodyText} />}{!!m.description && <View style={styles.detailHead}><View style={{ flex: 1 }}><Text style={styles.desc}>{m.description}</Text></View></View>}<Downloads material={m} /><CommentsSection id={m.id} push={push} /></ScrollView>}</View>;
 }
 // Video playback via expo-video (expo-av was removed in SDK 54). Inline with
 // native controls plus a fullscreen button.
@@ -1471,10 +1646,10 @@ function Downloads({ material }) { const [busy, setBusy] = useState(''); const [
   const safe = material.title.replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, 40) || 'material'; const displayBase = `${safe} - أرشيف المسيد`; const filename = `${material.id}.${ext}`; const MIME = { pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', txt: 'text/plain', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', '3gp': 'video/3gpp', '3gpp': 'video/3gpp', avi: 'video/x-msvideo', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', amr: 'audio/amr', weba: 'audio/webm' }; async function ensureLocal(onProgress) { const dest = FileSystem.documentDirectory + filename; const info = await FileSystem.getInfoAsync(dest, { size: true }); if (info.exists && info.size > 0) return dest; if (material.fileUrl) { /* Download to a .part file and only move it into place once complete and HTTP-OK — an interrupted download (app closed, network drop) used to leave a truncated file that was then treated as complete forever, and an error page could be saved as the media. */ const part = dest + '.part'; await FileSystem.deleteAsync(part, { idempotent: true }); const task = FileSystem.createDownloadResumable(material.fileUrl, part, {}, (p) => { if (onProgress && p.totalBytesExpectedToWrite > 0) onProgress(Math.min(100, Math.round((p.totalBytesWritten / p.totalBytesExpectedToWrite) * 100))); }); let dl; try { dl = await task.downloadAsync(); } catch (e) { await FileSystem.deleteAsync(part, { idempotent: true }); throw e; } if (!dl || (dl.status && dl.status !== 200 && dl.status !== 206)) { await FileSystem.deleteAsync(part, { idempotent: true }); throw new Error('تعذّر تنزيل الملف من الخادم (' + (dl && dl.status) + ')'); } await FileSystem.deleteAsync(dest, { idempotent: true }); await FileSystem.moveAsync({ from: part, to: dest }); return dest; } await FileSystem.writeAsStringAsync(dest, material.bodyText || material.description || ''); return dest; } const saveInApp = async () => { try { setBusy('app'); setPct(0); const localPath = await ensureLocal(setPct); await addDownload({ id: material.id, title: material.title, subtitle: material.subtitle || null, person: material.category?.slug === 'readings' ? material.author || null : (material.performer || material.speaker || material.host || null), fileKind: material.fileKind || (material.bodyText ? 'ARTICLE' : 'AUDIO'), localPath, bodyText: material.bodyText || null }); Alert.alert('تم الحفظ', 'حُفظت المادة داخل التطبيق، وتظهر في «التنزيلات المحفوظة».'); } catch (e) { Alert.alert('تعذّر الحفظ', String(e.message || e)); } finally { setBusy(''); } }; /* Save a media file (audio/video/image) into the visible «أرشيف المسيد» album by
    STREAMING it natively — never read the whole file into a base64 string, which
    OOMs on large videos. The album shows up in the gallery and the file manager. */
-/* Save a document (pdf/doc/txt) to a user-chosen folder via SAF. Prefer a NATIVE
+const saveMediaToAlbum = async (uri) => { const asset = await MediaLibrary.createAssetAsync(uri); /* Without photo/video read access getAlbumAsync throws — fall through to createAlbumAsync, which reuses the existing folder. */ let existing = null; try { existing = await MediaLibrary.getAlbumAsync(DL_ALBUM); } catch {} try { if (existing) await MediaLibrary.addAssetsToAlbumAsync([asset], existing, false); else await MediaLibrary.createAlbumAsync(DL_ALBUM, asset, false); } catch {} return asset; }; /* Save a document (pdf/doc/txt) to a user-chosen folder via SAF. Prefer a NATIVE
    streaming copy into the created file (no base64 → large PDFs save with no
    out-of-memory). Only if the native copy isn't supported do we fall back to a
-   base64 write for smaller files, and finally to the share sheet. */ const saveDoc = async (uri) => { const SAF = FileSystem.StorageAccessFramework; if (Platform.OS === 'android' && SAF) { try { const perm = await SAF.requestDirectoryPermissionsAsync(); if (!perm.granted) return 'cancel'; { const target = await SAF.createFileAsync(perm.directoryUri, displayBase, MIME[ext] || 'application/octet-stream'); /* Native streamed copy: any size, low memory (expo-file-system can't stream into a picked folder). */ if (SafSave) { try { await SafSave.copyToUri(uri, target); return 'saf'; } catch {} } try { await FileSystem.copyAsync({ from: uri, to: target }); return 'saf'; } catch { let size = 0; try { const i = await FileSystem.getInfoAsync(uri, { size: true }); size = i.size || 0; } catch {} if (size > 0 && size < DL_BIG) { const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }); await FileSystem.writeAsStringAsync(target, b64, { encoding: FileSystem.EncodingType.Base64 }); return 'saf'; } try { await SAF.deleteAsync(target, { idempotent: true }); } catch {} } } } catch {} } if (await Sharing.isAvailableAsync()) { await Sharing.shareAsync(uri); return 'share'; } if (material.fileUrl) { Linking.openURL(material.fileUrl); return 'link'; } return false; }; const saveToDevice = async () => { try { setBusy('device'); setPct(0); /* Only images/videos go to the gallery album. Audio can't be added to the gallery on Android (createAssetAsync/saveToLibraryAsync throw for mp3), which used to drop to the share sheet — so audio (and documents) save to a folder via SAF instead. */ const isGalleryMedia = ['VIDEO', 'IMAGE'].includes(material.fileKind); const uri = await ensureLocal(setPct); let saveUri = uri; try { const pretty = FileSystem.cacheDirectory + `${displayBase}.${ext}`; await FileSystem.deleteAsync(pretty, { idempotent: true }); await FileSystem.copyAsync({ from: uri, to: pretty }); saveUri = pretty; } catch {} if (isGalleryMedia) { /* Into the gallery via MediaStore (native, streamed, any size) — needs NO media permission on Android 10+. Older phones / builds without the native module fall back to a picked folder below. */ let savedOk = false; if (SafSave?.saveToGallery) { for (const src of [saveUri, uri]) { try { await SafSave.saveToGallery(src, `${displayBase}.${ext}`, MIME[ext] || (material.fileKind === 'VIDEO' ? 'video/mp4' : 'image/jpeg'), DL_ALBUM); savedOk = true; break; } catch {} } } if (savedOk) { Alert.alert('تم التنزيل', `حُفظ الملف في جهازك (يظهر في المعرض/الموسيقى، ومجلد «${DL_ALBUM}»).`); } else { /* Gallery genuinely refused it — save to a folder via SAF (small files), else share. */ const r = await saveDoc(saveUri); if (r === 'saf') Alert.alert('تم التنزيل', 'حُفظ الملف في المجلد الذي اخترته.'); else if (r === 'share') Alert.alert('اختر مكان الحفظ', 'تعذّر الحفظ في المجلد مباشرةً — اختر «الملفات» (Files) من القائمة لحفظه في جهازك.'); else if (!r) Alert.alert('غير متاح', 'تعذّر حفظ هذا الملف على الجهاز.'); } } else { const r = await saveDoc(saveUri); if (r === 'saf') Alert.alert('تم التنزيل', 'حُفظ الملف في المجلد الذي اخترته.'); else if (r === 'share') Alert.alert('اختر مكان الحفظ', 'تعذّر الحفظ في المجلد مباشرةً — اختر «الملفات» (Files) من القائمة لحفظه في جهازك.'); else if (!r) Alert.alert('غير متاح', 'تعذّر حفظ هذا النوع على الجهاز.'); } } catch (e) { Alert.alert('تعذّر التنزيل', String(e.message || e)); } finally { setBusy(''); } }; const savePdf = async () => { try { setBusy('pdf'); const stamp = await getEmblemDataUri(); const person = material.author || material.performer || material.speaker || material.host || null; const html = buildArticlePdfHtml(material, stamp, person); const { uri } = await Print.printToFileAsync({ html }); const pretty = FileSystem.cacheDirectory + `${displayBase}.pdf`; await FileSystem.deleteAsync(pretty, { idempotent: true }); await FileSystem.copyAsync({ from: uri, to: pretty }); const SAF = FileSystem.StorageAccessFramework; if (Platform.OS === 'android' && SAF) { const perm = await SAF.requestDirectoryPermissionsAsync(); if (!perm.granted) return; { const target = await SAF.createFileAsync(perm.directoryUri, displayBase, 'application/pdf'); let copied = false; if (SafSave) { try { await SafSave.copyToUri(pretty, target); copied = true; } catch {} } if (!copied) try { await FileSystem.copyAsync({ from: pretty, to: target }); } catch { const b64 = await FileSystem.readAsStringAsync(pretty, { encoding: FileSystem.EncodingType.Base64 }); await FileSystem.writeAsStringAsync(target, b64, { encoding: FileSystem.EncodingType.Base64 }); } Alert.alert('تم التنزيل', 'حُفظ المقال كملف PDF في المجلد الذي اخترته.'); return; } } if (await Sharing.isAvailableAsync()) { await Sharing.shareAsync(pretty, { mimeType: 'application/pdf', dialogTitle: material.title }); } else { Alert.alert('غير متاح', 'تعذّر حفظ الملف على هذا الجهاز.'); } } catch (e) { Alert.alert('تعذّر إنشاء PDF', String(e.message || e)); } finally { setBusy(''); } };
+   base64 write for smaller files, and finally to the share sheet. */ const saveDoc = async (uri) => { const SAF = FileSystem.StorageAccessFramework; if (Platform.OS === 'android' && SAF) { try { const perm = await SAF.requestDirectoryPermissionsAsync(); if (!perm.granted) return 'cancel'; { const target = await SAF.createFileAsync(perm.directoryUri, displayBase, MIME[ext] || 'application/octet-stream'); /* Native streamed copy: any size, low memory (expo-file-system can't stream into a picked folder). */ if (SafSave) { try { await SafSave.copyToUri(uri, target); return 'saf'; } catch {} } try { await FileSystem.copyAsync({ from: uri, to: target }); return 'saf'; } catch { let size = 0; try { const i = await FileSystem.getInfoAsync(uri, { size: true }); size = i.size || 0; } catch {} if (size > 0 && size < DL_BIG) { const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }); await FileSystem.writeAsStringAsync(target, b64, { encoding: FileSystem.EncodingType.Base64 }); return 'saf'; } try { await SAF.deleteAsync(target, { idempotent: true }); } catch {} } } } catch {} } if (await Sharing.isAvailableAsync()) { await Sharing.shareAsync(uri); return 'share'; } if (material.fileUrl) { Linking.openURL(material.fileUrl); return 'link'; } return false; }; const saveToDevice = async () => { try { setBusy('device'); setPct(0); /* Only images/videos go to the gallery album. Audio can't be added to the gallery on Android (createAssetAsync/saveToLibraryAsync throw for mp3), which used to drop to the share sheet — so audio (and documents) save to a folder via SAF instead. */ const isGalleryMedia = ['VIDEO', 'IMAGE'].includes(material.fileKind); const uri = await ensureLocal(setPct); let saveUri = uri; try { const pretty = FileSystem.cacheDirectory + `${displayBase}.${ext}`; await FileSystem.deleteAsync(pretty, { idempotent: true }); await FileSystem.copyAsync({ from: uri, to: pretty }); saveUri = pretty; } catch {} if (isGalleryMedia) { /* Write-only: saving our own downloads needs no read access (none at all on Android 13+), and Play forbids READ_MEDIA_IMAGES/VIDEO for this app. */ const perm = await MediaLibrary.requestPermissionsAsync(true); if (!perm.granted) { Alert.alert('الإذن مطلوب', 'فعّل إذن الوسائط من إعدادات التطبيق لحفظ الملف في جهازك.'); return; } /* Save into the gallery natively (streams — handles any size with no OOM). Try the nicely-named copy first, then the original ASCII-named download: some devices reject the Arabic-named cache copy for VIDEO (images tolerate it), which used to drop the download to the share sheet. */ let savedOk = false; for (const src of [saveUri, uri]) { try { await saveMediaToAlbum(src); savedOk = true; break; } catch {} try { await MediaLibrary.saveToLibraryAsync(src); savedOk = true; break; } catch {} } if (savedOk) { Alert.alert('تم التنزيل', `حُفظ الملف في جهازك (يظهر في المعرض/الموسيقى، ومجلد «${DL_ALBUM}»).`); } else { /* Gallery genuinely refused it — save to a folder via SAF (small files), else share. */ const r = await saveDoc(saveUri); if (r === 'saf') Alert.alert('تم التنزيل', 'حُفظ الملف في المجلد الذي اخترته.'); else if (r === 'share') Alert.alert('اختر مكان الحفظ', 'تعذّر الحفظ في المجلد مباشرةً — اختر «الملفات» (Files) من القائمة لحفظه في جهازك.'); else if (!r) Alert.alert('غير متاح', 'تعذّر حفظ هذا الملف على الجهاز.'); } } else { const r = await saveDoc(saveUri); if (r === 'saf') Alert.alert('تم التنزيل', 'حُفظ الملف في المجلد الذي اخترته.'); else if (r === 'share') Alert.alert('اختر مكان الحفظ', 'تعذّر الحفظ في المجلد مباشرةً — اختر «الملفات» (Files) من القائمة لحفظه في جهازك.'); else if (!r) Alert.alert('غير متاح', 'تعذّر حفظ هذا النوع على الجهاز.'); } } catch (e) { Alert.alert('تعذّر التنزيل', String(e.message || e)); } finally { setBusy(''); } }; const savePdf = async () => { try { setBusy('pdf'); const stamp = await getEmblemDataUri(); const person = material.author || material.performer || material.speaker || material.host || null; const html = buildArticlePdfHtml(material, stamp, person); const { uri } = await Print.printToFileAsync({ html }); const pretty = FileSystem.cacheDirectory + `${displayBase}.pdf`; await FileSystem.deleteAsync(pretty, { idempotent: true }); await FileSystem.copyAsync({ from: uri, to: pretty }); const SAF = FileSystem.StorageAccessFramework; if (Platform.OS === 'android' && SAF) { const perm = await SAF.requestDirectoryPermissionsAsync(); if (!perm.granted) return; { const target = await SAF.createFileAsync(perm.directoryUri, displayBase, 'application/pdf'); let copied = false; if (SafSave) { try { await SafSave.copyToUri(pretty, target); copied = true; } catch {} } if (!copied) try { await FileSystem.copyAsync({ from: pretty, to: target }); } catch { const b64 = await FileSystem.readAsStringAsync(pretty, { encoding: FileSystem.EncodingType.Base64 }); await FileSystem.writeAsStringAsync(target, b64, { encoding: FileSystem.EncodingType.Base64 }); } Alert.alert('تم التنزيل', 'حُفظ المقال كملف PDF في المجلد الذي اخترته.'); return; } } if (await Sharing.isAvailableAsync()) { await Sharing.shareAsync(pretty, { mimeType: 'application/pdf', dialogTitle: material.title }); } else { Alert.alert('غير متاح', 'تعذّر حفظ الملف على هذا الجهاز.'); } } catch (e) { Alert.alert('تعذّر إنشاء PDF', String(e.message || e)); } finally { setBusy(''); } };
  const shareLink = async () => { try { await Share.share({ message: `${material.title}\n${API_BASE}/material/${material.id}?s=1` }); } catch {} }; if (!material.fileUrl && !material.bodyText) return null; return <View><FirstUseCue flag="cue-download" label="احفظ داخل التطبيق أو نزّله لجهازك" placement="above"><View style={styles.downloads}><TouchableOpacity style={styles.dlBtn} onPress={saveInApp} disabled={!!busy}><Text style={styles.dlTxt}>{busy === 'app' ? `${pct}%` : 'حفظ داخل التطبيق'}</Text></TouchableOpacity><TouchableOpacity style={[styles.dlBtn, styles.dlBtnAlt]} onPress={saveToDevice} disabled={!!busy}><Text style={[styles.dlTxt, { color: C.brand }]}>{busy === 'device' ? `${pct}%` : 'تنزيل إلى الجهاز'}</Text></TouchableOpacity></View></FirstUseCue>{!material.fileUrl && !!material.bodyText && <TouchableOpacity style={[styles.dlBtn, styles.dlBtnAlt, { marginTop: 8 }]} onPress={savePdf} disabled={!!busy} activeOpacity={0.85}><Text style={[styles.dlTxt, { color: C.brand }]}>{busy === 'pdf' ? 'جارٍ إنشاء PDF…' : 'تنزيل المقال PDF (بالختم)'}</Text></TouchableOpacity>}<TouchableOpacity style={styles.shareBtn} onPress={shareLink} activeOpacity={0.85}><Ionicons name="share-social" size={18} color={C.brand} /><Text style={styles.shareTxt}>مشاركة الرابط</Text></TouchableOpacity></View>; }
 function Library({ push, onBack }) { const [items, setItems] = useState(null); const reload = useCallback(() => { getDownloads().then(setItems); }, []); useEffect(reload, [reload]); const del = (id) => Alert.alert('حذف', 'حذف هذه المادة من التنزيلات؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: async () => setItems(await removeDownload(id)) }]); return <View style={{ flex: 1 }}><Header title="التنزيلات المحفوظة" onBack={onBack} />{!items ? <Loader /> : items.length === 0 ? <View style={styles.center}><Text style={styles.empty}>لا توجد تنزيلات محفوظة بعد.</Text><Text style={{ color: C.muted, textAlign: 'center', marginTop: 6 }}>احفظ أي مادة عبر «حفظ داخل التطبيق» لتظهر هنا وتُشغَّل دون اتصال.</Text></View> : <ScrollView contentContainerStyle={{ padding: 12 }}>{items.map((it) => <View key={it.id} style={styles.feedCard}><TouchableOpacity style={[styles.thumb, { width: 64, height: 64 }]} onPress={() => push('offline', { item: it })}><KindIcon kind={it.fileKind} size={26} /></TouchableOpacity><TouchableOpacity style={{ flex: 1 }} onPress={() => push('offline', { item: it })}><Text style={styles.feedTitle} numberOfLines={2}>{it.title}</Text><Text style={styles.feedPerson} numberOfLines={1}>{(it.person || '') + '  ·  ' + (KIND_LABEL[it.fileKind] || 'مقال')}</Text></TouchableOpacity><TouchableOpacity onPress={() => del(it.id)} style={{ padding: 6 }}><Text style={{ color: C.danger, fontSize: 18 }}>✕</Text></TouchableOpacity></View>)}</ScrollView>}</View>; }
 function OfflineVideo({ uri }) {

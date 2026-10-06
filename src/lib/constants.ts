@@ -263,6 +263,16 @@ export const ANDROID_APP = {
   published: process.env.NEXT_PUBLIC_ANDROID_PUBLISHED === '1',
 } as const;
 
+// Other apps of the طريقة on Google Play, shown under the main app on the home
+// page (and in the footer) so visitors can find and install them.
+export const OTHER_APPS = [
+  {
+    name: 'أوراد الطريقة السمّانية',
+    description: 'أوراد الطريقة وأذكارها في تطبيق مستقل على هاتفك.',
+    playUrl: 'https://play.google.com/store/apps/details?id=com.sammaniyya.awrad',
+  },
+] as const;
+
 // ---------------------------------------------------------------------------
 // Collective deletion (reviewers vote to delete a published material)
 // ---------------------------------------------------------------------------

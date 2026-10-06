@@ -191,6 +191,27 @@ export const api = {
     } catch {}
   },
 
+  // Like / dislike + view count for one material. Never cached — the numbers
+  // must reflect the tap the user just made.
+  reactions: (id, device) => j(`/api/mobile/materials/${id}/reactions?device=${encodeURIComponent(device)}`),
+  react: (id, device, value) =>
+    j(`/api/mobile/materials/${id}/reactions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device, value }),
+    }),
+
+  // Comments (+ one level of replies). Reading is public; posting needs sign-in.
+  comments: (id) => j(`/api/mobile/materials/${id}/comments`),
+  postComment: (token, id, body, parentId) =>
+    j(`/api/mobile/materials/${id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ body, parentId: parentId || undefined }),
+    }),
+  deleteComment: (token, commentId) =>
+    j(`/api/mobile/comments/${commentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
+
   // Category form definitions (same source of truth as the website form), used
   // by the native share-to-app submit screen so its fields always match.
   fields: () => getCached('/api/mobile/fields', () => j('/api/mobile/fields')),
