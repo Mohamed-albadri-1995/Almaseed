@@ -326,46 +326,28 @@ export default async function MaterialPage({
             </section>
           )}
 
-          {/* Automatic transcript of the recording (every section). Clearly and
-              prominently labelled as machine-made — never presented as a text of record. */}
+          {/* Automatic transcript of the recording (every section). Machine-made and
+              unreviewed, so it is CLOSED by default: visitors see only a small bar
+              they can open. The text is still in the page itself (inside <details>),
+              which search engines read — the same content for people and Google. */}
           {material.transcript && (() => {
-            // The opening paragraphs are shown as normal page text (read by
-            // visitors and search engines alike); the rest folds away.
-            const paras = material.transcript.split(/\n{2,}/);
-            let len = 0; let cut = 0;
-            while (cut < paras.length && len < 700) { len += paras[cut].length; cut++; }
-            const lead = paras.slice(0, cut).join('\n\n');
-            const rest = paras.slice(cut).join('\n\n');
             const sung = material.category?.slug === 'madeeh';
             return (
-              <section className="mt-10 overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-black/5">
-                <div className="flex flex-wrap items-center gap-2 border-b border-ivory-200 bg-brand-800 px-6 py-4 text-ivory-50">
-                  <Icon.file width={18} height={18} className="text-gold-300" />
-                  <h2 className="font-display text-lg font-bold">النص المفرّغ: {material.title}</h2>
-                  <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-xs font-bold text-brand-900">تفريغ آلي — غير مُراجَع</span>
+              <details className="group mt-10 overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5">
+                <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-3 text-sm text-brand-800 hover:bg-ivory-50">
+                  <Icon.file width={16} height={16} className="shrink-0 text-gold-600" />
+                  <h2 className="font-bold">النص المفرّغ آليًا</h2>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">غير دقيق — غير مُراجَع</span>
+                  <span className="ms-auto text-xs text-muted group-open:hidden">عرض ▾</span>
+                  <span className="ms-auto hidden text-xs text-muted group-open:inline">إخفاء ▴</span>
+                </summary>
+                <div className="border-t border-ivory-200 px-5 py-5 sm:px-8">
+                  <p role="note" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-900">
+                    ⚠️ كتبه برنامج آلي من الصوت ولم يراجعه أحد{sung ? '، والأخطاء في المديح أكثر لأن الكلام مُلحَّن' : ''}. لا يُنقل عنه ولا يُستشهد به — المرجع هو التسجيل نفسه.
+                  </p>
+                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{material.transcript}</div>
                 </div>
-                <div className="px-6 py-6 sm:px-10">
-                  <div role="note" className="mb-5 flex gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
-                    <span aria-hidden className="text-xl leading-none">⚠️</span>
-                    <p>
-                      <b>تنبيه: هذا النص كتبه برنامج آلي من الصوت، ولم يراجعه أحد.</b>{' '}
-                      {sung
-                        ? 'في المديح والإنشاد تكثر الأخطاء لأن الكلام مُلحَّن، فقد تأتي أبيات ناقصة أو كلمات خاطئة.'
-                        : 'قد يحتوي على أخطاء في الكلمات والأسماء والآيات والأحاديث.'}{' '}
-                      لا يُنقل عنه ولا يُستشهد به — المرجع هو التسجيل نفسه.
-                    </p>
-                  </div>
-                  <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{lead}</div>
-                  {rest && (
-                    <details className="group mt-2">
-                      <summary className="cursor-pointer list-none py-2 text-sm font-semibold text-brand-700 hover:underline group-open:hidden">
-                        عرض النص كاملًا ▾
-                      </summary>
-                      <div className="whitespace-pre-line text-[15px] leading-8 text-ink/90">{rest}</div>
-                    </details>
-                  )}
-                </div>
-              </section>
+              </details>
             );
           })()}
 
